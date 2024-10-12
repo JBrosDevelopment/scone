@@ -2,7 +2,7 @@
 
 I'm developing a programming language. This is what I want the code to look like:
 
-```rs
+```c
 trait Comparable<T> -> "Objects that can be compared to using comparative operators" {
     static bool: operator_gt(T: l, T: r) -> "Greater than operator";
     static bool: operator_gteq(T: l, T: r) -> "Greater than or equal to operator";
