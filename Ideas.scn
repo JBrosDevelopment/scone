@@ -15,7 +15,7 @@ trait Mathematical<T> -> "Objects that can be modified using mathematical operat
     static T: operator_inc(T: v) -> "Increment operator";
     static T: operator_dec(T: v) -> "Decrement operator";
 }
-trait Numerable<T where is Comparable and Mathematical> -> "Objects that are numerable and can have compared and mathematical operations" {
+trait Numerable<T is Comparable and Mathematical> -> "Objects that are numerable and can have compared and mathematical operations" {
     T: Value -> "Single value of the object";
     static T: default() -> "Default Value";
 }
