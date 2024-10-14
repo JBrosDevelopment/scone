@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use crate::lexer::{Location, Token, TokenType};
+use crate::lexer::Token;
 
 pub type AnonymousTypeParameter = (String, Vec<String>);
 pub type Tuple = Vec<TupleNode>;

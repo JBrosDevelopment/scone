@@ -11,7 +11,7 @@ fn main() {
     std::fs::write("src/lexer.json", json).unwrap();
 
     // parser
-
+    
 
 }
 
