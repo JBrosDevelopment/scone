@@ -1,0 +1,62 @@
+[
+  {
+    "token_type": "NumberConstant",
+    "value": "123",
+    "meta": "",
+    "location": {
+      "line": 1,
+      "column": 1,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "NumberConstant",
+    "value": "456",
+    "meta": "",
+    "location": {
+      "line": 4,
+      "column": 8,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": "\n",
+    "meta": "",
+    "location": {
+      "line": 4,
+      "column": 11,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "priont",
+    "meta": "",
+    "location": {
+      "line": 5,
+      "column": 1,
+      "length": 6
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "hello",
+    "meta": "",
+    "location": {
+      "line": 5,
+      "column": 8,
+      "length": 5
+    }
+  },
+  {
+    "token_type": "NumberConstant",
+    "value": "4",
+    "meta": "",
+    "location": {
+      "line": 5,
+      "column": 14,
+      "length": 1
+    }
+  }
+]
