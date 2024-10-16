@@ -1,5 +1,6 @@
 mod lexer;
 mod ast;
+mod parser;
 
 fn main() {
     // lexer
@@ -12,6 +13,9 @@ fn main() {
 
     // parser
     
+    let ast = parser::generate_ast(tokens).unwrap();
 
+    let fmt_json = format!("{:#?}", ast);
+    std::fs::write("src/parser.json", fmt_json).unwrap();
 }
 

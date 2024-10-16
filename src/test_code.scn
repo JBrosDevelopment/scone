@@ -1,11 +1,1 @@
-// Declare a variable of type i32
-i32 number: number = 100;
-
-// Declare another variable
-i32 increment: number = 20;
-
-// Perform an addition operation
-i32 result: number = number + increment;
-
-// Print the result to the console
-print($"result: '{number}' Explanation: 100 + 20 = 120");
+i32: value = 100 * function() * big_function<Type, (Tuple1<Type>, Tuple2)>(0, (55 * 23), "Hello" + "world")

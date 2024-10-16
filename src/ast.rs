@@ -1,10 +1,10 @@
 use std::fmt::Debug;
 use crate::lexer::Token;
 
-pub type AnonymousTypeParameter = (String, Vec<String>);
+pub type AnonymousTypeParameter = (String, Vec<Type>);
 pub type Tuple = Vec<TupleNode>;
 pub type EnumIndex = (String, i32);
-pub type Type = (Option<String>, Vec<Tuple>);
+pub type Type = (Option<String>, Option<Vec<Tuple>>);
 
 #[derive(Clone, Debug)] pub enum AccessModifier { Private, Public, Internal, None }
 #[derive(Clone, Debug)] pub enum VariableModifier { Const, Static, None }
@@ -20,7 +20,7 @@ pub struct ObjectPath {
 #[derive(Clone, Debug)]
 pub struct InterfaceNode {
     pub path: ObjectPath,
-    pub argument_types: Vec<String>
+    pub argument_types: Vec<Type>
 }
 
 #[derive(Clone, Debug)]
@@ -67,7 +67,7 @@ impl ASTNode for ASTNodeExpression {
 #[derive(Clone, Debug)]
 pub struct ASTNodeFunctionCall {
     pub token: Token,
-    pub argumments: Vec<Option<Box<dyn ASTNode>>>,
+    pub argumments: Vec<Box<dyn ASTNode>>,
     pub path: ObjectPath,
     pub type_parameters: Option<Vec<AnonymousTypeParameter>>,
 }

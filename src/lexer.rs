@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum TokenType {
     // operators
     Plus,
@@ -69,6 +69,35 @@ pub enum TokenType {
     // other
     Identifier,
     EndOfLine,
+}
+impl TokenType {
+    pub fn is_operator(value: &Self) -> bool {
+        match value {
+            TokenType::Plus => true,
+            TokenType::Minus => true,
+            TokenType::Star => true,
+            TokenType::Slash => true,
+            TokenType::BitwiseOr => true,
+            TokenType::BitwiseXor => true,
+            TokenType::BitwiseAnd => true,
+            TokenType::BitwiseNot => true,
+            TokenType::BitwiseShiftLeft => true,
+            TokenType::BitwiseShiftRight => true,
+            TokenType::Modulus => true,
+            TokenType::Increment => true,
+            TokenType::Decrement => true,
+            TokenType::Equal => true,
+            TokenType::NotEqual => true,
+            TokenType::GreaterThan => true,
+            TokenType::GreaterThanOrEqual => true,
+            TokenType::LessThan => true,
+            TokenType::LessThanOrEqual => true,
+            TokenType::Assign => true,
+            TokenType::And => true,
+            TokenType::Or => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -287,7 +316,7 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
                     chars.next();
                 }
             }
-            if chars.peek() == Some(&'*') {
+            else if chars.peek() == Some(&'*') {
                 chars.next();
                 let mut is_star = false;
                 let mut lines = 0;
