@@ -123,11 +123,21 @@ fn parse_value_expression(line: Vec<Token>, i: usize) -> Result<(Option<Box<dyn 
                 last_was_value = true;
             }
             TokenType::Identifier => {
-                if let Some(this_token) = tokens.peek() {
+                if let Some(this_token) = tokens.next() {
                     let tt = this_token.clone();
-                    if let Some(next_token) = tokens.next() {
+                    if let Some(next_token) = tokens.peek() {
+                        println!("{}", next_token.value);
                         if next_token.token_type == TokenType::LParen || next_token.token_type == TokenType::LessThan {
-                            expr_stack.push(parse_function_call(tokens.clone())?);
+                            if let Ok(return_function) = parse_function_call(tokens.clone()) {
+                                expr_stack.push(return_function.0);
+
+                                for _ in 0..return_function.1 {
+                                    tokens.next();
+                                }
+                            }
+                            else {
+                                return Err("Could not parse function call".to_string());
+                            }
                         }
                         else {
                             expr_stack.push(Box::new(ASTNodeExpression { token: tt, lhs: None, rhs: None }));
@@ -209,7 +219,7 @@ fn parse_value_expression(line: Vec<Token>, i: usize) -> Result<(Option<Box<dyn 
                     last_was_value = false;
                 }
                 else {
-                    return Err("Could not parse expression".to_string())
+                    return Err(format!("Could not parse expression. Unexpected token: {}", token.value));
                 }
             }
         }
@@ -236,48 +246,91 @@ fn parse_value_expression(line: Vec<Token>, i: usize) -> Result<(Option<Box<dyn 
     Ok((Some(returns), return_description))
 }
 
-fn parse_function_call(mut tokens: Peekable<Skip<std::vec::IntoIter<Token>>>) -> Result<Box<dyn ASTNode>, String> {
+fn parse_function_call(mut tokens: Peekable<Skip<std::vec::IntoIter<Token>>>) -> Result<(Box<dyn ASTNode>, i32), String> {
+    let mut skipped = 0;
     let mut types: Vec<AnonymousTypeParameter> = Vec::new();
     let mut args: Vec<Box<dyn ASTNode>> = Vec::new();
-    let mut type_tokens = Vec::new();
-    let mut arg_tokens = Vec::new();
-    let mut is_inside_anonymous = false;
+    let mut type_tokens = vec![Vec::new()];
+    let mut arg_tokens = vec![Vec::new()];
+    let mut types_has_started = false;
     let mut args_has_started = false;
     let mut has_started = false;
     let mut parenthesis_count = 0;
     let mut chevron_count = 0;
     let mut comma_count = 0;
     while let Some(token) = tokens.next() {
+        skipped += 1;
         match token.token_type {
             TokenType::LessThan => {
                 if !args_has_started {
                     if !has_started {
                         has_started = true;
                     }
-                    is_inside_anonymous = true;
+                    else {
+                        type_tokens[comma_count].push(token);
+                    }
+                    types_has_started = true;
                     chevron_count += 1;
+                }
+            }
+            TokenType::Comma => {
+                if types_has_started {
+                    if parenthesis_count == 0 {
+                        type_tokens.push(vec![]);
+                        comma_count += 1;
+                    }
+                    else {
+                        type_tokens[comma_count].push(token);
+                    }
+                }
+                else if args_has_started { 
+                    if parenthesis_count == 1 {
+                        arg_tokens.push(vec![]);
+                        comma_count += 1;
+                    }
+                    else {
+                        type_tokens[comma_count].push(token);
+                    }
+                }
+                else {
+                    return Err("Could not parse function call. Invalid comma".to_string());
                 }
             }
             TokenType::GreaterThan => {
                 if !args_has_started {
                     chevron_count -= 1;
                     if chevron_count == 0 {
-                        is_inside_anonymous = false;
+                        types_has_started = false;
                         has_started = false;
                         comma_count = 0;
+                        parenthesis_count = 0;
+                    }
+                    else {
+                        type_tokens[comma_count].push(token);
                     }
                 }
             }
-            TokenType::Comma => {
-                comma_count += 1;
-            }
             TokenType::LParen => {
-                if !is_inside_anonymous {
+                if !types_has_started {
                     if !args_has_started {
                         args_has_started = true;
                     }
+                    else {
+                        arg_tokens[comma_count].push(token);
+                    }
                     args_has_started = true;
                     parenthesis_count += 1;
+                }
+                else {
+                    if types_has_started {
+                        type_tokens[comma_count].push(token);
+                    }
+                    else if args_has_started { 
+                        arg_tokens[comma_count].push(token);
+                    }
+                    else {
+                        return Err("Could not parse function call. Invalid comma".to_string());
+                    }
                 }
             }
             TokenType::RParen => {
@@ -286,17 +339,30 @@ fn parse_function_call(mut tokens: Peekable<Skip<std::vec::IntoIter<Token>>>) ->
                     if parenthesis_count == 0 {
                         args_has_started = false;
                         has_started = false;
-                        comma_count = 0;
                         break;
+                    }
+                    else {
+                        arg_tokens[comma_count].push(token);
+                    }
+                }
+                else {
+                    if types_has_started {
+                        type_tokens[comma_count].push(token);
+                    }
+                    else if args_has_started { 
+                        arg_tokens[comma_count].push(token);
+                    }
+                    else {
+                        return Err("Could not parse function call. Invalid comma".to_string());
                     }
                 }
             }
             _ => {
                 if args_has_started {
-                    arg_tokens.push(token);
+                    arg_tokens[comma_count].push(token);
                 }
-                else if is_inside_anonymous {
-                    type_tokens.push(token);
+                else if types_has_started {
+                    type_tokens[comma_count].push(token);
                 }
                 else {
                     return Err("Could not parse function call. Unexpected token".to_string());
@@ -304,5 +370,7 @@ fn parse_function_call(mut tokens: Peekable<Skip<std::vec::IntoIter<Token>>>) ->
             }
         }
     }
-    return Ok();
+    println!("types: {:?}", type_tokens.iter().map(|x| x.iter().map(|y| y.value.clone()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>());
+    println!("args: {:?}", arg_tokens.iter().map(|x| x.iter().map(|y| y.value.clone()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>());
+    return Ok((Box::new(ASTNodeConstant { token: Token::new(TokenType::NumberConstant, "0".to_string(), String::new(), Location::new(0, 0, 0)) }), skipped));
 }

@@ -455,7 +455,6 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             else {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::LessThan, "<".to_string(), String::new(), current_location.clone()));
-                chars.next();
             }
         }
         else if *c == '!' {

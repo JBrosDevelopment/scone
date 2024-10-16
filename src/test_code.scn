@@ -1,1 +1,1 @@
-i32: value = 100 * function() * big_function<Type, (Tuple1<Type>, Tuple2)>(0, (55 * 23), "Hello" + "world")
+i32: value = 100 * function() * big_function<Type, (Tuple1<Type>, Tuple2)>(0, (55 * 23), [1, 2, 3], "Hello" + "world")
