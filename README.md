@@ -3,7 +3,7 @@
 I'm developing a programming language. This is what I want the code to look like:
 
 ```c
-trait Comparable<T> -> "Objects that can be compared to using comparative operators" {
+interface Comparable<T> -> "Objects that can be compared to using comparative operators" {
     static bool: operator_gt(T: l, T: r) -> "Greater than operator";
     static bool: operator_gteq(T: l, T: r) -> "Greater than or equal to operator";
     static bool: operator_lt(T: l, T: r) -> "Less than operator";
@@ -11,7 +11,7 @@ trait Comparable<T> -> "Objects that can be compared to using comparative operat
     static bool: operator_eq(T: l, T: r) -> "Equal operator";
     static bool: operator_neq(T: l, T: r) -> "Not Equal operator";
 }
-trait Mathematical<T> -> "Objects that can be modified using mathematical operators" {
+interface Mathematical<T> -> "Objects that can be modified using mathematical operators" {
     static T: operator_add(T: l, T: r) -> "Addition operator";
     static T: operator_sub(T: l, T: r) -> "Subtraction operator";
     static T: operator_mul(T: l, T: r) -> "Multiplication operator";
@@ -20,11 +20,11 @@ trait Mathematical<T> -> "Objects that can be modified using mathematical operat
     static T: operator_inc(T: v) -> "Increment operator";
     static T: operator_dec(T: v) -> "Decrement operator";
 }
-trait Numerable<T where T is Comparable && T is Mathematical> -> "Objects that are numerable and can have compared and mathematical operations" {
+interface Numerable<T where T is Comparable && T is Mathematical> -> "Objects that are numerable and can have compared and mathematical operations" {
     T: Value -> "Single value of the object";
     static T: default() -> "Default Value";
 }
-trait ToString -> "Ability to convert object to string form" {
+interface ToString -> "Ability to convert object to string form" {
     string: to_string() -> "convert object to string";
 }
 
