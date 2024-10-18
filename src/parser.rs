@@ -64,7 +64,7 @@ pub fn declare_variable_or_function(line: Vec<Token>, mut i: usize, options: (Op
                 variable_modifier
             };
             
-            println!("{:?}", var_declaration);
+            //println!("{:?}", var_declaration);
             return Ok(Box::new(var_declaration));
         }
         else if line[i + 3].token_type == TokenType::LParen {
@@ -256,6 +256,8 @@ fn parse_function_call(mut tokens: Peekable<Skip<std::vec::IntoIter<Token>>>) ->
     let mut args_has_started = false;
     let mut has_started = false;
     let mut parenthesis_count = 0;
+    let mut bracket_count = 0;
+    let mut brace_count = 0;
     let mut chevron_count = 0;
     let mut comma_count = 0;
     while let Some(token) = tokens.next() {
@@ -271,6 +273,20 @@ fn parse_function_call(mut tokens: Peekable<Skip<std::vec::IntoIter<Token>>>) ->
                     }
                     types_has_started = true;
                     chevron_count += 1;
+                }
+            }
+            TokenType::GreaterThan => {
+                if !args_has_started {
+                    chevron_count -= 1;
+                    if chevron_count == 0 {
+                        types_has_started = false;
+                        has_started = false;
+                        comma_count = 0;
+                        parenthesis_count = 0;
+                    }
+                    else {
+                        type_tokens[comma_count].push(token);
+                    }
                 }
             }
             TokenType::Comma => {
@@ -296,18 +312,22 @@ fn parse_function_call(mut tokens: Peekable<Skip<std::vec::IntoIter<Token>>>) ->
                     return Err("Could not parse function call. Invalid comma".to_string());
                 }
             }
-            TokenType::GreaterThan => {
-                if !args_has_started {
-                    chevron_count -= 1;
-                    if chevron_count == 0 {
-                        types_has_started = false;
-                        has_started = false;
-                        comma_count = 0;
-                        parenthesis_count = 0;
-                    }
-                    else {
-                        type_tokens[comma_count].push(token);
-                    }
+            TokenType::LBrace | TokenType::LBracket | TokenType::RBrace | TokenType::RBracket => {
+                match token.token_type {
+                    TokenType::LBrace => brace_count += 1,
+                    TokenType::LBracket => bracket_count += 1,
+                    TokenType::RBrace => brace_count -= 1,
+                    TokenType::RBracket => bracket_count -= 1,
+                    _ => {}
+                }
+                if types_has_started {
+                    type_tokens[comma_count].push(token);
+                }
+                else if args_has_started { 
+                    arg_tokens[comma_count].push(token);
+                }
+                else {
+                    return Err("Could not parse function call. Invalid brace or bracket".to_string());
                 }
             }
             TokenType::LParen => {
@@ -329,7 +349,7 @@ fn parse_function_call(mut tokens: Peekable<Skip<std::vec::IntoIter<Token>>>) ->
                         arg_tokens[comma_count].push(token);
                     }
                     else {
-                        return Err("Could not parse function call. Invalid comma".to_string());
+                        return Err("Could not parse function call. Invalid parenthesis".to_string());
                     }
                 }
             }
@@ -353,7 +373,7 @@ fn parse_function_call(mut tokens: Peekable<Skip<std::vec::IntoIter<Token>>>) ->
                         arg_tokens[comma_count].push(token);
                     }
                     else {
-                        return Err("Could not parse function call. Invalid comma".to_string());
+                        return Err("Could not parse function call. Invalid parenthesis".to_string());
                     }
                 }
             }
