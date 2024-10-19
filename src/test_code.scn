@@ -1,1 +1,4 @@
-i32: value = 100 * function() * big_function<Type, (Tuple1<Type>, Tuple2)>(0, (55 * 23), [1, 2, 3], "Hello" + "world")
+i32: add() -> "add two numbers together";
+T: concat<T>(T: a, T: b) -> "concat two objects together";
+
+string: name = concat<string>(add(5 + 2).to_str(), "urm, watda sigma");

@@ -1,15 +1,20 @@
 use std::fmt::Debug;
 use crate::lexer::Token;
 
-pub type AnonymousTypeParameter = (String, Vec<Type>);
 pub type Tuple = Vec<TupleNode>;
 pub type EnumIndex = (String, i32);
-pub type Type = (Option<String>, Option<Vec<Tuple>>);
+pub type Type = (Option<AnonymousTypeParameter>, Option<Vec<Tuple>>);
 
 #[derive(Clone, Debug)] pub enum AccessModifier { Private, Public, Internal, None }
 #[derive(Clone, Debug)] pub enum VariableModifier { Const, Static, None }
 #[derive(Clone, Debug)] pub enum StatementType { If, Else, ElseIf, While, For }
 
+
+#[derive(Clone, Debug)]
+pub struct AnonymousTypeParameter {
+    pub type_simple: Token,
+    pub type_complex: Option<Vec<AnonymousTypeParameter>>
+}
 
 #[derive(Clone, Debug)]
 pub struct ObjectPath {
@@ -25,8 +30,8 @@ pub struct InterfaceNode {
 
 #[derive(Clone, Debug)]
 pub struct TupleNode {
-    pub name: String,
-    pub children: Option<Vec<Box<TupleNode>>>
+    pub name: AnonymousTypeParameter,
+    pub children: Option<Vec<TupleNode>>
 }
 
 pub trait ASTNode: Debug {
@@ -69,7 +74,7 @@ pub struct ASTNodeFunctionCall {
     pub token: Token,
     pub argumments: Vec<Box<dyn ASTNode>>,
     pub path: ObjectPath,
-    pub type_parameters: Option<Vec<AnonymousTypeParameter>>,
+    pub type_parameters: Option<Vec<Type>>,
 }
 impl ASTNode for ASTNodeFunctionCall {
     fn get_meta(&self) -> String { self.token.meta.clone() }
@@ -149,7 +154,7 @@ impl ASTNode for ASTNodeControl {
 pub struct ASTNodeClassDeclaration {
     pub token: Token,
     pub name: String,
-    pub type_parameters: Option<Vec<AnonymousTypeParameter>>,
+    pub type_parameters: Option<Vec<Type>>,
     pub interfaces: Vec<InterfaceNode>,
     pub description: Option<String>,
     pub access_modifier: AccessModifier,
@@ -166,7 +171,7 @@ impl ASTNode for ASTNodeClassDeclaration {
 pub struct ASTNodeStructDeclaration {
     pub token: Token,
     pub name: String,
-    pub type_parameters: Option<Vec<AnonymousTypeParameter>>,
+    pub type_parameters: Option<Vec<Type>>,
     pub description: Option<String>,
     pub access_modifier: AccessModifier,
     pub body: Vec<Box<dyn ASTNode>>,
@@ -199,13 +204,12 @@ impl ASTNode for ASTNodeInterfaceDeclaration {
 pub struct ASTNodeFunctionDeclaration {
     pub token: Token,
     pub name: String,
-    pub type_parameters: Option<Vec<AnonymousTypeParameter>>,
-    pub arguments: Vec<ASTNodeUndefinedVariable>,
+    pub type_parameters: Option<Vec<Type>>,
+    pub parameters: Vec<ASTNodeUndefinedVariable>,
     pub description: Option<String>,
     pub access_modifier: AccessModifier,
-    pub return_type: Option<Tuple>,
     pub type_identifier: Type,
-    pub body: Vec<Box<dyn ASTNode>>,
+    pub body: Option<Vec<Box<dyn ASTNode>>>,
 }
 impl ASTNode for ASTNodeFunctionDeclaration {
     fn get_meta(&self) -> String { self.token.meta.clone() }
@@ -232,7 +236,7 @@ impl ASTNode for ASTNodeStatement {
 pub struct ASTNodeObjectCreation {
     pub token: Token,
     pub name: String,
-    pub type_parameters: Option<Vec<AnonymousTypeParameter>>,
+    pub type_parameters: Option<Vec<Type>>,
     pub properties: Vec<(String, Box<dyn ASTNode>)>,
 }
 impl ASTNode for ASTNodeObjectCreation {
@@ -253,5 +257,17 @@ impl ASTNode for ASTNodeLambdaExpression {
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
 }
 // --------------------------- Lambda Expression --------------------------- //
+
+// --------------------------- Tuple Parameters --------------------------- //
+#[derive(Clone, Debug)]
+pub struct ASTNodeTupleExpression {
+    pub token: Token,
+    pub type_parameters: Vec<Type>
+}
+impl ASTNode for ASTNodeTupleExpression {
+    fn get_meta(&self) -> String { self.token.meta.clone() }
+    fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
+}
+// --------------------------- Tuple Parameters --------------------------- //
 
 
