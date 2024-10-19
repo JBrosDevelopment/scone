@@ -19,7 +19,7 @@ pub fn generate_ast(lexer_tokens: Vec<Token>) -> Result<Vec<Box<dyn ASTNode>>, S
                     // type<anonymous, args>: name = valued
                     // type: name()
                     // type<anonymous, args>: name()
-                    let type_identifier = (Some(AnonymousTypeParameter { type_simple: line[i].clone(), type_complex: None}), None); ///////////////////////
+                    let type_identifier = (Some(AnonymousTypeParameter { type_simple: Some(line[i].clone()), type_complex: None}), None); ///////////////////////
                     ast.push(declare_variable_or_function(line.clone(), i, (None, None), type_identifier)?);
                     line_index += 1;
                     break;
@@ -47,7 +47,7 @@ pub fn declare_variable_or_function(line: Vec<Token>, i: usize, options: (Option
             // type: name = value
             println!("{}: {} = value", type_token.value, name_token.value);
 
-            let return_expression = parse_value_expression(line.clone(), i + 4)?;
+            let return_expression = parse_value_expression(line.clone(), i + 4, true)?;
             let value = return_expression.0;
             let access_modifier = options.0.unwrap_or(AccessModifier::None);
             let description = return_expression.1;
@@ -89,7 +89,7 @@ pub fn declare_variable_or_function(line: Vec<Token>, i: usize, options: (Option
             return Ok(Box::new(function_declaration));
         }
         else {
-            return Err(format!("unexpected token while parsing declaration: {:?}", name_token.value));
+            return Err(format!("unexpected token while parsing declaration: {:?} at line {} column {}", name_token.value, name_token.location.line, name_token.location.column));
         }
     }
     else {
@@ -110,23 +110,38 @@ pub fn precedence(op: String) -> i32 {
         _ => 0,
     }
 }
-fn get_parameter_args() {
-
-}
-fn parse_value_expression(line: Vec<Token>, mut i: usize) -> Result<(Option<Box<dyn ASTNode>>, Option<String>), String> {
+fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Result<(Option<Box<dyn ASTNode>>, Option<String>), String> {
     let mut operator_stack: Vec<Token> = Vec::new();
     let mut expr_stack: Vec<Box<dyn ASTNode>> = Vec::new();
-    let mut tokens = line.into_iter().skip(i).peekable();
+    let mut tokens = tok_vec.into_iter().skip(i).peekable();
     let mut last_was_value = false;
     let mut return_description = None;
 
     while let Some(token) = tokens.peek() {
         match token.token_type.clone() {
             TokenType::LParen => {
-                operator_stack.push((*token).clone());
-                tokens.next();
-                i += 1;
-                last_was_value = false;
+                let tt = tokens.next().unwrap().clone();
+                if is_arg {
+                    operator_stack.push(tt.clone());
+                    i += 1;
+                    last_was_value = false;
+                }
+                else if let Ok(return_function) = parse_parameter_and_type_arguments(tokens.clone().collect(), i.clone() as i32) {
+                    let args = return_function.1.unwrap_or(vec![]);
+                    let mut type_parameters: Vec<Type> = vec![];
+                    for arg in args {
+                        
+                    }
+                    expr_stack.push(Box::new(ASTNodeTupleExpression { token: tt.clone(), type_parameters}));
+                                    
+                    for _ in 0..return_function.2 {
+                        tokens.next();
+                        i += 1;
+                    }
+                }
+                else {
+                    return Err(format!("Could not parse function call at line {} column {}", tt.location.line.clone(), tt.location.column));
+                }
             }
             TokenType::RParen => {
                 while operator_stack.last().map_or(false, |op| op.token_type != TokenType::LParen) && expr_stack.len() > 1 {
@@ -136,6 +151,30 @@ fn parse_value_expression(line: Vec<Token>, mut i: usize) -> Result<(Option<Box<
                     expr_stack.push(Box::new(ASTNodeExpression {token: operator, lhs: e1, rhs: e2}));
                 }
                 operator_stack.pop(); // Pop the '('
+                tokens.next();
+                i += 1;
+                last_was_value = false;
+            }
+            TokenType::Colon => {
+                while operator_stack.last().map_or(false, |top| precedence(top.value.clone()) >= precedence(token.value.clone())) && expr_stack.len() > 1 {
+                    let operator = operator_stack.pop().unwrap();
+                    let e2 = expr_stack.pop();
+                    let e1 = expr_stack.pop();
+                    let type_identifier: Type = if let Some(e1_type) = e1.unwrap().get_data().type_identifier {
+                        e1_type
+                    }
+                    else {
+                        return Err(format!("Could not parse expression. Expected '{}' to be a Type Identifier token at line {} column {}", operator.value, operator.location.line, operator.location.column));
+                    };
+                    let name: String = if let Some(e2_token) = e2.unwrap().get_data().name {
+                        e2_token
+                    }
+                    else {
+                        return Err(format!("Could not parse expression. Expected '{}' to be a name Identifier token at line {} column {}", operator.value, operator.location.line, operator.location.column));
+                    };
+                    expr_stack.push(Box::new(ASTNodeUndefinedVariable {token: operator.clone(), name, type_identifier}));
+                }
+                operator_stack.push((*token).clone());
                 tokens.next();
                 i += 1;
                 last_was_value = false;
@@ -153,30 +192,50 @@ fn parse_value_expression(line: Vec<Token>, mut i: usize) -> Result<(Option<Box<
                     if let Some(next_token) = tokens.peek() {
                         if next_token.token_type == TokenType::LParen || next_token.token_type == TokenType::LessThan {
                             if let Ok(return_function) = parse_parameter_and_type_arguments(tokens.clone().collect(), i.clone() as i32) {
-
-                                let path = ObjectPath { name: tt.value.clone(), child: None }; //////////////////////////////////////////////////////////////
-
-                                let function = ASTNodeFunctionCall {
-                                    token: tt.clone(),
-                                    type_parameters: return_function.0,
-                                    argumments: return_function.1.unwrap(),
-                                    path
-                                };
-
-                                expr_stack.push(Box::new(function));
-
+                                if is_arg {    
+                                    let path = ObjectPath { name: tt.value.clone(), child: None }; //////////////////////////////////////////////////////////////
+                                    
+                                    let function = ASTNodeFunctionCall {
+                                        token: tt.clone(),
+                                        type_parameters: return_function.0,
+                                        argumments: return_function.1.unwrap(),
+                                        path
+                                    };
+                                    
+                                    expr_stack.push(Box::new(function));
+                                }
+                                else {
+                                    let type_identifier: Type = (
+                                        Some(AnonymousTypeParameter {
+                                            type_simple: None,
+                                            type_complex: Some(return_function.0.unwrap())
+                                        }),
+                                        None
+                                    );
+                                    expr_stack.push(Box::new(ASTNodeTypeIdentifier { token: tt.clone(), type_identifier}));
+                                }
+                                    
                                 for _ in 0..return_function.2 {
                                     tokens.next();
                                     i += 1;
                                 }
                             }
                             else {
-                                return Err("Could not parse function call".to_string());
+                                return Err(format!("Could not parse function call at line {} column {}", tt.location.line.clone(), tt.location.column));
                             }
                         }
-                        else {
-                            expr_stack.push(Box::new(ASTNodeExpression { token: tt, lhs: None, rhs: None }));
+                        else if is_arg {
+                            expr_stack.push(Box::new(ASTNodeExpression { token: tt.clone(), lhs: None, rhs: None }));
                         }
+                        else {
+                            expr_stack.push(Box::new(ASTNodeTypeIdentifier { token: tt.clone(), type_identifier: (Some(AnonymousTypeParameter {type_simple: Some(tt.clone()), type_complex: None}), None)}));
+                        }
+                    }
+                    else if is_arg {
+                        expr_stack.push(Box::new(ASTNodeExpression { token: tt.clone(), lhs: None, rhs: None }));
+                    }
+                    else {
+                        expr_stack.push(Box::new(ASTNodeTypeIdentifier { token: tt.clone(), type_identifier: (Some(AnonymousTypeParameter {type_simple: Some(tt.clone()), type_complex: None}), None)}));
                     }
                 }
                 last_was_value = true;
@@ -205,7 +264,6 @@ fn parse_value_expression(line: Vec<Token>, mut i: usize) -> Result<(Option<Box<
                     }
                     operator_stack.push(token.clone());
                 } else {
-                    // We can advance tokens directly here with tokens.next()
                     let operator = Token::new(TokenType::Minus, "-".to_string(), String::new(), token.location.clone());
                     let e1 = ASTNodeConstant {
                         token: Token::new(TokenType::NumberConstant, "0".to_string(), String::new(), token.location.clone()),
@@ -226,24 +284,25 @@ fn parse_value_expression(line: Vec<Token>, mut i: usize) -> Result<(Option<Box<
                 last_was_value = false;
             }
             TokenType::RightArrow => {
+                let token = token.clone();
                 if return_description.is_none() {
                     i += 1;
                     if let Some(description) = tokens.next() {
                         return_description = Some(description.value);
                         if description.token_type != TokenType::StringConstant {
-                            return Err("Could not parse expression description. Expected description to be a string".to_string())
+                            return Err(format!("Could not parse expression description. Expected description to be a string at line {} column {}", token.clone().location.line, token.clone().location.column))
                         }
                         i += 1;
                         if let Some(_) = tokens.next() {
-                            return Err("Could not parse expression description. Unexpected trailing token".to_string());
+                            return Err(format!("Could not parse expression description. Unexpected trailing token at line {} column {}", token.clone().location.line, token.clone().location.column));
                         }
                     }
                     else {
-                        return Err("Could not parse expression description. No string description found".to_string())
+                        return Err(format!("Could not parse expression description. No string description found at line {} column {}", token.clone().location.line, token.clone().location.column))
                     }
                 }
                 else {
-                    return Err("Could not parse expression description".to_string())
+                    return Err(format!("Could not parse expression description at line {} column {}", token.clone().location.line, token.clone().location.column))
                 }
             }
             _ => {
@@ -260,7 +319,7 @@ fn parse_value_expression(line: Vec<Token>, mut i: usize) -> Result<(Option<Box<
                     last_was_value = false;
                 }
                 else {
-                    return Err(format!("Could not parse expression. Unexpected token: {}", token.value));
+                    return Err(format!("Could not parse expression. Unexpected token: '{}' at line {} column {}", token.value, token.location.line, token.location.column));
                 }
             }
         }
@@ -287,10 +346,8 @@ fn parse_value_expression(line: Vec<Token>, mut i: usize) -> Result<(Option<Box<
     Ok((Some(returns), return_description))
 }
 
-fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, mut i: i32) -> Result<(Option<Vec<Type>>, Option<Vec<Box<dyn ASTNode>>>, i32), String> {
+fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, i: i32) -> Result<(Option<Vec<Type>>, Option<Vec<Box<dyn ASTNode>>>, i32), String> {
     let mut skipped = 0;
-    let mut types: Vec<AnonymousTypeParameter> = Vec::new();
-    let mut args: Vec<Box<dyn ASTNode>> = Vec::new();
     let mut type_tokens: Vec<Vec<Token>> = vec![Vec::new()];
     let mut arg_tokens: Vec<Vec<Token>> = vec![Vec::new()];
     let mut types_has_started = false;
@@ -301,9 +358,8 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, mut i: i32) -> Res
     let mut brace_count = 0;
     let mut chevron_count = 0;
     let mut comma_count = 0;
-    let mut tokens = tokens_vec.iter().peekable();
+    let mut tokens = tokens_vec.iter().skip(i as usize).peekable();
     while let Some(token) = tokens.next() {
-        i += 1;
         skipped += 1;
         match token.token_type {
             TokenType::LessThan => {
@@ -360,7 +416,7 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, mut i: i32) -> Res
                     }
                 }
                 else {
-                    return Err("Could not parse function call. Invalid comma".to_string());
+                    return Err(format!("Could not parse function call. Invalid comma at line {} column {}", token.clone().location.line, token.clone().location.column));
                 }
             }
             TokenType::LBrace | TokenType::LBracket | TokenType::RBrace | TokenType::RBracket => {
@@ -378,7 +434,7 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, mut i: i32) -> Res
                     arg_tokens[comma_count].push(token.clone());
                 }
                 else {
-                    return Err("Could not parse function call. Invalid brace or bracket".to_string());
+                    return Err(format!("Could not parse function call. Invalid brace or bracket at line {} column {}", token.clone().location.line, token.clone().location.column));
                 }
             }
             TokenType::LParen => {
@@ -396,11 +452,8 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, mut i: i32) -> Res
                     if types_has_started {
                         type_tokens[comma_count].push(token.clone());
                     }
-                    else if args_has_started { 
-                        arg_tokens[comma_count].push(token.clone());
-                    }
                     else {
-                        return Err("Could not parse function call. Invalid parenthesis".to_string());
+                        return Err(format!("Could not parse function call. Invalid parenthesis at line {} column {}", token.clone().location.line, token.clone().location.column));
                     }
                 }
             }
@@ -418,11 +471,8 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, mut i: i32) -> Res
                     if types_has_started {
                         type_tokens[comma_count].push(token.clone());
                     }
-                    else if args_has_started { 
-                        arg_tokens[comma_count].push(token.clone());
-                    }
                     else {
-                        return Err("Could not parse function call. Invalid parenthesis".to_string());
+                        return Err(format!("Could not parse function call. Invalid parenthesis at line {} column {}", token.clone().location.line, token.clone().location.column));
                     }
                 }
             }
@@ -434,7 +484,7 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, mut i: i32) -> Res
                     type_tokens[comma_count].push(token.clone());
                 }
                 else {
-                    return Err("Could not parse function call. Unexpected token".to_string());
+                    return Err(format!("Could not parse function call. Unexpected token: '{}' at line {} column {}", token.value.clone(), token.clone().location.line, token.clone().location.column));
                 }
             }
         }
@@ -442,15 +492,35 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, mut i: i32) -> Res
     let mut type_parameters: Vec<Type> = Vec::new();
     let mut arg_parameters: Vec<Box<dyn ASTNode>> = Vec::new();
 
-    for (index, type_tokens) in type_tokens.iter().enumerate() {
-        let result = parse_parameter_and_type_arguments(type_tokens.clone(), index as i32)?;
-        let value = result.0.unwrap()[0].clone();
-        type_parameters.push(value);
+    for type_tokens in type_tokens {
+        println!("type_tokens: {:?}", type_tokens);
+        let result = parse_value_expression(type_tokens.clone(), 0, false)?.0;
+        println!("result: {:?}", result);
+        let value = result.unwrap().clone();
+        println!("value: {:?}", value);
+        if let Some(tps) = (*value).get_data().type_parameters {
+            println!("tps: {:?}", tps);
+            let ttype: Type = (Some(AnonymousTypeParameter { type_simple: None, type_complex: Some(tps)}), None);
+            println!("ttype: {:?}", ttype);
+            type_parameters.push(ttype);
+        }
+        else {
+            let tps = (*value).get_data().token.unwrap().clone();
+            println!("tps: {:?}", tps);
+            let anonymous_type: Type = (
+                Some(AnonymousTypeParameter { type_simple: Some(tps), type_complex: None }),
+                None
+            );
+            println!("anonymous_types: {:?}", anonymous_type);
+            let ttype: Type = (Some(AnonymousTypeParameter { type_simple: None, type_complex: Some(vec![anonymous_type])}), None);
+            println!("ttype: {:?}", ttype);
+            type_parameters.push(ttype);
+        }
     }
 
     for (index, arg_tokens) in arg_tokens.iter().enumerate() {
-        let result = parse_parameter_and_type_arguments(arg_tokens.clone(), index as i32)?;
-        let value: Box<dyn ASTNode> = result.1.unwrap()[0].clone();
+        let result = parse_value_expression(arg_tokens.clone(), index, true)?.0;
+        let value: Box<dyn ASTNode> = result.unwrap().clone();
         arg_parameters.push(value);
     }
 

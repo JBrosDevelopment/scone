@@ -2,87 +2,39 @@
     ASTNodeFunctionDeclaration {
         token: Token {
             token_type: Identifier,
-            value: "i32",
+            value: "void",
             meta: "",
             location: Location {
                 line: 1,
                 column: 1,
-                length: 3,
+                length: 4,
             },
         },
-        name: "add",
+        name: "function",
         type_parameters: None,
         parameters: [],
         description: None,
         access_modifier: None,
-        return_type: None,
         type_identifier: (
             Some(
-                "i32",
-            ),
-            None,
-        ),
-        body: None,
-    },
-    ASTNodeFunctionDeclaration {
-        token: Token {
-            token_type: Identifier,
-            value: "T",
-            meta: "",
-            location: Location {
-                line: 2,
-                column: 1,
-                length: 1,
-            },
-        },
-        name: "concat",
-        type_parameters: None,
-        parameters: [],
-        description: None,
-        access_modifier: None,
-        return_type: None,
-        type_identifier: (
-            Some(
-                "T",
-            ),
-            None,
-        ),
-        body: None,
-    },
-    ASTNodeVariableDeclaration {
-        token: Token {
-            token_type: Identifier,
-            value: "string",
-            meta: "",
-            location: Location {
-                line: 4,
-                column: 1,
-                length: 6,
-            },
-        },
-        name: "name",
-        value: Some(
-            ASTNodeConstant {
-                token: Token {
-                    token_type: NumberConstant,
-                    value: "0",
-                    meta: "",
-                    location: Location {
-                        line: 0,
-                        column: 0,
-                        length: 0,
-                    },
+                AnonymousTypeParameter {
+                    type_simple: Some(
+                        Token {
+                            token_type: Identifier,
+                            value: "void",
+                            meta: "",
+                            location: Location {
+                                line: 1,
+                                column: 1,
+                                length: 4,
+                            },
+                        },
+                    ),
+                    type_complex: None,
                 },
-            },
-        ),
-        type_identifier: (
-            Some(
-                "string",
             ),
             None,
         ),
-        description: None,
-        access_modifier: None,
-        variable_modifier: None,
+        body: None,
     },
 ]
