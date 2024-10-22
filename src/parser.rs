@@ -20,7 +20,8 @@ pub fn generate_ast(lexer_tokens: Vec<Token>) -> Result<Vec<Box<dyn ASTNode>>, S
                     // type: name()
                     // type<anonymous, args>: name()
                     let type_identifier = (Some(AnonymousTypeParameter { type_simple: Some(line[i].clone()), type_complex: None}), None); ///////////////////////
-                    ast.push(declare_variable_or_function(line.clone(), i, (None, None), type_identifier)?);
+                    let tokens = line.clone();
+                    ast.push(declare_variable_or_function(tokens, i, (None, None), type_identifier)?);
                     line_index += 1;
                     break;
                 }
@@ -113,7 +114,7 @@ pub fn precedence(op: String) -> i32 {
 fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Result<(Option<Box<dyn ASTNode>>, Option<String>), String> {
     let mut operator_stack: Vec<Token> = Vec::new();
     let mut expr_stack: Vec<Box<dyn ASTNode>> = Vec::new();
-    let mut tokens = tok_vec.into_iter().skip(i).peekable();
+    let mut tokens = tok_vec.clone().into_iter().skip(i).peekable();
     let mut last_was_value = false;
     let mut return_description = None;
 
@@ -126,11 +127,13 @@ fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Re
                     i += 1;
                     last_was_value = false;
                 }
-                else if let Ok(return_function) = parse_parameter_and_type_arguments(tokens.clone().collect(), i.clone() as i32) {
+                else if let Ok(return_function) = parse_parameter_and_type_arguments(tok_vec.clone(), i.clone() as i32, false) {
                     let args = return_function.1.unwrap_or(vec![]);
                     let mut type_parameters: Vec<Type> = vec![];
                     for arg in args {
-                        
+                        if let Some(t) = arg.get_data().type_identifier {
+                            type_parameters.push(t);
+                        }
                     }
                     expr_stack.push(Box::new(ASTNodeTupleExpression { token: tt.clone(), type_parameters}));
                                     
@@ -191,14 +194,15 @@ fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Re
                     let tt = this_token.clone();
                     if let Some(next_token) = tokens.peek() {
                         if next_token.token_type == TokenType::LParen || next_token.token_type == TokenType::LessThan {
-                            if let Ok(return_function) = parse_parameter_and_type_arguments(tokens.clone().collect(), i.clone() as i32) {
+                            if let Ok(return_function) = parse_parameter_and_type_arguments(tok_vec.clone(), i.clone() as i32, is_arg) {
                                 if is_arg {    
                                     let path = ObjectPath { name: tt.value.clone(), child: None }; //////////////////////////////////////////////////////////////
                                     
+                                    let arguments = if return_function.1.is_some() { return_function.1.unwrap() } else { vec![] };
                                     let function = ASTNodeFunctionCall {
                                         token: tt.clone(),
                                         type_parameters: return_function.0,
-                                        argumments: return_function.1.unwrap(),
+                                        argumments: arguments,
                                         path
                                     };
                                     
@@ -346,10 +350,11 @@ fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Re
     Ok((Some(returns), return_description))
 }
 
-fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, i: i32) -> Result<(Option<Vec<Type>>, Option<Vec<Box<dyn ASTNode>>>, i32), String> {
+fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, i: i32, is_arg: bool) -> Result<(Option<Vec<Type>>, Option<Vec<Box<dyn ASTNode>>>, i32), String> {
+    println!("{:?}", tokens_vec.iter().map(|t| t.value.clone()).collect::<Vec<String>>()); ///////////////////////////////////////////////////////////////////
     let mut skipped = 0;
-    let mut type_tokens: Vec<Vec<Token>> = vec![Vec::new()];
-    let mut arg_tokens: Vec<Vec<Token>> = vec![Vec::new()];
+    let mut type_tokens: Vec<Vec<Token>> = Vec::new();
+    let mut arg_tokens: Vec<Vec<Token>> = Vec::new();
     let mut types_has_started = false;
     let mut args_has_started = false;
     let mut has_started = false;
@@ -367,6 +372,7 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, i: i32) -> Result<
                 if !args_has_started {
                     if !has_started {
                         has_started = true;
+                        type_tokens.push(vec![]);
                     }
                     else {
                         type_tokens[comma_count].push(token.clone());
@@ -440,10 +446,8 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, i: i32) -> Result<
             TokenType::LParen => {
                 parenthesis_count += 1;
                 if !types_has_started {
-                    if !args_has_started {
-                        args_has_started = true;
-                    }
-                    else {
+                    arg_tokens.push(vec![]);
+                    if args_has_started {
                         arg_tokens[comma_count].push(token.clone());
                     }
                     args_has_started = true;
@@ -461,6 +465,9 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, i: i32) -> Result<
                 parenthesis_count -= 1;
                 if args_has_started {
                     if parenthesis_count == 0 {
+                        if arg_tokens.len() == 1 && arg_tokens[0].len() == 0 {
+                            arg_tokens = Vec::new();
+                        }
                         break;
                     }
                     else {
@@ -489,37 +496,32 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, i: i32) -> Result<
             }
         }
     }
+    println!("type_tokens: {:?}", type_tokens.iter().map(|t| t.iter().map(|tt| tt.value.clone()).collect::<Vec<String>>()).collect::<Vec<Vec<String>>>());
     let mut type_parameters: Vec<Type> = Vec::new();
     let mut arg_parameters: Vec<Box<dyn ASTNode>> = Vec::new();
 
     for type_tokens in type_tokens {
-        println!("type_tokens: {:?}", type_tokens);
+        println!("type_tokens: {:?}", type_tokens.iter().map(|t| t.value.clone()).collect::<Vec<String>>());
         let result = parse_value_expression(type_tokens.clone(), 0, false)?.0;
         println!("result: {:?}", result);
         let value = result.unwrap().clone();
-        println!("value: {:?}", value);
         if let Some(tps) = (*value).get_data().type_parameters {
-            println!("tps: {:?}", tps);
             let ttype: Type = (Some(AnonymousTypeParameter { type_simple: None, type_complex: Some(tps)}), None);
-            println!("ttype: {:?}", ttype);
             type_parameters.push(ttype);
         }
         else {
             let tps = (*value).get_data().token.unwrap().clone();
-            println!("tps: {:?}", tps);
             let anonymous_type: Type = (
                 Some(AnonymousTypeParameter { type_simple: Some(tps), type_complex: None }),
                 None
             );
-            println!("anonymous_types: {:?}", anonymous_type);
             let ttype: Type = (Some(AnonymousTypeParameter { type_simple: None, type_complex: Some(vec![anonymous_type])}), None);
-            println!("ttype: {:?}", ttype);
             type_parameters.push(ttype);
         }
     }
 
-    for (index, arg_tokens) in arg_tokens.iter().enumerate() {
-        let result = parse_value_expression(arg_tokens.clone(), index, true)?.0;
+    for a_tokens in arg_tokens {
+        let result = parse_value_expression(a_tokens.clone(), 0, is_arg)?.0;
         let value: Box<dyn ASTNode> = result.unwrap().clone();
         arg_parameters.push(value);
     }

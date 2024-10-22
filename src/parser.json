@@ -1,40 +1,214 @@
 [
-    ASTNodeFunctionDeclaration {
-        token: Token {
-            token_type: Identifier,
-            value: "void",
-            meta: "",
-            location: Location {
-                line: 1,
-                column: 1,
-                length: 4,
-            },
-        },
-        name: "function",
-        type_parameters: None,
-        parameters: [],
-        description: None,
-        access_modifier: None,
-        type_identifier: (
-            Some(
-                AnonymousTypeParameter {
-                    type_simple: Some(
-                        Token {
-                            token_type: Identifier,
-                            value: "void",
-                            meta: "",
-                            location: Location {
-                                line: 1,
-                                column: 1,
-                                length: 4,
-                            },
-                        },
-                    ),
-                    type_complex: None,
-                },
-            ),
-            None,
-        ),
-        body: None,
+  "ASTNodeVariableDeclaration" {
+    "token": {
+      "token_type": "Identifier",
+      "value": "void",
+      "meta": "",
+      "location": {
+        "line": 1,
+        "column": 1,
+        "length": 4,
+      },
     },
+    "name": "val",
+    "value": {
+      "ASTNodeFunctionCall": {
+        "token": {
+          "token_type": "Identifier",
+          "value": "function",
+          "meta": "",
+          "location": {
+            "line": 1,
+            "column": 13,
+            "length": 8,
+          },
+        },
+        "argumments": [],
+        "path": {
+          "name": "function",
+          "child": null,
+        },
+        "type_parameters": [
+            {
+              "type_simple": null,
+              "type_complex": [
+                  {
+                    "type_simple": {
+                      "token_type": "Identifier",
+                      "value": "T1",
+                      "meta": "",
+                      "location": {
+                        "line": 1,
+                        "column": 22,
+                        "length": 2,
+                      },
+                    },
+                    "type_complex": null,
+                  }
+                ],
+            }
+            {
+              {
+                "AnonymousTypeParameter": {
+                  "type_simple": null,
+                  "type_complex": {
+                    [
+                      {
+                        {
+                          "AnonymousTypeParameter": {
+                            "type_simple": {
+                             {
+                                "token_type": "Identifier",
+                                "value": "T2",
+                                "meta": "",
+                                "location": {
+                                  "line": 1,
+                                  "column": 26,
+                                  "length": 2,
+                                },
+                              },
+                            ),
+                            "type_complex": null,
+                          },
+                        ),
+                        null,
+                      ),
+                    ],
+                  ),
+                },
+              ),
+              null,
+            ),
+            {
+              {
+                "AnonymousTypeParameter": {
+                  "type_simple": null,
+                  "type_complex": {
+                    [
+                      {
+                        {
+                          "AnonymousTypeParameter": {
+                            "type_simple": {
+                             {
+                                "token_type": "Identifier",
+                                "value": "T3",
+                                "meta": "",
+                                "location": {
+                                  "line": 1,
+                                  "column": 31,
+                                  "length": 2,
+                                },
+                              },
+                            ),
+                            "type_complex": null,
+                          },
+                        ),
+                        null,
+                      ),
+                      {
+                        {
+                          "AnonymousTypeParameter": {
+                            "type_simple": {
+                             {
+                                "token_type": "Identifier",
+                                "value": "T4",
+                                "meta": "",
+                                "location": {
+                                  "line": 1,
+                                  "column": 35,
+                                  "length": 2,
+                                },
+                              },
+                            ),
+                            "type_complex": null,
+                          },
+                        ),
+                        null,
+                      ),
+                      {
+                        {
+                          "AnonymousTypeParameter": {
+                            "type_simple": {
+                             {
+                                "token_type": "Identifier",
+                                "value": "T5",
+                                "meta": "",
+                                "location": {
+                                  "line": 1,
+                                  "column": 39,
+                                  "length": 2,
+                                },
+                              },
+                            ),
+                            "type_complex": null,
+                          },
+                        ),
+                        null,
+                      ),
+                    ],
+                  ),
+                },
+              ),
+              null,
+            ),
+            {
+              {
+                "AnonymousTypeParameter": {
+                  "type_simple": null,
+                  "type_complex": {
+                    [
+                      {
+                        {
+                          "AnonymousTypeParameter": {
+                            "type_simple": {
+                             {
+                                "token_type": "Identifier",
+                                "value": "T6",
+                                "meta": "",
+                                "location": {
+                                  "line": 1,
+                                  "column": 44,
+                                  "length": 2,
+                                },
+                              },
+                            ),
+                            "type_complex": null,
+                          },
+                        ),
+                        null,
+                      ),
+                    ],
+                  ),
+                },
+              ),
+              null,
+            ),
+          ],
+        ),
+      },
+    ),
+    type_identifier: {
+      {
+        "AnonymousTypeParameter": {
+          "type_simple": {
+           {
+              "token_type": "Identifier",
+              "value": "void",
+              "meta": "",
+              "location": {
+                "line": 1,
+                "column": 1,
+                "length": 4,
+              },
+            },
+          ),
+          "type_complex": null,
+        },
+      ),
+      null,
+    ),
+    description: null,
+    access_modifier: null,
+    variable_modifier: null,
+  },
 ]

@@ -210,13 +210,23 @@
     }
   },
   {
-    "token_type": "BitwiseShiftRight",
-    "value": ">>",
+    "token_type": "GreaterThan",
+    "value": ">",
     "meta": "",
     "location": {
       "line": 1,
       "column": 49,
-      "length": 2
+      "length": 1
+    }
+  },
+  {
+    "token_type": "GreaterThan",
+    "value": ">",
+    "meta": "",
+    "location": {
+      "line": 1,
+      "column": 51,
+      "length": 1
     }
   },
   {
@@ -225,7 +235,7 @@
     "meta": "",
     "location": {
       "line": 1,
-      "column": 51,
+      "column": 52,
       "length": 1
     }
   },
@@ -235,7 +245,7 @@
     "meta": "",
     "location": {
       "line": 1,
-      "column": 52,
+      "column": 53,
       "length": 1
     }
   },
@@ -245,7 +255,7 @@
     "meta": "",
     "location": {
       "line": 1,
-      "column": 54,
+      "column": 55,
       "length": 1
     }
   },
