@@ -232,14 +232,20 @@ fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Re
                             expr_stack.push(Box::new(ASTNodeExpression { token: tt.clone(), lhs: None, rhs: None }));
                         }
                         else {
-                            expr_stack.push(Box::new(ASTNodeTypeIdentifier { token: tt.clone(), type_identifier: (Some(AnonymousTypeParameter {type_simple: Some(tt.clone()), type_complex: None}), None)}));
+                            expr_stack.push(Box::new(ASTNodeTypeIdentifier { token: tt.clone(), type_identifier: (Some(AnonymousTypeParameter {
+                                type_simple: Some(tt.clone()),
+                                type_complex: None
+                            }), None)}));
                         }
                     }
                     else if is_arg {
                         expr_stack.push(Box::new(ASTNodeExpression { token: tt.clone(), lhs: None, rhs: None }));
                     }
                     else {
-                        expr_stack.push(Box::new(ASTNodeTypeIdentifier { token: tt.clone(), type_identifier: (Some(AnonymousTypeParameter {type_simple: Some(tt.clone()), type_complex: None}), None)}));
+                        expr_stack.push(Box::new(ASTNodeTypeIdentifier { token: tt.clone(), type_identifier: (Some(AnonymousTypeParameter {
+                            type_simple: Some(tt.clone()),
+                            type_complex: None
+                        }), None)}));
                     }
                 }
                 last_was_value = true;
@@ -254,7 +260,7 @@ fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Re
                 i += 1;
                 last_was_value = false;
             }
-            TokenType::Minus => {
+            TokenType::Dash => {
                 if last_was_value {
                     while operator_stack.last().map_or(false, |top| precedence(top.value.clone()) >= precedence(token.value.clone())) && expr_stack.len() > 1 {
                         let operator = operator_stack.pop().unwrap();
@@ -268,7 +274,7 @@ fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Re
                     }
                     operator_stack.push(token.clone());
                 } else {
-                    let operator = Token::new(TokenType::Minus, "-".to_string(), String::new(), token.location.clone());
+                    let operator = Token::new(TokenType::Dash, "-".to_string(), String::new(), token.location.clone());
                     let e1 = ASTNodeConstant {
                         token: Token::new(TokenType::NumberConstant, "0".to_string(), String::new(), token.location.clone()),
                     };
@@ -506,16 +512,25 @@ fn parse_parameter_and_type_arguments(tokens_vec: Vec<Token>, i: i32, is_arg: bo
         println!("result: {:?}", result);
         let value = result.unwrap().clone();
         if let Some(tps) = (*value).get_data().type_parameters {
-            let ttype: Type = (Some(AnonymousTypeParameter { type_simple: None, type_complex: Some(tps)}), None);
+            let ttype: Type = (Some(AnonymousTypeParameter { 
+                type_simple: None,
+                type_complex: Some(tps)
+            }), None);
             type_parameters.push(ttype);
         }
         else {
             let tps = (*value).get_data().token.unwrap().clone();
             let anonymous_type: Type = (
-                Some(AnonymousTypeParameter { type_simple: Some(tps), type_complex: None }),
+                Some(AnonymousTypeParameter { 
+                    type_simple: Some(tps),
+                    type_complex: None
+                }),
                 None
             );
-            let ttype: Type = (Some(AnonymousTypeParameter { type_simple: None, type_complex: Some(vec![anonymous_type])}), None);
+            let ttype: Type = (Some(AnonymousTypeParameter { 
+                type_simple: None,
+                type_complex: Some(vec![anonymous_type])
+            }), None);
             type_parameters.push(ttype);
         }
     }

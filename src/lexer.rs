@@ -4,16 +4,14 @@ use serde::Serialize;
 pub enum TokenType {
     // operators
     Plus,
-    Minus,
+    Dash,
     Star,
     Slash,
-    BitwiseOr,
-    BitwiseXor,
-    BitwiseAnd,
-    BitwiseNot,
-    BitwiseShiftLeft,
-    BitwiseShiftRight,
-    Modulus,
+    Pipe,
+    Carrot,
+    Ampersand,
+    Tilda,
+    Modulas,
     Increment,
     Decrement,
     Equal,
@@ -26,6 +24,7 @@ pub enum TokenType {
     And,
     Or,
     Not,
+    RangeOperator,
     
     // brackets
     LParen,
@@ -44,6 +43,8 @@ pub enum TokenType {
     RightArrow,
     LeftArrow,
     DoubleArrow,
+    AtSymbol,
+    Hashtag,
 
     // keywords
     Return,
@@ -74,16 +75,14 @@ impl TokenType {
     pub fn is_operator(value: &Self) -> bool {
         match value {
             TokenType::Plus => true,
-            TokenType::Minus => true,
+            TokenType::Dash => true,
             TokenType::Star => true,
             TokenType::Slash => true,
-            TokenType::BitwiseOr => true,
-            TokenType::BitwiseXor => true,
-            TokenType::BitwiseAnd => true,
-            TokenType::BitwiseNot => true,
-            TokenType::BitwiseShiftLeft => true,
-            TokenType::BitwiseShiftRight => true,
-            TokenType::Modulus => true,
+            TokenType::Pipe => true,
+            TokenType::Carrot => true,
+            TokenType::Ampersand => true,
+            TokenType::Tilda => true,
+            TokenType::Modulas => true,
             TokenType::Increment => true,
             TokenType::Decrement => true,
             TokenType::Equal => true,
@@ -95,6 +94,7 @@ impl TokenType {
             TokenType::Assign => true,
             TokenType::And => true,
             TokenType::Or => true,
+            TokenType::RangeOperator => true,
             _ => false
         }
     }
@@ -218,14 +218,19 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             let new_token = Token::new(TokenType::NumberConstant, number, String::new(), current_location.clone());
             tokens.push(new_token);
         }
+        else if *c == '@' {
+            current_location.advance(1);
+            tokens.push(Token::new(TokenType::AtSymbol, "@".to_string(), String::new(), current_location.clone()));
+            chars.next();
+        }
+        else if *c == '#' {
+            current_location.advance(1);
+            tokens.push(Token::new(TokenType::Hashtag, "#".to_string(), String::new(), current_location.clone()));
+            chars.next();
+        }
         else if *c == ',' {
             current_location.advance(1);
             tokens.push(Token::new(TokenType::Comma, ",".to_string(), String::new(), current_location.clone()));
-            chars.next();
-        }
-        else if *c == '.' {
-            current_location.advance(1);
-            tokens.push(Token::new(TokenType::Dot, ".".to_string(), String::new(), current_location.clone()));
             chars.next();
         }
         else if *c == '{' {
@@ -265,19 +270,31 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
         }
         else if *c == '~' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::BitwiseNot, "~".to_string(), String::new(), current_location.clone()));
+            tokens.push(Token::new(TokenType::Tilda, "~".to_string(), String::new(), current_location.clone()));
             chars.next();
+        }
+        else if *c == '.' {
+            chars.next();
+            if chars.peek() == Some(&'.') {
+                current_location.advance(2);
+                tokens.push(Token::new(TokenType::RangeOperator, "..".to_string(), String::new(), current_location.clone()));
+                chars.next();
+            }
+            else {
+                current_location.advance(1);
+                tokens.push(Token::new(TokenType::Dot, ".".to_string(), String::new(), current_location.clone()));
+            }
         }
         else if *c == '^' {
             chars.next();
             if chars.peek() == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::BitwiseXor, "^=".to_string(), "Assign".to_string(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Carrot, "^=".to_string(), "Assign".to_string(), current_location.clone()));
                 chars.next();
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::BitwiseXor, "^".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Carrot, "^".to_string(), String::new(), current_location.clone()));
             }
         }
         else if *c == '*' {
@@ -296,12 +313,12 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             chars.next();
             if chars.peek() == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Modulus, "%=".to_string(), "Assign".to_string(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Modulas, "%=".to_string(), "Assign".to_string(), current_location.clone()));
                 chars.next();
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Modulus, "%".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Modulas, "%".to_string(), String::new(), current_location.clone()));
             }
         }
         else if *c == '/' {
@@ -408,12 +425,12 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             }
             else if chars.peek() == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Minus, "-=".to_string(), "Assign".to_string(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Dash, "-=".to_string(), "Assign".to_string(), current_location.clone()));
                 chars.next();
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Minus, "-".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Dash, "-".to_string(), String::new(), current_location.clone()));
             }
         }
         else if *c == '>' {
@@ -422,11 +439,6 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             if next == Some(&'=') {
                 current_location.advance(2);
                 tokens.push(Token::new(TokenType::GreaterThanOrEqual, ">=".to_string(), String::new(), current_location.clone()));
-                chars.next();
-            }
-            else if next == Some(&'>') {
-                current_location.advance(2);
-                tokens.push(Token::new(TokenType::BitwiseShiftRight, ">>".to_string(), String::new(), current_location.clone()));
                 chars.next();
             }
             else {
@@ -440,11 +452,6 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             if next == Some(&'=') {
                 current_location.advance(2);
                 tokens.push(Token::new(TokenType::LessThanOrEqual, "<=".to_string(), String::new(), current_location.clone()));
-                chars.next();
-            }
-            else if next == Some(&'<') {
-                current_location.advance(2);
-                tokens.push(Token::new(TokenType::BitwiseShiftLeft, "<<".to_string(), String::new(), current_location.clone()));
                 chars.next();
             }
             else if next == Some(&'-') {
@@ -485,12 +492,12 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             }
             if chars.peek() == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::BitwiseAnd, "&=".to_string(), "Assign".to_string(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Ampersand, "&=".to_string(), "Assign".to_string(), current_location.clone()));
                 chars.next();
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::BitwiseAnd, "&".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Ampersand, "&".to_string(), String::new(), current_location.clone()));
             }
         }
         else if *c == '|' {
@@ -509,7 +516,7 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::BitwiseOr, "|".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Pipe, "|".to_string(), String::new(), current_location.clone()));
             }
         }
         else if *c == ':' {

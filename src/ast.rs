@@ -1,4 +1,5 @@
 use std::any::Any;
+use serde::Serialize;
 
 use crate::lexer::Token;
 
@@ -6,24 +7,24 @@ pub type Tuple = Vec<AnonymousTypeParameter>;
 pub type EnumIndex = (String, i32);
 pub type Type = (Option<AnonymousTypeParameter>, Option<Vec<Tuple>>);
 
-#[derive(Clone, Debug, Copy)] pub enum AccessModifier { Private, Public, Internal, None }
-#[derive(Clone, Debug, Copy)] pub enum VariableModifier { Const, Static, None }
-#[derive(Clone, Debug, Copy)] pub enum StatementType { If, Else, ElseIf, While, For }
+#[derive(Clone, Debug, Serialize, Copy)] pub enum AccessModifier { Private, Public, Internal, None }
+#[derive(Clone, Debug, Serialize, Copy)] pub enum VariableModifier { Const, Static, None }
+#[derive(Clone, Debug, Serialize, Copy)] pub enum StatementType { If, Else, ElseIf, While, For }
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct AnonymousTypeParameter {
     pub type_simple: Option<Token>,
     pub type_complex: Option<Vec<Type>>
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ObjectPath {
     pub name: String,
     pub child: Option<Box<ObjectPath>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct InterfaceNode {
     pub path: ObjectPath,
     pub argument_types: Vec<Type>
@@ -59,6 +60,7 @@ pub trait IntoNode: std::fmt::Debug {
     fn into_tuple_expression(self) -> ASTNodeTupleExpression;
     fn into_type_identifier(self) -> ASTNodeTypeIdentifier;
 }
+
 impl IntoNode for Box<dyn ASTNode> {
     fn into_constant(self) -> ASTNodeConstant { 
         ASTNodeConstant { token: self.get_data().token.unwrap() } 
@@ -142,7 +144,7 @@ pub struct ASTNodeALLVALUE {
 
 
 // --------------------------- Constant --------------------------- //
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ASTNodeConstant {
     pub token: Token,
 }

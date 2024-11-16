@@ -111,7 +111,7 @@ This is what I'm thinking the VM IR code might look like
 define ThisPackage;
 
 void: main() {
-    i32: num = 100;
+    i32: num = 100; 
     i32: result = add_i32(num, 79 - num);
     print_i32(result)
 }
@@ -142,7 +142,7 @@ i32: add_i32(i32: left, i32: right) {
         load $$100, reg_1_a
         store $num, reg_1_a
 
-        ; string: result = add_i32(num, 79 - num)
+        ; i32: result = add_i32(num, 79)
         load $$79, reg_1_b
         store [%PARAMETER_REGION .. 4], reg_1_a
         store [%PARAMETER_REGION + 4 .. 4], reg_1_b
@@ -392,7 +392,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
         while !node.is_last() {
             Y: transformed_value = function(node.Value, index);
             result.append(transformed_value);
-            node = node.NextValue.grab();
+            node = node.NextValue.unit();
             index++;
         }
         result
@@ -403,7 +403,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
         while !node.is_last() {
             Y: transformed_value = function(node.Value);
             result.append(transformed_value);
-            node = node.NextValue.grab();
+            node = node.NextValue.unit();
         }
         result
     }
@@ -415,7 +415,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
             if function(node.Value, index) {
                 result.append(node.Value);
             }
-            node = node.NextValue.grab();
+            node = node.NextValue.unit();
             index++;
         }
         result
@@ -427,14 +427,14 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
             if function(node.Value) {
                 result.append(node.Value);
             }
-            node = node.NextValue.grab();
+            node = node.NextValue.unit();
         }
         result
     }
     List<T>: append(T: val) {
         LinkedListNode<T>: node = this.EntryNode;
         while !node.is_last() {
-            node = node.NextValue.grab();
+            node = node.NextValue.unit();
         }
         node.NextValue = Option::some(LinkedListNode::new(val))
 
@@ -458,7 +458,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
         }
         LinkedListNode<T>: node = this.EntryNode;
         while !node.is_last() {
-            node = node.NextValue.grab();
+            node = node.NextValue.unit();
         }
         node.Value
     }
@@ -466,7 +466,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
         u32: len = 0;
         LinkedListNode<T>: node = this.EntryNode;
         while !node.is_last() {
-            node = node.NextValue.grab();
+            node = node.NextValue.unit();
             len++;
         }
         len
@@ -475,7 +475,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
         LinkedListNode<T>: node = this.EntryNode;
         u32: i = 0;
         while !node.is_last() {
-            node = node.NextValue.grab();
+            node = node.NextValue.unit();
             if index == i {
                 return node.Value;
             }
@@ -499,4 +499,38 @@ priv class LinkedListNode<T where T is Default> {
         }
     }
 }
+
+pub class Option<T where T is Default> {
+    priv T: Value = T.default();
+    priv bool: IsNone = true;
+    static Option<T>: none() {
+        Option<T> {
+            IsNone = true
+        }
+    }
+    static Option<T>: some(T: value) {
+        Option<T> {
+            Value = value,
+            IsNone = false
+        }
+    }
+    T: unit() {
+        if IsNone {
+            throw error("Tried to get unit on option that is none");
+        }
+        Value
+    }
+    bool: is_some() {
+        !IsNone
+    }
+    bool: is_none() {
+        IsNone
+    }
+}
+
+class DllClass {
+    extern "path/to/dll" i32: get_number();
+}
+
+
 ```

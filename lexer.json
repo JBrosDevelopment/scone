@@ -63,7 +63,7 @@
     }
   },
   {
-    "token_type": "Minus",
+    "token_type": "Dash",
     "value": "-",
     "location": {
       "line": 1,
@@ -117,7 +117,7 @@
     }
   },
   {
-    "token_type": "Modulus",
+    "token_type": "Modulas",
     "value": "%",
     "location": {
       "line": 1,
@@ -315,7 +315,7 @@
     }
   },
   {
-    "token_type": "BitwiseNot",
+    "token_type": "Tilda",
     "value": "~",
     "location": {
       "line": 4,
@@ -342,7 +342,7 @@
     }
   },
   {
-    "token_type": "BitwiseAnd",
+    "token_type": "Ampersand",
     "value": "&",
     "location": {
       "line": 4,
@@ -360,7 +360,7 @@
     }
   },
   {
-    "token_type": "BitwiseOr",
+    "token_type": "Pipe",
     "value": "|",
     "location": {
       "line": 4,
@@ -378,7 +378,7 @@
     }
   },
   {
-    "token_type": "BitwiseXor",
+    "token_type": "Carrot",
     "value": "^",
     "location": {
       "line": 4,

@@ -43,10 +43,10 @@ pub fn parse(lexer_tokens: Vec<Token>) -> Result<Vec<Box<dyn ASTNode>>, String> 
                     last_was_digit_or_closing = true;
                     last_was_variable = false;
                 }
-                TokenType::Minus => {
+                TokenType::Dash => {
                     if !last_was_digit_or_closing && !last_was_variable {
                         chars.next();
-                        let operator = Token::new(TokenType::Minus,"-".to_string(), String::new(), c.location.clone());
+                        let operator = Token::new(TokenType::Dash,"-".to_string(), String::new(), c.location.clone());
                         let e1: ASTNodeConstant = ASTNodeConstant { token: Token::new(TokenType::NumberConstant,"0".to_string(), String::new(), c.location.clone()) };
                         let e2 = ASTNodeConstant { token: Token::new(TokenType::NumberConstant,chars.peek().unwrap().clone().clone(), String::new(), c.location.clone()) };
                         expr_stack.push(Box::new(ASTNodeExpression {token: c.clone(), lhs: Some(Box::new(e1)), rhs: Some(Box::new(e2))}));
@@ -63,7 +63,7 @@ pub fn parse(lexer_tokens: Vec<Token>) -> Result<Vec<Box<dyn ASTNode>>, String> 
                     last_was_digit_or_closing = false;
                     last_was_variable = false;
                 }
-                TokenType::Plus | TokenType::Star | TokenType::Slash | TokenType::Modulus | TokenType::Equal | TokenType::NotEqual | TokenType::GreaterThan | TokenType::GreaterThanOrEqual | TokenType::LessThan | TokenType::LessThanOrEqual | TokenType::BitwiseOr | TokenType::BitwiseXor | TokenType::BitwiseAnd | TokenType::BitwiseNot | TokenType::BitwiseShiftLeft | TokenType::BitwiseShiftRight | TokenType::And | TokenType::Or => {
+                TokenType::Plus | TokenType::Star | TokenType::Slash | TokenType::Modulas | TokenType::Equal | TokenType::NotEqual | TokenType::GreaterThan | TokenType::GreaterThanOrEqual | TokenType::LessThan | TokenType::LessThanOrEqual | TokenType::Pipe | TokenType::Carrot | TokenType::Ampersand | TokenType::Tilda | TokenType::BitwiseShiftLeft | TokenType::BitwiseShiftRight | TokenType::And | TokenType::Or => {
                     while operator_stack.last().map_or(false, |top| precedence(top.value.clone()) >= precedence(c.value.clone())) && expr_stack.len() > 1 {
                         let operator = operator_stack.pop().unwrap();
                         let e2 = expr_stack.pop().unwrap();

@@ -1,4 +1,4 @@
-void: val = function<T1, T2, (T3, T4, T5), T6<T7> >() 
+void: val = function<T1, (T2, T3), T4<T5> >() 
 
 /*
 i32: add() -> "add two numbers together";

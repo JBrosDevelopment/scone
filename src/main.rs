@@ -1,6 +1,6 @@
-mod lexer;
-mod ast;
-mod parser;
+pub mod lexer;
+pub mod ast;
+pub mod parser;
 
 fn main() {
     // lexer
