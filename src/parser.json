@@ -1,177 +1,71 @@
 [
-    ASTNodeVariableDeclaration {
-        token: Token {
-            token_type: Identifier,
-            value: "void",
-            meta: "",
-            location: Location {
-                line: 1,
-                column: 1,
-                length: 4,
-            },
-        },
-        name: "val",
-        value: Some(
-            ASTNodeFunctionCall {
-                token: Token {
-                    token_type: Identifier,
-                    value: "function",
-                    meta: "",
-                    location: Location {
-                        line: 1,
-                        column: 13,
-                        length: 8,
-                    },
-                },
-                argumments: [],
-                path: ObjectPath {
-                    name: "function",
-                    child: None,
-                },
-                type_parameters: Some(
-                    [
-                        (
-                            Some(
-                                AnonymousTypeParameter {
-                                    type_simple: None,
-                                    type_complex: Some(
-                                        [
-                                            (
-                                                Some(
-                                                    AnonymousTypeParameter {
-                                                        type_simple: Some(
-                                                            Token {
-                                                                token_type: Identifier,
-                                                                value: "T1",
-                                                                meta: "",
-                                                                location: Location {
-                                                                    line: 1,
-                                                                    column: 22,
-                                                                    length: 2,
-                                                                },
-                                                            },
-                                                        ),
-                                                        type_complex: None,
-                                                    },
-                                                ),
-                                                None,
-                                            ),
-                                        ],
-                                    ),
-                                },
-                            ),
-                            None,
-                        ),
-                        (
-                            Some(
-                                AnonymousTypeParameter {
-                                    type_simple: None,
-                                    type_complex: Some(
-                                        [
-                                            (
-                                                Some(
-                                                    AnonymousTypeParameter {
-                                                        type_simple: Some(
-                                                            Token {
-                                                                token_type: Identifier,
-                                                                value: "T2",
-                                                                meta: "",
-                                                                location: Location {
-                                                                    line: 1,
-                                                                    column: 27,
-                                                                    length: 2,
-                                                                },
-                                                            },
-                                                        ),
-                                                        type_complex: None,
-                                                    },
-                                                ),
-                                                None,
-                                            ),
-                                            (
-                                                Some(
-                                                    AnonymousTypeParameter {
-                                                        type_simple: Some(
-                                                            Token {
-                                                                token_type: Identifier,
-                                                                value: "T3",
-                                                                meta: "",
-                                                                location: Location {
-                                                                    line: 1,
-                                                                    column: 31,
-                                                                    length: 2,
-                                                                },
-                                                            },
-                                                        ),
-                                                        type_complex: None,
-                                                    },
-                                                ),
-                                                None,
-                                            ),
-                                        ],
-                                    ),
-                                },
-                            ),
-                            None,
-                        ),
-                        (
-                            Some(
-                                AnonymousTypeParameter {
-                                    type_simple: None,
-                                    type_complex: Some(
-                                        [
-                                            (
-                                                Some(
-                                                    AnonymousTypeParameter {
-                                                        type_simple: Some(
-                                                            Token {
-                                                                token_type: Identifier,
-                                                                value: "T4",
-                                                                meta: "",
-                                                                location: Location {
-                                                                    line: 1,
-                                                                    column: 36,
-                                                                    length: 2,
-                                                                },
-                                                            },
-                                                        ),
-                                                        type_complex: None,
-                                                    },
-                                                ),
-                                                None,
-                                            ),
-                                        ],
-                                    ),
-                                },
-                            ),
-                            None,
-                        ),
-                    ],
-                ),
-            },
-        ),
-        type_identifier: (
-            Some(
-                AnonymousTypeParameter {
-                    type_simple: Some(
-                        Token {
-                            token_type: Identifier,
-                            value: "void",
-                            meta: "",
-                            location: Location {
-                                line: 1,
-                                column: 1,
-                                length: 4,
-                            },
-                        },
-                    ),
-                    type_complex: None,
-                },
-            ),
-            None,
-        ),
-        description: None,
-        access_modifier: None,
-        variable_modifier: None,
+  {
+    "token": {
+      "token_type": "Identifier",
+      "value": "my_var",
+      "location": {
+        "line": 1,
+        "column": 1,
+        "length": 6
+      }
     },
+    "children": [],
+    "node": {
+      "VariableDeclaration": {
+        "var_type": {
+          "TypeIdentifier": {
+            "child": null,
+            "identifier": {
+              "token_type": "Identifier",
+              "value": "i32",
+              "location": {
+                "line": 1,
+                "column": 8,
+                "length": 3
+              }
+            }
+          }
+        },
+        "var_name": {
+          "token_type": "Identifier",
+          "value": "my_var",
+          "location": {
+            "line": 1,
+            "column": 1,
+            "length": 6
+          }
+        },
+        "var_value": {
+          "token": {
+            "token_type": "NumberConstant",
+            "value": "42",
+            "location": {
+              "line": 1,
+              "column": 12,
+              "length": 2
+            }
+          },
+          "children": [],
+          "node": {
+            "Constant": {
+              "value": {
+                "token_type": "NumberConstant",
+                "value": "42",
+                "location": {
+                  "line": 1,
+                  "column": 12,
+                  "length": 2
+                }
+              },
+              "constant_type": "I32"
+            }
+          }
+        },
+        "description": null,
+        "access_modifier": [
+          "None"
+        ]
+      }
+    }
+  }
 ]

@@ -166,7 +166,7 @@
     "value": ">",
     "location": {
       "line": 1,
-      "column": 43,
+      "column": 42,
       "length": 1
     }
   },
@@ -175,7 +175,7 @@
     "value": "(",
     "location": {
       "line": 1,
-      "column": 44,
+      "column": 43,
       "length": 1
     }
   },
@@ -184,16 +184,16 @@
     "value": ")",
     "location": {
       "line": 1,
-      "column": 45,
+      "column": 44,
       "length": 1
     }
   },
   {
     "token_type": "EndOfLine",
-    "value": "\n",
+    "value": ";",
     "location": {
       "line": 1,
-      "column": 47,
+      "column": 45,
       "length": 1
     }
   },

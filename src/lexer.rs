@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum TokenType {
     // operators
     Plus,
@@ -25,6 +25,7 @@ pub enum TokenType {
     Or,
     Not,
     RangeOperator,
+    Underscore,
     
     // brackets
     LParen,
@@ -60,6 +61,22 @@ pub enum TokenType {
     Use,
     Interface,
     In,
+    As,
+    Is,
+    Const,
+    Static,
+    Pub,
+    Priv,
+    Virtual,
+    Override,
+    SelfUpper,
+    SelfLower,
+    Extern,
+    Match,
+    LoadLib,
+    TypeOf,
+    NameOf,
+    SizeOf,
 
     // constants
     BoolConstant,
@@ -69,6 +86,7 @@ pub enum TokenType {
 
     // other
     Identifier,
+    AnonymousType,
     EndOfLine,
 }
 impl TokenType {
@@ -115,7 +133,7 @@ impl TokenType {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Location {
     pub line: i32,
     pub column: i32,
@@ -140,7 +158,7 @@ impl Location {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Token {
     pub token_type: TokenType,
     pub value: String,
@@ -184,7 +202,7 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             current_location.advance(1);
             tokens.push(Token::new(TokenType::EndOfLine, ";".to_string(), current_location.clone()));
         }
-        else if char::is_alphabetic(c.clone()) {
+        else if char::is_alphabetic(c.clone()) || c == '_' {
             let mut name = String::new();
     
             while i < chars.len() {
@@ -195,7 +213,26 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
                     break;
                 }
             }
+
             current_location.advance(name.len() as i32);
+            
+            // Check if it's an anonymous type
+            // is one uppercase letter followed by any number of digits
+            let mut first_char = true;
+            let mut is_anonymous_type = false; 
+            for c in name.chars().collect::<Vec<char>>() {
+                if c.is_lowercase() {
+                    is_anonymous_type = false;
+                }
+                if first_char && !c.is_alphabetic() {
+                    is_anonymous_type = false;
+                } 
+                if !first_char && !c.is_numeric() {
+                    is_anonymous_type = false;
+                }
+
+                first_char = false;
+            }
 
             let new_token = match name.as_str() {
                 "true" | "false" => Token::new(TokenType::BoolConstant, name.clone(), current_location.clone()),
@@ -212,8 +249,26 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
                 "use" => Token::new(TokenType::Use, name.clone(), current_location.clone()),
                 "interface" => Token::new(TokenType::Interface, name.clone(), current_location.clone()),
                 "in" => Token::new(TokenType::In, name.clone(), current_location.clone()),
-                _ => Token::new(TokenType::Identifier, name.clone(), current_location.clone()),
+                "as" => Token::new(TokenType::As, name.clone(), current_location.clone()),
+                "is" => Token::new(TokenType::Is, name.clone(), current_location.clone()),
+                "const" => Token::new(TokenType::Const, name.clone(), current_location.clone()),
+                "static" => Token::new(TokenType::Static, name.clone(), current_location.clone()),
+                "pub" => Token::new(TokenType::Pub, name.clone(), current_location.clone()),
+                "priv" => Token::new(TokenType::Priv, name.clone(), current_location.clone()),
+                "virtual" => Token::new(TokenType::Virtual, name.clone(), current_location.clone()),
+                "override" => Token::new(TokenType::Override, name.clone(), current_location.clone()),
+                "Self" => Token::new(TokenType::SelfUpper, name.clone(), current_location.clone()),
+                "self" => Token::new(TokenType::SelfLower, name.clone(), current_location.clone()),
+                "match" => Token::new(TokenType::Match, name.clone(), current_location.clone()),
+                "extern" => Token::new(TokenType::Extern, name.clone(), current_location.clone()),
+                "loadlib" => Token::new(TokenType::LoadLib, name.clone(), current_location.clone()),
+                "nameof" => Token::new(TokenType::NameOf, name.clone(), current_location.clone()),
+                "typeof" => Token::new(TokenType::TypeOf, name.clone(), current_location.clone()),
+                "sizeof" => Token::new(TokenType::SizeOf, name.clone(), current_location.clone()),
+                "_" => Token::new(TokenType::Underscore, name.clone(), current_location.clone()),
+                _ => if is_anonymous_type { Token::new(TokenType::AnonymousType, name.clone(), current_location.clone()) } else { Token::new(TokenType::Identifier, name.clone(), current_location.clone()) },
             };
+
             tokens.push(new_token);
             i -= 1;
         }

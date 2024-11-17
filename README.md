@@ -1,8 +1,8 @@
 # Scone Programming Language (In Development)
 
-I'm developing a programming language. This is what I want the code to look like:
+I'm developing a programming language. self is what I want the code to look like:
 
-```c
+```rs
 interface Comparable<T> -> "Objects that can be compared to using comparative operators" {
     static bool: operator_gt(T: l, T: r) -> "Greater than operator";
     static bool: operator_gteq(T: l, T: r) -> "Greater than or equal to operator";
@@ -20,7 +20,7 @@ interface Mathematical<T> -> "Objects that can be modified using mathematical op
     static T: operator_inc(T: v) -> "Increment operator";
     static T: operator_dec(T: v) -> "Decrement operator";
 }
-interface Numerable<T where T is Comparable && T is Mathematical> -> "Objects that are numerable and can have compared and mathematical operations" {
+interface Numerable<T # Comparable && Mathematical> -> "Objects that are numerable and can have compared and mathematical operations" {
     T: Value -> "Single value of the object";
     static T: default() -> "Default Value";
 }
@@ -87,7 +87,7 @@ pub class Color <- ToString -> "Example class for Color" {
     }
 
     string: to_string() {
-        $"\"Color\": {{ \"R\": {R}, \"G\": {G}, \"B\": {B} }}"
+        "\"Color\": { \"R\": " + R + ", \"G\": " + G + ", \"B\": " + B + " }"
     }
 }
 
@@ -106,9 +106,9 @@ main(string: args) {
 
 ## VM IR Code
 
-This is what I'm thinking the VM IR code might look like
+self is what I'm thinking the VM IR code might look like
 ```rs
-define ThisPackage;
+define selfPackage;
 
 void: main() {
     i32: num = 100; 
@@ -131,7 +131,7 @@ i32: add_i32(i32: left, i32: right) {
     *set $$79, [%CONSTANT_REGION + 1 .. 1], 79
 }
 
-@namespace "ThisPackage" {
+@namespace "selfPackage" {
     *define sub_routine "main"
     *define function "add_i32", i32
     *entry "main"
@@ -174,30 +174,30 @@ pub struct char <- Equitable<char, u8> -> "Structure for the definite sized char
     priv u8: Value = '\0' as u8;
     
     u8: to_u8() {
-        this.Value
+        self.Value
     }
     bool: is_alpha() {
-        match this.to_lower() {
+        match self.to_lower() {
             'a'..'z' => true
             _ => false
         }
     }
     bool: is_numeric() {
-        match this.to_lower() {
+        match self.to_lower() {
             '0'..'9' => true
             _ => false
         }
     }
     char: to_lower() {
-        match this {
-            'A'..'Z' => char::from_u8(this.Value + 32)
-            _ => this
+        match self {
+            'A'..'Z' => char::from_u8(self.Value + 32)
+            _ => self
         }
     }
     char: to_upper() {
-        match this {
-            'a'..'z' => char::from_u8(this.Value - 32)
-            _ => this
+        match self {
+            'a'..'z' => char::from_u8(self.Value - 32)
+            _ => self
         }
     }
 
@@ -242,23 +242,23 @@ pub class string <- ForLoop<string> -> "Class for string stored as a char array"
     }
 
     string: to_lower() {
-        string: res = this.Value.select(c => c.to_lower())
+        string: res = self.Value.select(c => c.to_lower())
         res
     }
     string: to_upper() {
-        string: res = this.Value.select(c => c.to_upper())
+        string: res = self.Value.select(c => c.to_upper())
         res
     }
     u32: len() {
-        this.Value.len()
+        self.Value.len()
     }
     List<char>: to_char_array() {
-        this.Vlaue
+        self.Vlaue
     }
 
     // for ForLoop<string> 
     priv string: value_from_index(u32: index) {
-        this[index]
+        self[index]
     }
 }
 
@@ -270,7 +270,7 @@ pub interface Default<T> -> "Interface that requires default value for all objec
     T: default()
 }
 
-pub interface Iterate<T> -> "Interface for objects that can be used in for loops, as a list, and more" {
+pub interface Iterate<T> <- ForLoop<T> -> "Interface for objects that can be used in for loops, as a list, and more" {
     Self<Y>: select(Func<(T, u32), Y>: function) -> "Iterate through object and select. Same as Select in C#";
     Self<Y>: select(Func<T, Y>: function) -> "Iterate through object and select. Same as Select in C#";
     Self<T>: filer(Func<(T, u32), bool>: function) -> "Iterate through object and filter. Same as Where in C#";
@@ -280,10 +280,11 @@ pub interface Iterate<T> -> "Interface for objects that can be used in for loops
     T: first(T: default) -> "Get first element";
     T: last(T: default) -> "Get last element";
     u32: len() -> "Get last element";
-    static T: operation_indexer(u32: index) -> "Get the value at the index of the iterator"
+    static T: operation_indexer(Self<T>: array, u32: index) -> "Get the value at the index of the iterator"
+    T: value_from_index(u32: index) -> "Get the value associated at the index"
 }
 
-pub class Array<T where T is DefiniteSize> <- Iterace<T> -> "Class for array" {
+pub class Array<T # DefiniteSize> <- Iterate<T> -> "Class for array" {
     priv u32: Capacity = 0;
     priv u32: ElementSize = 1;
     priv MemoryRegion: Region = Region::null();
@@ -296,88 +297,91 @@ pub class Array<T where T is DefiniteSize> <- Iterace<T> -> "Class for array" {
         }
     }
     Array<T>: append(T: element) {
-        if this.Size >= Capacity {
-            throw error("Tried to append an element to an array at max capacity");
+        if self.Size >= Capacity {
+            throw error::new("Tried to append an element to an array at max capacity");
         }
-        this.Size++;
-        this.MemoryRegion.insert_bytes(this.ElementSize * this.Size, element);
-        this
+        self.Size++;
+        self.MemoryRegion.insert_bytes(self.ElementSize * self.Size, element);
+        self
     }
     Array<T>: prepend(T: element) {
-        if this.Size >= Capacity {
-            throw error("Tried to prepend an element to an array at max capacity");
+        if self.Size >= Capacity {
+            throw error::new("Tried to prepend an element to an array at max capacity");
         }
         for i in (0..Size).reverse() {
-            T: index_element = this.MemoryRegion.get_bytes(this.ElementSize * i).into<T>();
-            this.MemoryRegion.insert_bytes(this.ElementSize * i, index_element);
+            T: index_element = self.MemoryRegion.get_bytes(self.ElementSize * i).into<T>();
+            self.MemoryRegion.insert_bytes(self.ElementSize * i, index_element);
         }
-        this.MemoryRegion.insert_bytes(0, element);
+        self.MemoryRegion.insert_bytes(0, element);
         Size++;
-        this
+        self
     }
     T: first(T: default) {
-        if this.Size == 0 {
+        if self.Size == 0 {
             return default;
         }
-        this.MemoryRegion.get_bytes(0).into<T>()
+        self.MemoryRegion.get_bytes(0).into<T>()
     }
     T: last(T: default) {
-        if this.Size == 0 {
+        if self.Size == 0 {
             return default;
         }
-        this.MemoryRegion.get_bytes(this.ElementSize * this.Size).into<T>()
+        self.MemoryRegion.get_bytes(self.ElementSize * self.Size).into<T>()
     }
     u32: len() {
-        this.Size
+        self.Size
     }
     Array<Y>: select(Func<(T, u32), Y>) {
-        Array<Y>: result = Array<Y>::new(this.Capacity);
+        Array<Y>: result = Array<Y>::new(self.Capacity);
         u32: index = 0;
-        while index < this.Size {
-            Y: transformed_value = function(this[index], index);
-            result.append(this[index]);
+        while index < self.Size {
+            Y: transformed_value = function(self[index], index);
+            result.append(self[index]);
             index++;
         }
         result
     }
     Array<Y>: select(Func<T, Y>) {
-        Array<Y>: result = Array<Y>::new(this.Capacity);
+        Array<Y>: result = Array<Y>::new(self.Capacity);
         u32: index = 0;
-        while index < this.Size {
-            Y: transformed_value = function(this[index]);
-            result.append(this[index]);
+        while index < self.Size {
+            Y: transformed_value = function(self[index]);
+            result.append(self[index]);
             index++;
         }
         result
     }
     Array<T>: filter(Func<(T, u32), bool>: function) {
-        Array<Y>: result = Array<Y>::new(this.Capacity);
+        Array<Y>: result = Array<Y>::new(self.Capacity);
         u32: index = 0;
-        while index < this.Size {
-            if function(this[index], index) {
-                result.append(this[index]);
+        while index < self.Size {
+            if function(self[index], index) {
+                result.append(self[index]);
             }
             index++;
         }
         result
     }
     Array<T>: filter(Func<T, bool>: function) {
-        Array<Y>: result = Array<Y>::new(this.Capacity);
+        Array<Y>: result = Array<Y>::new(self.Capacity);
         u32: index = 0;
-        while index < this.Size {
-            if function(this[index]) {
-                result.append(this[index]);
+        while index < self.Size {
+            if function(self[index]) {
+                result.append(self[index]);
             }
             index++;
         }
         result
     }
-    static T: operation_indexer(u32: index) {
-        this.MemoryRegion.get_bytes(this.ElementSize * index).into<T>()
+    static T: operation_indexer(Array<T>: array, u32: index) {
+        array.MemoryRegion.get_bytes(self.ElementSize * index).into<T>()
+    }
+    T: value_from_index(u32: index) {
+        self[index]
     }
 }
 
-pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list object" {
+pub class List<T # Default> <- Iterate<T> -> "Class for Linked list object" {
     priv LinkedListNode<T>: EntryNode = T.default();
 
     static List<T>: new() {
@@ -388,7 +392,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
     List<Y>: select(Func<(T, u32), Y>: function) {
         List<Y>: result = List<Y>::new();
         u32: index = 0;
-        LinkedListNode<T>: node = this.EntryNode;
+        LinkedListNode<T>: node = self.EntryNode;
         while !node.is_last() {
             Y: transformed_value = function(node.Value, index);
             result.append(transformed_value);
@@ -399,7 +403,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
     }
     List<Y>: select(Func<T, Y>: function) {
         List<Y>: result = List<Y>::new();
-        LinkedListNode<T>: node = this.EntryNode;
+        LinkedListNode<T>: node = self.EntryNode;
         while !node.is_last() {
             Y: transformed_value = function(node.Value);
             result.append(transformed_value);
@@ -410,7 +414,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
     List<T>: filter(Func<(T, u32), bool>: function) {
         List<Y>: result = List<Y>::new();
         u32: index = 0;
-        LinkedListNode<T>: node = this.EntryNode;
+        LinkedListNode<T>: node = self.EntryNode;
         while !node.is_last() {
             if function(node.Value, index) {
                 result.append(node.Value);
@@ -422,7 +426,7 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
     }
     List<T>: filter(Func<T, bool>: function) {
         List<Y>: result = List<Y>::new();
-        LinkedListNode<T>: node = this.EntryNode;
+        LinkedListNode<T>: node = self.EntryNode;
         while !node.is_last() {
             if function(node.Value) {
                 result.append(node.Value);
@@ -432,31 +436,31 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
         result
     }
     List<T>: append(T: val) {
-        LinkedListNode<T>: node = this.EntryNode;
+        LinkedListNode<T>: node = self.EntryNode;
         while !node.is_last() {
             node = node.NextValue.unit();
         }
         node.NextValue = Option::some(LinkedListNode::new(val))
 
-        this
+        self
     }
     List<T>: prepend(T: val) {
         LinkedListNode<T>: node = LinkedListNode::new(val);
-        node.NextValue = Option::some(this.EntryNode);
+        node.NextValue = Option::some(self.EntryNode);
 
-        this
+        self
     }
     T: first(T: default) {
-        if this.EntryNode.is_none() {
+        if self.EntryNode.is_none() {
             return default;
         }
-        this.EntryNode;
+        self.EntryNode;
     }
     T: last(T: default) {
-        if this.EntryNode.is_none() {
+        if self.EntryNode.is_none() {
             return default;
         }
-        LinkedListNode<T>: node = this.EntryNode;
+        LinkedListNode<T>: node = self.EntryNode;
         while !node.is_last() {
             node = node.NextValue.unit();
         }
@@ -464,15 +468,15 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
     }
     u32: len() {
         u32: len = 0;
-        LinkedListNode<T>: node = this.EntryNode;
+        LinkedListNode<T>: node = self.EntryNode;
         while !node.is_last() {
             node = node.NextValue.unit();
             len++;
         }
         len
     }
-    static T: operation_indexer(u32: index) {
-        LinkedListNode<T>: node = this.EntryNode;
+    static T: operation_indexer(List<T>: list, u32: index) {
+        LinkedListNode<T>: node = list.EntryNode;
         u32: i = 0;
         while !node.is_last() {
             node = node.NextValue.unit();
@@ -481,7 +485,10 @@ pub class List<T where T is Default> <- Iterate<T> -> "Class for Linked list obj
             }
             i++;
         }
-        throw error("Index out of bounds of list");
+        throw error::new("Index out of bounds of list");
+    }
+    T: value_from_index(u32: index) {
+        self[index]
     }
 } 
 
@@ -516,7 +523,7 @@ pub class Option<T where T is Default> {
     }
     T: unit() {
         if IsNone {
-            throw error("Tried to get unit on option that is none");
+            throw error::new("Tried to get unit on option that is none");
         }
         Value
     }
@@ -528,9 +535,14 @@ pub class Option<T where T is Default> {
     }
 }
 
+loadlib LIB "path/to/dll" -> "library for testing loadlib. Contains get_number() function";
+
 class DllClass {
-    extern "path/to/dll" i32: get_number();
+    extern LIB::"get_number" i32: get_number();
 }
 
-
+i32: val = 3;
+typeof(val) // returns "i32" as string
+nameof(val) // returns "val" as string
+sizeof(val) // returns 4 as u64
 ```
