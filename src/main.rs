@@ -4,6 +4,7 @@ pub mod parser;
 
 fn main() {
     // lexer
+    println!("lexing:");
 
     let code = std::fs::read_to_string("src/test_code.scn").unwrap();
     let tokens = lexer::lex(code.as_str()).unwrap();
@@ -12,6 +13,7 @@ fn main() {
     std::fs::write("src/lexer.json", json).unwrap();
 
     // parser
+    println!("parsing:");
     
     let ast = parser::generate_ast(tokens).unwrap();
 

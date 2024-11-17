@@ -31,7 +31,6 @@ pub struct InterfaceNode {
 }
 
 pub trait ASTNode: std::fmt::Debug {
-    fn get_meta(&self) -> String;
     fn clone_box(&self) -> Box<dyn ASTNode>; 
     fn get_data(&self) -> ASTNodeALLVALUE;
     fn as_any(&self) -> &dyn Any;
@@ -150,7 +149,6 @@ pub struct ASTNodeConstant {
 }
 impl ASTNode for ASTNodeConstant {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -190,7 +188,6 @@ pub struct ASTNodeExpression {
 }
 impl ASTNode for ASTNodeExpression {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -230,7 +227,6 @@ pub struct ASTNodeFunctionCall {
 }
 impl ASTNode for ASTNodeFunctionCall {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -273,7 +269,6 @@ pub struct ASTNodeVariableDeclaration {
 }
 impl ASTNode for ASTNodeVariableDeclaration {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -312,7 +307,6 @@ pub struct ASTNodeUndefinedVariable {
 }
 impl ASTNode for ASTNodeUndefinedVariable {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -350,7 +344,6 @@ pub struct ASTNodeReturnStatement {
 }
 impl ASTNode for ASTNodeReturnStatement {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -390,7 +383,6 @@ pub struct ASTNodeEnumDeclaration {
 }
 impl ASTNode for ASTNodeEnumDeclaration {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -427,7 +419,6 @@ pub struct ASTNodeControl {
 }
 impl ASTNode for ASTNodeControl {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -470,7 +461,6 @@ pub struct ASTNodeClassDeclaration {
 }
 impl ASTNode for ASTNodeClassDeclaration {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -512,7 +502,6 @@ pub struct ASTNodeStructDeclaration {
 }
 impl ASTNode for ASTNodeStructDeclaration {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -555,7 +544,6 @@ pub struct ASTNodeInterfaceDeclaration {
 }
 impl ASTNode for ASTNodeInterfaceDeclaration {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -599,7 +587,6 @@ pub struct ASTNodeFunctionDeclaration {
 }
 impl ASTNode for ASTNodeFunctionDeclaration {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -639,7 +626,6 @@ pub struct ASTNodeStatement {
 }
 impl ASTNode for ASTNodeStatement {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -679,7 +665,6 @@ pub struct ASTNodeObjectCreation {
 }
 impl ASTNode for ASTNodeObjectCreation {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -718,7 +703,6 @@ pub struct ASTNodeLambdaExpression {
 }
 impl ASTNode for ASTNodeLambdaExpression {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -756,7 +740,6 @@ pub struct ASTNodeTupleExpression {
 }
 impl ASTNode for ASTNodeTupleExpression {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {
@@ -794,7 +777,6 @@ pub struct ASTNodeTypeIdentifier {
 }
 impl ASTNode for ASTNodeTypeIdentifier {
     fn as_any(&self) -> &dyn Any { self }
-    fn get_meta(&self) -> String { self.token.meta.clone() }
     fn clone_box(&self) -> Box<dyn ASTNode> { Box::new(self.clone()) }
     fn get_data(&self) -> ASTNodeALLVALUE {
         ASTNodeALLVALUE {

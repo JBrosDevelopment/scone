@@ -72,8 +72,8 @@ pub enum TokenType {
     EndOfLine,
 }
 impl TokenType {
-    pub fn is_operator(value: &Self) -> bool {
-        match value {
+    pub fn is_operator(&self) -> bool {
+        match self {
             TokenType::Plus => true,
             TokenType::Dash => true,
             TokenType::Star => true,
@@ -95,6 +95,21 @@ impl TokenType {
             TokenType::And => true,
             TokenType::Or => true,
             TokenType::RangeOperator => true,
+            _ => false
+        }
+    }
+    pub fn operator_assignable(&self) -> bool {
+        match self {
+            TokenType::Plus => true,
+            TokenType::Dash => true,
+            TokenType::Star => true,
+            TokenType::Slash => true,
+            TokenType::Pipe => true,
+            TokenType::Carrot => true,
+            TokenType::Ampersand => true,
+            TokenType::Modulas => true,
+            TokenType::And => true,
+            TokenType::Or => true,
             _ => false
         }
     }
@@ -129,55 +144,53 @@ impl Location {
 pub struct Token {
     pub token_type: TokenType,
     pub value: String,
-    pub meta: String,
     pub location: Location
 }
 impl Token {
-    pub fn new(token_type: TokenType, value: String, meta: String, location: Location) -> Token {
+    pub fn new(token_type: TokenType, value: String, location: Location) -> Token {
         Token {
             token_type,
             value,
-            meta,
             location
         }
     }
 }
 
 pub fn lex(code: &str) -> Result<Vec<Token>, String> {
-    let mut tokens = Vec::new();
-    let mut chars = code.chars().peekable();
-    let mut current_location = Location::new(1, 1, 0);
+    let mut tokens: Vec<Token> = Vec::new();
+    let chars: Vec<char> = code.chars().collect::<Vec<char>>();
+    let mut current_location: Location = Location::new(1, 1, 0);
 
-    while let Some(c) = chars.peek() {
-        if *c == ' ' {
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == ' ' {
             current_location.advance(1);
-            chars.next();
         }
-        else if *c == '\t' {
+        else if c == '\t' {
             current_location.advance('\t'.to_string().len() as i32);
-            chars.next();
         }
-        else if *c == '\r' {
-            chars.next();
+        else if c == '\r' {
+            // nothing
         }
-        else if *c == '\n' {
+        else if c == '\n' {
             current_location.advance('\n'.to_string().len() as i32);
-            tokens.push(Token::new(TokenType::EndOfLine, "\n".to_string(), String::new(), current_location.clone()));
+            if tokens.last().clone().unwrap().token_type != TokenType::EndOfLine {
+                tokens.push(Token::new(TokenType::EndOfLine, "\n".to_string(), current_location.clone()));
+            }
             current_location.advance_line();
-            chars.next();
         }
-        else if *c == ';' {
+        else if c == ';' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::EndOfLine, ";".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::EndOfLine, ";".to_string(), current_location.clone()));
         }
         else if char::is_alphabetic(c.clone()) {
             let mut name = String::new();
     
-            while let Some(next_c) = chars.peek() {
-                if char::is_alphanumeric(*next_c) || char::is_numeric(*next_c) || *next_c == '_' {
-                    name.push(*next_c);
-                    chars.next();
+            while i < chars.len() {
+                if char::is_alphanumeric(chars[i]) || char::is_numeric(chars[i]) || chars[i] == '_' {
+                    name.push(chars[i]);
+                    i += 1;
                 } else {
                     break;
                 }
@@ -185,178 +198,163 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             current_location.advance(name.len() as i32);
 
             let new_token = match name.as_str() {
-                "true" | "false" => Token::new(TokenType::BoolConstant, name.clone(), String::new(), current_location.clone()),
-                "return" => Token::new(TokenType::Return, name.clone(), String::new(), current_location.clone()),
-                "if" => Token::new(TokenType::If, name.clone(), String::new(), current_location.clone()),
-                "else" => Token::new(TokenType::Else, name.clone(), String::new(), current_location.clone()),
-                "for" => Token::new(TokenType::For, name.clone(), String::new(), current_location.clone()),
-                "while" => Token::new(TokenType::While, name.clone(), String::new(), current_location.clone()),
-                "break" => Token::new(TokenType::Break, name.clone(), String::new(), current_location.clone()),
-                "continue" => Token::new(TokenType::Continue, name.clone(), String::new(), current_location.clone()),
-                "class" => Token::new(TokenType::Class, name.clone(), String::new(), current_location.clone()),
-                "struct" => Token::new(TokenType::Struct, name.clone(), String::new(), current_location.clone()),
-                "enum" => Token::new(TokenType::Enum, name.clone(), String::new(), current_location.clone()),
-                "use" => Token::new(TokenType::Use, name.clone(), String::new(), current_location.clone()),
-                "interface" => Token::new(TokenType::Interface, name.clone(), String::new(), current_location.clone()),
-                "in" => Token::new(TokenType::In, name.clone(), String::new(), current_location.clone()),
-                _ => Token::new(TokenType::Identifier, name.clone(), String::new(), current_location.clone()),
+                "true" | "false" => Token::new(TokenType::BoolConstant, name.clone(), current_location.clone()),
+                "return" => Token::new(TokenType::Return, name.clone(), current_location.clone()),
+                "if" => Token::new(TokenType::If, name.clone(), current_location.clone()),
+                "else" => Token::new(TokenType::Else, name.clone(), current_location.clone()),
+                "for" => Token::new(TokenType::For, name.clone(), current_location.clone()),
+                "while" => Token::new(TokenType::While, name.clone(), current_location.clone()),
+                "break" => Token::new(TokenType::Break, name.clone(), current_location.clone()),
+                "continue" => Token::new(TokenType::Continue, name.clone(), current_location.clone()),
+                "class" => Token::new(TokenType::Class, name.clone(), current_location.clone()),
+                "struct" => Token::new(TokenType::Struct, name.clone(), current_location.clone()),
+                "enum" => Token::new(TokenType::Enum, name.clone(), current_location.clone()),
+                "use" => Token::new(TokenType::Use, name.clone(), current_location.clone()),
+                "interface" => Token::new(TokenType::Interface, name.clone(), current_location.clone()),
+                "in" => Token::new(TokenType::In, name.clone(), current_location.clone()),
+                _ => Token::new(TokenType::Identifier, name.clone(), current_location.clone()),
             };
             tokens.push(new_token);
+            i -= 1;
         }
         else if char::is_numeric(c.clone()) {
             let mut number = String::new();
     
-            while let Some(next_c) = chars.peek() {
-                if char::is_numeric(*next_c) {
-                    number.push(*next_c);
-                    chars.next();
+            while i < chars.len() {
+                if char::is_numeric(chars[i]) {
+                    number.push(chars[i]);
+                    i += 1;
                 } else {
                     break;
                 }
             }
             current_location.advance(number.len() as i32);
-            let new_token = Token::new(TokenType::NumberConstant, number, String::new(), current_location.clone());
+            let new_token = Token::new(TokenType::NumberConstant, number, current_location.clone());
             tokens.push(new_token);
+            i -= 1;
         }
-        else if *c == '@' {
+        else if c == '@' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::AtSymbol, "@".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::AtSymbol, "@".to_string(), current_location.clone()));
         }
-        else if *c == '#' {
+        else if c == '#' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::Hashtag, "#".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::Hashtag, "#".to_string(), current_location.clone()));
         }
-        else if *c == ',' {
+        else if c == ',' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::Comma, ",".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::Comma, ",".to_string(), current_location.clone()));
         }
-        else if *c == '{' {
+        else if c == '{' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::LBrace, "{".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::LBrace, "{".to_string(), current_location.clone()));
         }
-        else if *c == '}' {
+        else if c == '}' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::RBrace, "}".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::RBrace, "}".to_string(), current_location.clone()));
         }
-        else if *c == '(' {
+        else if c == '(' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::LParen, "(".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::LParen, "(".to_string(), current_location.clone()));
         }
-        else if *c == ')' {
+        else if c == ')' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::RParen, ")".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::RParen, ")".to_string(), current_location.clone()));
         }
-        else if *c == '[' {
+        else if c == '[' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::LBracket, "[".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::LBracket, "[".to_string(), current_location.clone()));
         }
-        else if *c == ']' {
+        else if c == ']' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::RBracket, "]".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::RBracket, "]".to_string(), current_location.clone()));
         }
-        else if *c == '$' {
+        else if c == '$' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::DollarSign, "$".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::DollarSign, "$".to_string(), current_location.clone()));
         }
-        else if *c == '~' {
+        else if c == '~' {
             current_location.advance(1);
-            tokens.push(Token::new(TokenType::Tilda, "~".to_string(), String::new(), current_location.clone()));
-            chars.next();
+            tokens.push(Token::new(TokenType::Tilda, "~".to_string(), current_location.clone()));
         }
-        else if *c == '.' {
-            chars.next();
-            if chars.peek() == Some(&'.') {
+        else if c == '.' {
+            if chars.get(i + 1) == Some(&'.') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::RangeOperator, "..".to_string(), String::new(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::RangeOperator, "..".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Dot, ".".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Dot, ".".to_string(), current_location.clone()));
             }
         }
-        else if *c == '^' {
-            chars.next();
-            if chars.peek() == Some(&'=') {
+        else if c == '^' {
+            if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Carrot, "^=".to_string(), "Assign".to_string(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::Carrot, "^=".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Carrot, "^".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Carrot, "^".to_string(), current_location.clone()));
             }
         }
-        else if *c == '*' {
-            chars.next();
-            if chars.peek() == Some(&'=') {
+        else if c == '*' {
+            if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Star, "*=".to_string(), "Assign".to_string(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::Star, "*=".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Star, "*".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Star, "*".to_string(), current_location.clone()));
             }
         }
-        else if *c == '%' {
-            chars.next();
-            if chars.peek() == Some(&'=') {
+        else if c == '%' {
+            if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Modulas, "%=".to_string(), "Assign".to_string(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::Modulas, "%=".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Modulas, "%".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Modulas, "%".to_string(), current_location.clone()));
             }
         }
-        else if *c == '/' {
-            chars.next();
-            if chars.peek() == Some(&'/') {
-                chars.next();
+        else if c == '/' {
+            if chars.get(i + 1) == Some(&'/') {
+                i += 1;
                 
-                while let Some(next_c) = chars.peek() {
-                    if *next_c == '\n' {
+                while i < chars.len() {
+                    if chars[i] == '\n' {
                         break;
                     }
-                    chars.next();
+                    i += 1;
                 }
             }
-            else if chars.peek() == Some(&'*') {
-                chars.next();
+            else if chars.get(i + 1) == Some(&'*') {
                 let mut is_star = false;
                 let mut lines = 0;
                 let mut length = 0;
+                i += 1;
 
-                while let Some(next_c) = chars.peek() {
-                    if *next_c == '*' {
+                while i < chars.len() {
+                    if chars[i] == '*' {
                         is_star = true;
                     }
-                    else if *next_c == '/' && is_star {
-                        chars.next();
+                    else if chars[i] == '/' && is_star {
                         break;
                     }
 
-                    if *next_c == '\n' {
+                    if chars[i] == '\n' {
                         lines += 1;
                         length = 0;
                     }
-                    if *next_c != '\r' {
+                    if chars[i] != '\r' {
                         length += 1;
                     }
 
-                    chars.next();
+                    i += 1;
                 }
 
                 for _ in 0..lines {
@@ -365,188 +363,175 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
 
                 current_location.advance(length as i32);
             }
-            else if chars.peek() == Some(&'=') {
+            else {
+                current_location.advance(1);
+                tokens.push(Token::new(TokenType::Slash, "/".to_string(), current_location.clone()));
+            }
+        }
+        else if c == '=' {
+            if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Slash, "/=".to_string(), "Assign".to_string(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::Equal, "==".to_string(), current_location.clone()));
+                i += 1;
+            }
+            else if chars.get(i + 1) == Some(&'>') {
+                current_location.advance(2);
+                tokens.push(Token::new(TokenType::DoubleArrow, "=>".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Slash, "/".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Assign, "=".to_string(), current_location.clone()));
             }
         }
-        else if *c == '=' {
-            chars.next();
-            let next = chars.peek();
-            if next == Some(&'=') {
+        else if c == '+' {
+            if chars.get(i + 1) == Some(&'+') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Equal, "==".to_string(), String::new(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::Increment, "++".to_string(), current_location.clone()));
+                i += 1;
             }
-            else if next == Some(&'>') {
+            else if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::DoubleArrow, "=>".to_string(), String::new(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::Plus, "+=".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Assign, "=".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Plus, "+".to_string(), current_location.clone()));
             }
         }
-        else if *c == '+' {
-            chars.next();
-            if chars.peek() == Some(&'+') {
+        else if c == '-' {
+            if chars.get(i + 1) == Some(&'-') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Increment, "++".to_string(), String::new(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::Decrement, "--".to_string(), current_location.clone()));
+                i += 1;
             }
-            else if chars.peek() == Some(&'=') {
+            else if chars.get(i + 1) == Some(&'>') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Plus, "+=".to_string(), "Assign".to_string(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::RightArrow, "->".to_string(), current_location.clone()));
+                i += 1;
+            }
+            else if chars.get(i + 1) == Some(&'=') {
+                current_location.advance(2);
+                tokens.push(Token::new(TokenType::Dash, "-=".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Plus, "+".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Dash, "-".to_string(), current_location.clone()));
             }
         }
-        else if *c == '-' {
-            chars.next();
-            let next = chars.peek();
-            if next == Some(&'-') {
+        else if c == '>' {
+            if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Decrement, "--".to_string(), String::new(), current_location.clone()));
-                chars.next();
-            }
-            else if next == Some(&'>') {
-                current_location.advance(2);
-                tokens.push(Token::new(TokenType::RightArrow, "->".to_string(), String::new(), current_location.clone()));
-                chars.next();
-            }
-            else if chars.peek() == Some(&'=') {
-                current_location.advance(2);
-                tokens.push(Token::new(TokenType::Dash, "-=".to_string(), "Assign".to_string(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::GreaterThanOrEqual, ">=".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Dash, "-".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::GreaterThan, ">".to_string(), current_location.clone()));
             }
         }
-        else if *c == '>' {
-            chars.next();
-            let next = chars.peek();
-            if next == Some(&'=') {
+        else if c == '<' {
+            if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::GreaterThanOrEqual, ">=".to_string(), String::new(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::LessThanOrEqual, "<=".to_string(), current_location.clone()));
+                i += 1;
+            }
+            else if chars.get(i + 1) == Some(&'-') {
+                current_location.advance(2);
+                tokens.push(Token::new(TokenType::LeftArrow, "<-".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::GreaterThan, ">".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::LessThan, "<".to_string(), current_location.clone()));
             }
         }
-        else if *c == '<' {
-            chars.next();
-            let next = chars.peek();
-            if next == Some(&'=') {
+        else if c == '!' {
+            if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::LessThanOrEqual, "<=".to_string(), String::new(), current_location.clone()));
-                chars.next();
-            }
-            else if next == Some(&'-') {
-                current_location.advance(2);
-                tokens.push(Token::new(TokenType::LeftArrow, "<-".to_string(), String::new(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::NotEqual, "!=".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::LessThan, "<".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Not, "!".to_string(), current_location.clone()));
             }
         }
-        else if *c == '!' {
-            chars.next();
-            if chars.peek() == Some(&'=') {
-                current_location.advance(2);
-                tokens.push(Token::new(TokenType::NotEqual, "!=".to_string(), String::new(), current_location.clone()));
-                chars.next();
-            }
-            else {
-                current_location.advance(1);
-                tokens.push(Token::new(TokenType::Not, "!".to_string(), String::new(), current_location.clone()));
-            }
-        }
-        else if *c == '&' {
-            chars.next();
-            if chars.peek() == Some(&'&') {
-                chars.next();
-                if chars.peek() == Some(&'=') {
+        else if c == '&' {
+            if chars.get(i + 1) == Some(&'&') {
+                i += 1;
+                if chars.get(i + 1) == Some(&'=') {
                     current_location.advance(3);    
-                    tokens.push(Token::new(TokenType::And, "&&=".to_string(), "Assign".to_string(), current_location.clone()));
-                    chars.next();
+                    tokens.push(Token::new(TokenType::And, "&&=".to_string(), current_location.clone()));
+                    i += 1;
                 }
                 else {
-                    tokens.push(Token::new(TokenType::And, "&&".to_string(), String::new(), current_location.clone()));
+                    tokens.push(Token::new(TokenType::And, "&&".to_string(), current_location.clone()));
                     current_location.advance(2);
                 }
             }
-            if chars.peek() == Some(&'=') {
+            else if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::Ampersand, "&=".to_string(), "Assign".to_string(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::Ampersand, "&=".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Ampersand, "&".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Ampersand, "&".to_string(), current_location.clone()));
             }
         }
-        else if *c == '|' {
-            chars.next();
-            if chars.peek() == Some(&'|') {
-                chars.next();
-                if chars.peek() == Some(&'=') {
+        else if c == '|' {
+            if chars.get(i + 1) == Some(&'|') {
+                i += 1;
+                if chars.get(i + 1) == Some(&'=') {
                     current_location.advance(3);    
-                    tokens.push(Token::new(TokenType::Or, "||=".to_string(), "Assign".to_string(), current_location.clone()));
-                    chars.next();
+                    tokens.push(Token::new(TokenType::Or, "||=".to_string(), current_location.clone()));
+                    i += 1;
                 }
                 else {
-                    tokens.push(Token::new(TokenType::Or, "||".to_string(), String::new(), current_location.clone()));
+                    tokens.push(Token::new(TokenType::Or, "||".to_string(), current_location.clone()));
                     current_location.advance(2);
                 }
             }
-            else {
-                current_location.advance(1);
-                tokens.push(Token::new(TokenType::Pipe, "|".to_string(), String::new(), current_location.clone()));
-            }
-        }
-        else if *c == ':' {
-            chars.next();
-            if chars.peek() == Some(&':') {
+            else if chars.get(i + 1) == Some(&'=') {
                 current_location.advance(2);
-                tokens.push(Token::new(TokenType::DoubleColon, "::".to_string(), String::new(), current_location.clone()));
-                chars.next();
+                tokens.push(Token::new(TokenType::Pipe, "|=".to_string(), current_location.clone()));
+                i += 1;
             }
             else {
                 current_location.advance(1);
-                tokens.push(Token::new(TokenType::Colon, ":".to_string(), String::new(), current_location.clone()));
+                tokens.push(Token::new(TokenType::Pipe, "|".to_string(), current_location.clone()));
             }
         }
-        else if *c == '\'' {
+        else if c == ':' {
+            if chars.get(i + 1) == Some(&':') {
+                current_location.advance(2);
+                tokens.push(Token::new(TokenType::DoubleColon, "::".to_string(), current_location.clone()));
+                i += 1;
+            }
+            else {
+                current_location.advance(1);
+                tokens.push(Token::new(TokenType::Colon, ":".to_string(), current_location.clone()));
+            }
+        }
+        else if c == '\'' {
             let mut char = String::new();
             let mut escape = false;
             let mut length = 1;
-            chars.next();
+            i += 1;
 
-            while let Some(next_c) = chars.next() {
-                if next_c == '\'' && !escape {
+            while i < chars.len() {
+                if chars[i] == '\'' && !escape {
                     length += 1;
                     break;
                 }
-                else if next_c == '\\' && !escape {
+                else if chars[i] == '\\' && !escape {
                     escape = true;
                 }
                 else if escape {
-                    match next_c {
+                    match chars[i] {
                         'n' => char.push('\n'),
                         't' => char.push('\t'),
                         'r' => char.push('\r'),
@@ -559,9 +544,10 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
                     length += 1;
                 }
                 else {
-                    char.push(next_c);
+                    char.push(chars[i]);
                     length += 1;
                 }
+                i += 1;
             }
             
             if char.len() != 1 {
@@ -569,24 +555,24 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
             }
             
             current_location.advance(length);
-            tokens.push(Token::new(TokenType::CharConstant, char, String::new(), current_location.clone()));
+            tokens.push(Token::new(TokenType::CharConstant, char, current_location.clone()));
         }
-        else if *c == '"' {
+        else if c == '"' {
             let mut string = String::new();
             let mut escape = false;
             let mut length = 1;
-            chars.next();
+            i += 1;
 
-            while let Some(next_c) = chars.next() {
-                if next_c == '"' && !escape {
+            while i < chars.len() {
+                if chars[i] == '"' && !escape {
                     length += 1;
                     break;
                 }
-                else if next_c == '\\' && !escape {
+                else if chars[i] == '\\' && !escape {
                     escape = true;
                 }
                 else if escape {
-                    match next_c {
+                    match chars[i] {
                         'n' => string.push('\n'),
                         't' => string.push('\t'),
                         'r' => string.push('\r'),
@@ -600,16 +586,45 @@ pub fn lex(code: &str) -> Result<Vec<Token>, String> {
                 }
                 else {
                     length += 1;
-                    string.push(next_c);
+                    string.push(chars[i]);
                 }
-
+                i += 1;
             }
 
             current_location.advance(length);            
-            tokens.push(Token::new(TokenType::StringConstant, string, String::new(), current_location.clone()));
+            tokens.push(Token::new(TokenType::StringConstant, string, current_location.clone()));
         }
         else {
             return Err(format!("Unkown character: '{}' at: {:?}", c ,current_location.clone()));
+        }
+        i += 1;
+    }
+
+    // Fix assignment operators, `+=` to `= NAME +`
+    let mut i = 0;
+    while i < tokens.len() {
+        if tokens[i].token_type.operator_assignable() && tokens[i].value.ends_with("=") {
+            tokens[i].value = tokens[i].value.trim_end_matches("=").to_string();
+            tokens[i].location.length -= 1;
+            
+            let ident = tokens[i - 1].clone();
+            let original = tokens[i].location.clone();
+            let mut assign_location = original.clone();
+            assign_location.length = 1;
+            
+            tokens.insert(i, Token::new(TokenType::Assign, "=".to_string(), assign_location.clone()));
+            tokens.insert(i + 1, Token::new(ident.token_type.clone(), ident.value.clone(), ident.location.clone()));
+            
+            let new_op_location = Location {
+                line: assign_location.line,
+                column: assign_location.column + assign_location.length + 1,
+                length: assign_location.length,
+            };
+            tokens[i + 2].location.column = new_op_location.column;
+
+            i += 3;
+        } else {
+            i += 1;
         }
     }
 

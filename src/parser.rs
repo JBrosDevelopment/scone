@@ -251,7 +251,7 @@ fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Re
                 last_was_value = true;
             }
             TokenType::Not => {
-                let operator = Token::new(TokenType::Not,"!".to_string(), String::new(), token.location.clone());
+                let operator = Token::new(TokenType::Not,"!".to_string(), token.location.clone());
                 let e1 = expr_stack.pop();
                 let e2 = None;
                 expr_stack.push(Box::new(ASTNodeExpression {token: operator, lhs: e1, rhs: e2}));
@@ -274,9 +274,9 @@ fn parse_value_expression(tok_vec: Vec<Token>, mut i: usize, is_arg: bool) -> Re
                     }
                     operator_stack.push(token.clone());
                 } else {
-                    let operator = Token::new(TokenType::Dash, "-".to_string(), String::new(), token.location.clone());
+                    let operator = Token::new(TokenType::Dash, "-".to_string(), token.location.clone());
                     let e1 = ASTNodeConstant {
-                        token: Token::new(TokenType::NumberConstant, "0".to_string(), String::new(), token.location.clone()),
+                        token: Token::new(TokenType::NumberConstant, "0".to_string(), token.location.clone()),
                     };
                     i += 1;
                     if let Some(_) = tokens.next() {

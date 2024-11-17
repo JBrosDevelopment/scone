@@ -1,8 +1,6 @@
-void: val = function<T1, (T2, T3), T4<T5> >() 
+void: val = function<T1, (T2, T3), T4<T5>>();
 
-/*
 i32: add() -> "add two numbers together";
 T: concat<T>(T: a, T: b) -> "concat two objects together";
 
 string: name = concat<string>(add(5 + 2).to_str(), "urm, watda sigma");
-*/
