@@ -1,9 +1,54 @@
 [
   {
     "token_type": "Identifier",
-    "value": "i32",
+    "value": "char",
     "location": {
       "line": 1,
+      "column": 1,
+      "length": 4
+    }
+  },
+  {
+    "token_type": "Colon",
+    "value": ":",
+    "location": {
+      "line": 1,
+      "column": 5,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "val",
+    "location": {
+      "line": 1,
+      "column": 7,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "Assign",
+    "value": "=",
+    "location": {
+      "line": 1,
+      "column": 11,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": ";",
+    "location": {
+      "line": 1,
+      "column": 13,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "i32",
+    "location": {
+      "line": 2,
       "column": 1,
       "length": 3
     }
@@ -12,44 +57,44 @@
     "token_type": "Colon",
     "value": ":",
     "location": {
-      "line": 1,
+      "line": 2,
       "column": 4,
       "length": 1
     }
   },
   {
     "token_type": "Identifier",
-    "value": "value",
+    "value": "v",
     "location": {
-      "line": 1,
+      "line": 2,
       "column": 6,
-      "length": 5
+      "length": 1
     }
   },
   {
     "token_type": "Assign",
     "value": "=",
     "location": {
-      "line": 1,
-      "column": 12,
+      "line": 2,
+      "column": 8,
       "length": 1
     }
   },
   {
     "token_type": "NumberConstant",
-    "value": "10",
+    "value": "0",
     "location": {
-      "line": 1,
-      "column": 14,
-      "length": 2
+      "line": 2,
+      "column": 10,
+      "length": 1
     }
   },
   {
     "token_type": "EndOfLine",
     "value": ";",
     "location": {
-      "line": 1,
-      "column": 16,
+      "line": 2,
+      "column": 11,
       "length": 1
     }
   }
