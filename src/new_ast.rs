@@ -126,7 +126,7 @@ pub struct VariableDeclaration {
     pub var_name: Box<Token>,
     pub var_value: Box<ASTNode>,
     pub description: Option<Token>,
-    pub access_modifier: Option<Vec<AccessModifier>>,
+    pub access_modifier: Vec<AccessModifier>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

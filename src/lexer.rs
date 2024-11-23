@@ -174,6 +174,12 @@ impl Token {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Lexer {
+    output: ErrorHandling,
+    tokens: Vec<Token>
+}
+
 pub fn lex(code: &str) -> Result<Vec<Token>, String> {
     let mut tokens: Vec<Token> = Vec::new();
     let chars: Vec<char> = code.chars().collect::<Vec<char>>();
