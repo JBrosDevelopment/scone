@@ -809,5 +809,256 @@
         ]
       }
     }
+  },
+  {
+    "token": {
+      "token_type": "Identifier",
+      "value": "val",
+      "location": {
+        "line": 4,
+        "column": 1,
+        "length": 3
+      }
+    },
+    "node": {
+      "Assignment": {
+        "left": {
+          "token": {
+            "token_type": "Dot",
+            "value": ".",
+            "location": {
+              "line": 4,
+              "column": 4,
+              "length": 1
+            }
+          },
+          "node": {
+            "FunctionCall": {
+              "parameters": {
+                "parameters": []
+              },
+              "type_parameters": null,
+              "scope": {
+                "child": {
+                  "child": {
+                    "child": null,
+                    "identifier": {
+                      "token_type": "Identifier",
+                      "value": "variable",
+                      "location": {
+                        "line": 4,
+                        "column": 12,
+                        "length": 8
+                      }
+                    },
+                    "scope_type": "Dot"
+                  },
+                  "identifier": {
+                    "token_type": "Identifier",
+                    "value": "nested",
+                    "location": {
+                      "line": 4,
+                      "column": 5,
+                      "length": 6
+                    }
+                  },
+                  "scope_type": "Dot"
+                },
+                "identifier": {
+                  "token_type": "Identifier",
+                  "value": "val",
+                  "location": {
+                    "line": 4,
+                    "column": 1,
+                    "length": 3
+                  }
+                },
+                "scope_type": null
+              }
+            }
+          }
+        },
+        "right": {
+          "token": {
+            "token_type": "EndOfLine",
+            "value": "",
+            "location": {
+              "line": 0,
+              "column": 0,
+              "length": 0
+            }
+          },
+          "node": {
+            "TupleExpression": {
+              "parameters": [
+                {
+                  "token": {
+                    "token_type": "LessThan",
+                    "value": "<",
+                    "location": {
+                      "line": 4,
+                      "column": 45,
+                      "length": 1
+                    }
+                  },
+                  "node": {
+                    "FunctionCall": {
+                      "parameters": {
+                        "parameters": [
+                          {
+                            "token": {
+                              "token_type": "StringConstant",
+                              "value": "yes",
+                              "location": {
+                                "line": 4,
+                                "column": 51,
+                                "length": 5
+                              }
+                            },
+                            "node": {
+                              "Constant": {
+                                "value": {
+                                  "token_type": "StringConstant",
+                                  "value": "yes",
+                                  "location": {
+                                    "line": 4,
+                                    "column": 51,
+                                    "length": 5
+                                  }
+                                },
+                                "constant_type": "String"
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "type_parameters": [
+                        {
+                          "token": {
+                            "token_type": "Identifier",
+                            "value": "i32",
+                            "location": {
+                              "line": 4,
+                              "column": 46,
+                              "length": 3
+                            }
+                          },
+                          "node": {
+                            "TypeIdentifier": {
+                              "scope": {
+                                "child": null,
+                                "identifier": {
+                                  "token_type": "Identifier",
+                                  "value": "i32",
+                                  "location": {
+                                    "line": 4,
+                                    "column": 46,
+                                    "length": 3
+                                  }
+                                },
+                                "scope_type": null
+                              },
+                              "types": null
+                            }
+                          }
+                        }
+                      ],
+                      "scope": {
+                        "child": null,
+                        "identifier": {
+                          "token_type": "Identifier",
+                          "value": "value",
+                          "location": {
+                            "line": 4,
+                            "column": 40,
+                            "length": 5
+                          }
+                        },
+                        "scope_type": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "token": {
+                    "token_type": "Dash",
+                    "value": "-",
+                    "location": {
+                      "line": 4,
+                      "column": 63,
+                      "length": 1
+                    }
+                  },
+                  "node": {
+                    "Operator": {
+                      "left": {
+                        "token": {
+                          "token_type": "Identifier",
+                          "value": "val",
+                          "location": {
+                            "line": 4,
+                            "column": 59,
+                            "length": 3
+                          }
+                        },
+                        "node": {
+                          "Identifier": {
+                            "child": null,
+                            "identifier": {
+                              "token_type": "Identifier",
+                              "value": "val",
+                              "location": {
+                                "line": 4,
+                                "column": 59,
+                                "length": 3
+                              }
+                            },
+                            "scope_type": null
+                          }
+                        }
+                      },
+                      "right": {
+                        "token": {
+                          "token_type": "NumberConstant",
+                          "value": "2",
+                          "location": {
+                            "line": 4,
+                            "column": 65,
+                            "length": 1
+                          }
+                        },
+                        "node": {
+                          "Constant": {
+                            "value": {
+                              "token_type": "NumberConstant",
+                              "value": "2",
+                              "location": {
+                                "line": 4,
+                                "column": 65,
+                                "length": 1
+                              }
+                            },
+                            "constant_type": "U8"
+                          }
+                        }
+                      },
+                      "operator": {
+                        "token_type": "Dash",
+                        "value": "-",
+                        "location": {
+                          "line": 4,
+                          "column": 63,
+                          "length": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
   }
 ]

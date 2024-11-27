@@ -601,5 +601,239 @@
       "column": 200,
       "length": 1
     }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "val",
+    "location": {
+      "line": 4,
+      "column": 1,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "Dot",
+    "value": ".",
+    "location": {
+      "line": 4,
+      "column": 4,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "nested",
+    "location": {
+      "line": 4,
+      "column": 5,
+      "length": 6
+    }
+  },
+  {
+    "token_type": "Dot",
+    "value": ".",
+    "location": {
+      "line": 4,
+      "column": 11,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "variable",
+    "location": {
+      "line": 4,
+      "column": 12,
+      "length": 8
+    }
+  },
+  {
+    "token_type": "LParen",
+    "value": "(",
+    "location": {
+      "line": 4,
+      "column": 20,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RParen",
+    "value": ")",
+    "location": {
+      "line": 4,
+      "column": 21,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Assign",
+    "value": "=",
+    "location": {
+      "line": 4,
+      "column": 23,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LParen",
+    "value": "(",
+    "location": {
+      "line": 4,
+      "column": 25,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "very",
+    "location": {
+      "line": 4,
+      "column": 26,
+      "length": 4
+    }
+  },
+  {
+    "token_type": "DoubleColon",
+    "value": "::",
+    "location": {
+      "line": 4,
+      "column": 30,
+      "length": 2
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "complex",
+    "location": {
+      "line": 4,
+      "column": 32,
+      "length": 7
+    }
+  },
+  {
+    "token_type": "Dot",
+    "value": ".",
+    "location": {
+      "line": 4,
+      "column": 39,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "value",
+    "location": {
+      "line": 4,
+      "column": 40,
+      "length": 5
+    }
+  },
+  {
+    "token_type": "LessThan",
+    "value": "<",
+    "location": {
+      "line": 4,
+      "column": 45,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "i32",
+    "location": {
+      "line": 4,
+      "column": 46,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "GreaterThan",
+    "value": ">",
+    "location": {
+      "line": 4,
+      "column": 49,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LParen",
+    "value": "(",
+    "location": {
+      "line": 4,
+      "column": 50,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "StringConstant",
+    "value": "yes",
+    "location": {
+      "line": 4,
+      "column": 51,
+      "length": 5
+    }
+  },
+  {
+    "token_type": "RParen",
+    "value": ")",
+    "location": {
+      "line": 4,
+      "column": 56,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Comma",
+    "value": ",",
+    "location": {
+      "line": 4,
+      "column": 57,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "val",
+    "location": {
+      "line": 4,
+      "column": 59,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "Dash",
+    "value": "-",
+    "location": {
+      "line": 4,
+      "column": 63,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "NumberConstant",
+    "value": "2",
+    "location": {
+      "line": 4,
+      "column": 65,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RParen",
+    "value": ")",
+    "location": {
+      "line": 4,
+      "column": 66,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": ";",
+    "location": {
+      "line": 4,
+      "column": 67,
+      "length": 1
+    }
   }
 ]

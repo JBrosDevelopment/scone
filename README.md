@@ -613,3 +613,15 @@ class _____ <- Default, ToString -> "_____" {
 }
 
 ```
+
+## Missing Features
+
+The Scone programming language is still in development and currently lacks the following features:
+- Comprehensive standard library
+- Advanced error handling mechanisms
+- Concurrency and parallelism support
+- Comprehensive documentation and tutorials
+- Optimized compiler and runtime performance
+- Cross-platform support
+- Integration with popular development tools and IDEs
+- Extensive testing and debugging tools

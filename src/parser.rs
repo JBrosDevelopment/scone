@@ -66,7 +66,7 @@ impl ASTGenerator {
                 let lhs = tokens[0..assign_index as usize].to_vec();
                 let rhs = tokens[assign_index as usize + 1..].to_vec();
                 
-                if lhs.get(lhs.len() - 2).is_some() && lhs.get(lhs.len() - 2).unwrap().token_type == TokenType::Colon {
+                if lhs.len() >= 2 && lhs[lhs.len() - 2].token_type == TokenType::Colon {
                     // declaring variable
                     let var_name: Box<Token> = lhs[lhs.len() - 1].clone();
                     
@@ -92,12 +92,7 @@ impl ASTGenerator {
                         }
                     }
 
-                    let var_value: Box<ASTNode> = if let Ok(node_with_children) = Self::set_node_with_children(parser, rhs) {
-                        node_with_children
-                    } 
-                    else { 
-                        Box::new(ASTNode::none()) 
-                    };
+                    let var_value: Box<ASTNode> = Self::set_node_with_children(parser, &rhs).unwrap_or_else(|_| Box::new(ASTNode::none()));
 
                     // println!("{}", Self::print_node_expression(&var_value));
 
@@ -118,7 +113,15 @@ impl ASTGenerator {
                 }
                 else {
                     // assigning variable
-                    
+
+                    let left = Self::set_node_with_children(parser, &lhs).unwrap_or_else(|_| Box::new(ASTNode::none()));
+                    let right = Self::set_node_with_children(parser, &rhs).unwrap_or_else(|_| Box::new(ASTNode::none()));
+
+                    let assign = Assignment { left, right };
+                    ast.push(ASTNode{
+                        token: lhs[0].clone(),
+                        node: Box::new(NodeType::Assignment(assign))
+                    });
                 }
 
                 line_index += 1;
@@ -211,7 +214,7 @@ impl ASTGenerator {
         }
     }
 
-    pub fn set_node_with_children(parser: &mut Parser, tokens: Vec<Box<Token>>) -> Result<Box<ASTNode>, &str> {
+    pub fn set_node_with_children(parser: &mut Parser, tokens: &Vec<Box<Token>>) -> Result<Box<ASTNode>, &'static str> {
         let mut expr_stack: Vec<Box<ASTNode>> = Vec::new(); 
         let mut op_stack: Vec<Box<Token>> = Vec::new();
         let mut last_was_ident = false;
@@ -511,7 +514,7 @@ impl ASTGenerator {
 
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
-            if let Ok(ast_node) = Self::set_node_with_children(parser, tokens) {
+            if let Ok(ast_node) = Self::set_node_with_children(parser, &tokens) {
                 return_tokens.push(ast_node);
             }
         }

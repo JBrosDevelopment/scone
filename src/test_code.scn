@@ -1,1 +1,4 @@
 priv const (SomeType<i32, (other_type, other<type>)>, (bool, scope::string), big.scope.types<u8, i8>): val = (scope::fifty - 60 % 40 * 30 / 20 + 1, inside::something<type>("a")) -> "Test Description"; 
+
+
+val.nested.variable = (very::complex.value<i32>("yes"), val - 2);
