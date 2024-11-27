@@ -195,9 +195,13 @@ pub struct Assignment {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub enum ScopeType { Dot, DoubleColon }
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ScopeToIdentifier {
     pub child: Option<Box<ScopeToIdentifier>>,
     pub identifier: Box<Token>,
+    pub scope_type: Option<ScopeType> // scope for type before, meaning: Scope::Into.dot -> Scope has none, Into has DoubleColon, dot has Dot
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

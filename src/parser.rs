@@ -118,7 +118,7 @@ impl ASTGenerator {
                 }
                 else {
                     // assigning variable
-
+                    
                 }
 
                 line_index += 1;
@@ -190,7 +190,7 @@ impl ASTGenerator {
 
         Box::new(NodeType::FunctionCall(FunctionCall {
             parameters: NodeParameters { parameters: node_parameters },
-            scope: scope.unwrap_or_else(|| ScopeToIdentifier { identifier: name, child: None }),
+            scope: scope.unwrap_or_else(|| ScopeToIdentifier { identifier: name, child: None, scope_type: None }),
             type_parameters: type_parameters.is_empty().then(|| None).unwrap_or(Some(type_parameters)),
         }))
     }
@@ -199,12 +199,15 @@ impl ASTGenerator {
         *i -= 1;
 
         let (scope, type_parameters) = Self::get_scope_from_tokens(&tokens, parser, i);
-        if type_parameters.is_none() {
-            *i -= 1;
-            return Box::new(NodeType::Identifier(scope));
+        if type_parameters.is_some() {
+            return Self::function_from_tokens(&tokens, parser, Some(scope), i);
+        }
+        else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LParen) {
+            return Self::function_from_tokens(&tokens, parser, Some(scope), i);
         }
         else {
-            return Self::function_from_tokens(&tokens, parser, Some(scope), i);
+            *i -= 1;
+            return Box::new(NodeType::Identifier(scope));
         }
     }
 
@@ -267,6 +270,18 @@ impl ASTGenerator {
                     parser.error("Expected identifier before double colon", "Expected identifier before double colon: IDENT::IDENT", &token.location);
                 }
             }
+            else if token.token_type == TokenType::Dot {
+                if last_was_ident {
+                    // scope traversal
+                    expr_stack.push(Box::new(ASTNode { 
+                        token: token.clone(),
+                        node: Self::traverse_scope_from_tokens(&tokens, parser, &mut i),
+                    }));
+                }
+                else {
+                    parser.error("Expected identifier before dot", "Expected identifier before dot: IDENT.IDENT", &token.location);
+                }
+            }
             else if token.token_type == TokenType::LParen {
                 if last_was_ident {
                     // part of function call
@@ -322,7 +337,7 @@ impl ASTGenerator {
                 expr_stack.push(node);
             }
             else if token.token_type == TokenType::Identifier {
-                if tokens.get(i + 1).is_some() && (tokens[i + 1].token_type == TokenType::DoubleColon || tokens[i + 1].token_type == TokenType::LParen || tokens[i + 1].token_type == TokenType::LessThan) {
+                if tokens.get(i + 1).is_some() && (tokens[i + 1].token_type == TokenType::DoubleColon || tokens[i + 1].token_type == TokenType::Dot || tokens[i + 1].token_type == TokenType::LParen || tokens[i + 1].token_type == TokenType::LessThan) {
                     last_was_ident = true;
                 }
                 else {
@@ -330,7 +345,8 @@ impl ASTGenerator {
                         token: token.clone(),
                         node: Box::new(NodeType::Identifier(ScopeToIdentifier {
                             identifier: token.clone(),
-                            child: None
+                            child: None,
+                            scope_type: None
                         })),
                     });
                     expr_stack.push(node);
@@ -523,7 +539,7 @@ impl ASTGenerator {
                     return Ok(Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
-                            scope: ScopeToIdentifier { identifier: first_token.clone(), child: None },
+                            scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None },
                             types: None
                         }))
                     }));
@@ -535,12 +551,12 @@ impl ASTGenerator {
                     return Ok(Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
-                            scope: ScopeToIdentifier { identifier: type_parameters.0, child: None },
+                            scope: ScopeToIdentifier { identifier: type_parameters.0, child: None, scope_type: None },
                             types: Some(NodeParameters { parameters: type_parameters.1 })
                         }))
                     }));
                 }
-                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::DoubleColon) {
+                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot) {
                     // Scope::Type
                     // parser.message("Scope::Type", "Scope::Type", &first_token.location);
                     let scope_and_types = Self::get_scope_from_tokens(tokens, parser, &mut uneeded_index);
@@ -557,7 +573,7 @@ impl ASTGenerator {
                     return Err("Incorrect type");
                 }
                 else {
-                    parser.error("Incorrect type", "Expected a tuple or type before the ':'", &tokens.get(1).unwrap().location);
+                    parser.error("Incorrect type", "Expected a tuple or type before the '::' or  '.'", &tokens.get(1).unwrap().location);
                     return Err("Incorrect type");
                 }
             }
@@ -723,10 +739,11 @@ impl ASTGenerator {
         let mut iterate = tokens.iter().skip(*i).peekable();
         let mut root = ScopeToIdentifier { 
             identifier: tokens[0].clone(), 
-            child: None 
+            child: None,
+            scope_type: None
         };
         let mut current_scope = &mut root;
-        let mut last_was_double_colon = false; 
+        let mut last_punc: Option<ScopeType> = None; 
         let mut first_token = true;
         let mut last_index = 0;
     
@@ -734,11 +751,19 @@ impl ASTGenerator {
             match token.token_type {
                 TokenType::DoubleColon => {
                     *i += 1;
-                    if last_was_double_colon || first_token {
+                    if last_punc.is_some() || first_token {
                         parser.error("Scope has incorrect type", "Consecutive '::' found. Use '::' only between valid names, for example 'A::B::C'", &token.location);
                         return (root, None);
                     }
-                    last_was_double_colon = true;
+                    last_punc = Some(ScopeType::DoubleColon);
+                }
+                TokenType::Dot => {
+                    *i += 1;
+                    if last_punc.is_some() || first_token {
+                        parser.error("Scope has incorrect type", "Consecutive '.' found. Use '.' only between valid names, for example 'A.B.C'", &token.location);
+                        return (root, None);
+                    }
+                    last_punc = Some(ScopeType::Dot);
                 }
                 TokenType::Identifier => {
                     *i += 1;
@@ -746,17 +771,18 @@ impl ASTGenerator {
                         first_token = false;
                         continue;
                     }
-                    if !last_was_double_colon {
-                        parser.error("Scope has incorrect type", "Expected '::' before identifier. Use '::' to separate scope levels.", &token.location);
+                    if last_punc.is_none() {
+                        parser.error("Scope has incorrect type", "Expected '::' or '.' before identifier. Use '::' and '.' to separate scope levels.", &token.location);
                         return (root, None);
                     }
     
                     current_scope.child = Some(Box::new(ScopeToIdentifier {
                         identifier: token.clone(),
                         child: None,
+                        scope_type: last_punc
                     }));
                     current_scope = current_scope.child.as_mut().unwrap();
-                    last_was_double_colon = false; 
+                    last_punc = None; 
                 }
                 _ => {
                     break;
@@ -765,8 +791,8 @@ impl ASTGenerator {
             last_index += 1;
         }
     
-        if last_was_double_colon {
-            parser.error("Scope has incorrect type", "Trailing '::' found. A valid identifier must follow '::'", &tokens.last().unwrap().location);
+        if last_punc.is_some() {
+            parser.error("Scope has incorrect type", "Trailing punctuation found. A valid identifier must follow '::' or '.'", &tokens.last().unwrap().location);
             return (root, None);
         }
 

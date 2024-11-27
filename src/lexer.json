@@ -234,12 +234,12 @@
     }
   },
   {
-    "token_type": "DoubleColon",
-    "value": "::",
+    "token_type": "Dot",
+    "value": ".",
     "location": {
       "line": 1,
       "column": 81,
-      "length": 2
+      "length": 1
     }
   },
   {
@@ -247,17 +247,17 @@
     "value": "scope",
     "location": {
       "line": 1,
-      "column": 83,
+      "column": 82,
       "length": 5
     }
   },
   {
-    "token_type": "DoubleColon",
-    "value": "::",
+    "token_type": "Dot",
+    "value": ".",
     "location": {
       "line": 1,
-      "column": 88,
-      "length": 2
+      "column": 87,
+      "length": 1
     }
   },
   {
@@ -265,7 +265,7 @@
     "value": "types",
     "location": {
       "line": 1,
-      "column": 90,
+      "column": 88,
       "length": 5
     }
   },
@@ -274,7 +274,7 @@
     "value": "<",
     "location": {
       "line": 1,
-      "column": 95,
+      "column": 93,
       "length": 1
     }
   },
@@ -283,7 +283,7 @@
     "value": "u8",
     "location": {
       "line": 1,
-      "column": 96,
+      "column": 94,
       "length": 2
     }
   },
@@ -292,7 +292,7 @@
     "value": ",",
     "location": {
       "line": 1,
-      "column": 98,
+      "column": 96,
       "length": 1
     }
   },
@@ -301,7 +301,7 @@
     "value": "i8",
     "location": {
       "line": 1,
-      "column": 100,
+      "column": 98,
       "length": 2
     }
   },
@@ -310,7 +310,7 @@
     "value": ">",
     "location": {
       "line": 1,
-      "column": 102,
+      "column": 100,
       "length": 1
     }
   },
@@ -319,7 +319,7 @@
     "value": ")",
     "location": {
       "line": 1,
-      "column": 103,
+      "column": 101,
       "length": 1
     }
   },
@@ -328,7 +328,7 @@
     "value": ":",
     "location": {
       "line": 1,
-      "column": 104,
+      "column": 102,
       "length": 1
     }
   },
@@ -337,7 +337,7 @@
     "value": "val",
     "location": {
       "line": 1,
-      "column": 106,
+      "column": 104,
       "length": 3
     }
   },
@@ -346,7 +346,7 @@
     "value": "=",
     "location": {
       "line": 1,
-      "column": 110,
+      "column": 108,
       "length": 1
     }
   },
@@ -355,7 +355,7 @@
     "value": "(",
     "location": {
       "line": 1,
-      "column": 112,
+      "column": 110,
       "length": 1
     }
   },
@@ -364,7 +364,7 @@
     "value": "scope",
     "location": {
       "line": 1,
-      "column": 113,
+      "column": 111,
       "length": 5
     }
   },
@@ -373,7 +373,7 @@
     "value": "::",
     "location": {
       "line": 1,
-      "column": 118,
+      "column": 116,
       "length": 2
     }
   },
@@ -382,7 +382,7 @@
     "value": "fifty",
     "location": {
       "line": 1,
-      "column": 120,
+      "column": 118,
       "length": 5
     }
   },
@@ -391,7 +391,7 @@
     "value": "-",
     "location": {
       "line": 1,
-      "column": 126,
+      "column": 124,
       "length": 1
     }
   },
@@ -400,7 +400,7 @@
     "value": "60",
     "location": {
       "line": 1,
-      "column": 128,
+      "column": 126,
       "length": 2
     }
   },
@@ -409,7 +409,7 @@
     "value": "%",
     "location": {
       "line": 1,
-      "column": 131,
+      "column": 129,
       "length": 1
     }
   },
@@ -418,7 +418,7 @@
     "value": "40",
     "location": {
       "line": 1,
-      "column": 133,
+      "column": 131,
       "length": 2
     }
   },
@@ -427,7 +427,7 @@
     "value": "*",
     "location": {
       "line": 1,
-      "column": 136,
+      "column": 134,
       "length": 1
     }
   },
@@ -436,7 +436,7 @@
     "value": "30",
     "location": {
       "line": 1,
-      "column": 138,
+      "column": 136,
       "length": 2
     }
   },
@@ -445,7 +445,7 @@
     "value": "/",
     "location": {
       "line": 1,
-      "column": 141,
+      "column": 139,
       "length": 1
     }
   },
@@ -454,7 +454,7 @@
     "value": "20",
     "location": {
       "line": 1,
-      "column": 143,
+      "column": 141,
       "length": 2
     }
   },
@@ -463,7 +463,7 @@
     "value": "+",
     "location": {
       "line": 1,
-      "column": 146,
+      "column": 144,
       "length": 1
     }
   },
@@ -472,7 +472,7 @@
     "value": "1",
     "location": {
       "line": 1,
-      "column": 148,
+      "column": 146,
       "length": 1
     }
   },
@@ -481,7 +481,7 @@
     "value": ",",
     "location": {
       "line": 1,
-      "column": 149,
+      "column": 147,
       "length": 1
     }
   },
@@ -490,7 +490,7 @@
     "value": "inside",
     "location": {
       "line": 1,
-      "column": 151,
+      "column": 149,
       "length": 6
     }
   },
@@ -499,7 +499,7 @@
     "value": "::",
     "location": {
       "line": 1,
-      "column": 157,
+      "column": 155,
       "length": 2
     }
   },
@@ -508,7 +508,7 @@
     "value": "something",
     "location": {
       "line": 1,
-      "column": 159,
+      "column": 157,
       "length": 9
     }
   },
@@ -517,7 +517,7 @@
     "value": "<",
     "location": {
       "line": 1,
-      "column": 168,
+      "column": 166,
       "length": 1
     }
   },
@@ -526,7 +526,7 @@
     "value": "type",
     "location": {
       "line": 1,
-      "column": 169,
+      "column": 167,
       "length": 4
     }
   },
@@ -535,7 +535,7 @@
     "value": ">",
     "location": {
       "line": 1,
-      "column": 173,
+      "column": 171,
       "length": 1
     }
   },
@@ -544,7 +544,7 @@
     "value": "(",
     "location": {
       "line": 1,
-      "column": 174,
+      "column": 172,
       "length": 1
     }
   },
@@ -553,7 +553,7 @@
     "value": "a",
     "location": {
       "line": 1,
-      "column": 175,
+      "column": 173,
       "length": 3
     }
   },
@@ -562,7 +562,7 @@
     "value": ")",
     "location": {
       "line": 1,
-      "column": 178,
+      "column": 176,
       "length": 1
     }
   },
@@ -571,7 +571,7 @@
     "value": ")",
     "location": {
       "line": 1,
-      "column": 179,
+      "column": 177,
       "length": 1
     }
   },
@@ -580,7 +580,7 @@
     "value": "->",
     "location": {
       "line": 1,
-      "column": 181,
+      "column": 179,
       "length": 2
     }
   },
@@ -589,7 +589,7 @@
     "value": "Test Description",
     "location": {
       "line": 1,
-      "column": 184,
+      "column": 182,
       "length": 18
     }
   },
@@ -598,7 +598,7 @@
     "value": ";",
     "location": {
       "line": 1,
-      "column": 202,
+      "column": 200,
       "length": 1
     }
   }
