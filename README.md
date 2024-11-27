@@ -106,7 +106,7 @@ main(string: args) {
 
 ## VM IR Code
 
-self is what I'm thinking the VM IR code might look like
+this is what I'm thinking the VM IR code might look like
 ```rs
 define selfPackage;
 
@@ -545,4 +545,71 @@ i32: val = 3;
 typeof(val) // returns "i32" as string
 nameof(val) // returns "val" as string
 sizeof(val) // returns 4 as u64
+
+
+// CLASSES:
+@!
+class Example<T # Constraints> <- Inherits<T> -> "
+# Long Markdown Description
+Some text right here
+
+# Examples
+\`\`\`
+Example<string>: instance1 = new(32); // automatically turns new() into Example<string>::new()
+Example<bool>: instance2 = default(); // automatically turns default() into Example<bool>::default()
+\`\`\`
+" {
+    priv T[]: member = Array<T>::empty()
+    pub u32: count = 0
+
+    @! abreviate
+    static Example<T>: new(u32: cnt) -> "New instance of Example" { 
+        Example<T> {
+            member = Array<T>::empty(),
+            count = cnt
+        }
+    }
+
+    @! abreviate 
+    static Example<T>: default() -> "Default value" {
+        Example<T>::new(0)
+    }
+
+    Result<T, string>: get_value(u32: index) -> "get member value" {
+        if index > count {
+            return error("Index out of bounds of array")
+        } 
+        okay(member[index])
+    }
+
+    Result<T, string>: set_value(u32: index, T: val) -> "set member value" {
+        if index > count {
+            return error("Index out of bounds of array")
+        } 
+        member[index] = val
+    }
+
+    u32: change_count(u32: cnt) -> "change count member" {
+        count = cnt
+    }
+}
+
+// default class snipit
+class _____ <- Default, ToString -> "_____" {
+
+    @! abreviate
+    pub static _____: new() {
+
+    }
+
+    @! abreviate
+    pub static _____: default() {
+
+    }
+
+    pub string: to_string() {
+        
+    }
+}
+
 ```

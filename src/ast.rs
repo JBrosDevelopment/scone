@@ -1,19 +1,17 @@
 use serde::Serialize;
 use crate::lexer::Token;
 
-//    if let Some(NodeType::FunctionCall(_)) = a.node_type.as_deref() {
-//        println!("It's a FunctionCall!");
-//    }
-
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub enum NodeType {
+    None,
+
     // constants
     Constant(ConstantNode),
-    Operator(Box<ASTNode>),
+    Operator(Expression),
 
     // identifiers
-    Identifier(Box<ASTNode>),
-    TypeIdentifier(ScopeToIdentifier),
+    Identifier(ScopeToIdentifier),
+    TypeIdentifier(TypeIdentifier),
     AnonymousType(AnonymousType),
 
     // assignment
@@ -23,7 +21,7 @@ pub enum NodeType {
     FunctionCall(FunctionCall),
     TupleExpression(NodeParameters),
     ArrayExpression(NodeParameters),
-    ReturnExpression(Box<ASTNode>),
+    ReturnExpression(Expression),
 
     // flow
     If(ConditionalRegion),
@@ -34,14 +32,14 @@ pub enum NodeType {
     Match(MatchRegion),
 
     // control
-    Break(Box<ASTNode>),
-    Continue(Box<ASTNode>),
+    Break(Box<Token>),
+    Continue(Box<Token>),
 
     // other
     Use(ScopeToIdentifier),
     LoadLib(LoadLib),
-    AsCast(Box<ASTNode>),
-    IsCheck(Box<ASTNode>),
+    AsCast(Expression),
+    IsCheck(Expression),
     
     // declare
     TupleDeclaration(NodeParameters),
@@ -89,8 +87,15 @@ pub enum AccessModifier {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ASTNode {
     pub token: Box<Token>,
-    pub children: Vec<Box<ASTNode>>,
     pub node: Box<NodeType>,
+}
+impl ASTNode {
+    pub fn none() -> ASTNode {
+        ASTNode {
+            token: Box::new(Token::new_empty()),
+            node: Box::new(NodeType::None),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -107,11 +112,9 @@ pub struct DefinedNodeParameters {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct FunctionCall {
-    pub name: Box<Token>,
     pub parameters: NodeParameters,
-    pub type_parameters: Option<AnonymousTypeParameters>,
-    pub return_type: Box<NodeType>,
-    pub scope: Option<ScopeToIdentifier>,
+    pub type_parameters: Option<Vec<Box<ASTNode>>>,
+    pub scope: ScopeToIdentifier,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -122,10 +125,10 @@ pub struct ConstantNode {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct VariableDeclaration {
-    pub var_type: Box<NodeType>,
+    pub var_type: Box<ASTNode>,
     pub var_name: Box<Token>,
     pub var_value: Box<ASTNode>,
-    pub description: Option<Token>,
+    pub description: Option<Box<Token>>,
     pub access_modifier: Vec<AccessModifier>,
 }
 
@@ -135,7 +138,7 @@ pub struct FunctionDeclaration {
     pub parameters: DefinedNodeParameters,
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: Option<BodyRegion>,
-    pub description: Option<Token>,
+    pub description: Option<Box<Token>>,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
 
@@ -143,7 +146,7 @@ pub struct FunctionDeclaration {
 pub struct ClassDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
-    pub description: Option<Token>,
+    pub description: Option<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
@@ -152,7 +155,7 @@ pub struct ClassDeclaration {
 pub struct StructDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
-    pub description: Option<Token>,
+    pub description: Option<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
@@ -161,7 +164,7 @@ pub struct StructDeclaration {
 pub struct InterfaceDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
-    pub description: Option<Token>,
+    pub description: Option<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
@@ -169,7 +172,7 @@ pub struct InterfaceDeclaration {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct EnumDeclaration {
     pub name: Box<Token>,
-    pub description: Option<Token>,
+    pub description: Option<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
@@ -221,7 +224,7 @@ pub struct ForLoop {
 pub struct LoadLib {
     pub alias: Box<Token>,
     pub path: Box<Token>,
-    pub description: Option<Token>,
+    pub description: Option<Box<Token>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -234,4 +237,17 @@ pub struct MatchRegion {
 pub struct MatchCase {
     pub pattern: Box<ASTNode>,
     pub body: BodyRegion,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct Expression {
+    pub left: Box<ASTNode>,
+    pub right: Box<ASTNode>,
+    pub operator: Box<Token>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct TypeIdentifier {
+    pub scope: ScopeToIdentifier,
+    pub types: Option<NodeParameters>
 }

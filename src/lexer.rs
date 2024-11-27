@@ -9,6 +9,7 @@ pub enum TokenType {
     Star,
     Slash,
     Pipe,
+    PowerOf,
     Carrot,
     Ampersand,
     Tilda,
@@ -27,6 +28,8 @@ pub enum TokenType {
     Not,
     RangeOperator,
     Underscore,
+    AtSymbol,
+    Hashtag,
     
     // brackets
     LParen,
@@ -45,8 +48,7 @@ pub enum TokenType {
     RightArrow,
     LeftArrow,
     DoubleArrow,
-    AtSymbol,
-    Hashtag,
+    AtBang,
 
     // keywords
     Return,
@@ -114,6 +116,7 @@ impl TokenType {
             TokenType::And => true,
             TokenType::Or => true,
             TokenType::RangeOperator => true,
+            TokenType::PowerOf => true,
             _ => false
         }
     }
@@ -132,6 +135,28 @@ impl TokenType {
             _ => false
         }
     }
+    pub fn is_constant(&self) -> bool {
+        match self {
+            TokenType::BoolConstant => true,
+            TokenType::StringConstant => true,
+            TokenType::CharConstant => true,
+            TokenType::NumberConstant => true,
+            _ => false
+        }
+    }
+    pub fn precedence(&self) -> i32 {
+        match self {
+            TokenType::And | TokenType::Or => 1,
+            TokenType::Ampersand | TokenType::Pipe => 2,
+            TokenType::Equal | TokenType::NotEqual | TokenType::GreaterThan | TokenType::GreaterThanOrEqual | TokenType::LessThan | TokenType::LessThanOrEqual => 3,
+            TokenType::Plus | TokenType::Dash => 4,
+            TokenType::Star | TokenType::Slash | TokenType::Modulas => 5, 
+            TokenType::PowerOf => 6,
+            TokenType::LParen | TokenType::RParen => 0, 
+            _ => -1, 
+        }
+    }
+    
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -171,6 +196,13 @@ impl Token {
             token_type,
             value,
             location
+        }
+    }
+    pub fn new_empty() -> Token {
+        Token {
+            token_type: TokenType::EndOfLine,
+            value: String::new(),
+            location: Location::new(0, 0, 0)
         }
     }
 }
@@ -312,10 +344,6 @@ impl Lexer {
                 tokens.push(new_token);
                 i -= 1;
             }
-            else if c == '@' {
-                current_location.advance(1);
-                tokens.push(Token::new(TokenType::AtSymbol, "@".to_string(), current_location.clone()));
-            }
             else if c == '#' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::Hashtag, "#".to_string(), current_location.clone()));
@@ -356,6 +384,17 @@ impl Lexer {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::Tilda, "~".to_string(), current_location.clone()));
             }
+            else if c == '@' {
+                if chars.get(i + 1) == Some(&'!') {
+                    current_location.advance(2);
+                    tokens.push(Token::new(TokenType::AtBang, "@!".to_string(), current_location.clone()));
+                    i += 1;
+                }
+                else {
+                    current_location.advance(1);
+                    tokens.push(Token::new(TokenType::AtSymbol, "@".to_string(), current_location.clone()));
+                }
+            }
             else if c == '.' {
                 if chars.get(i + 1) == Some(&'.') {
                     current_location.advance(2);
@@ -382,6 +421,11 @@ impl Lexer {
                 if chars.get(i + 1) == Some(&'=') {
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::Star, "*=".to_string(), current_location.clone()));
+                    i += 1;
+                }
+                if chars.get(i + 1) == Some(&'*') {
+                    current_location.advance(2);
+                    tokens.push(Token::new(TokenType::PowerOf, "**".to_string(), current_location.clone()));
                     i += 1;
                 }
                 else {
