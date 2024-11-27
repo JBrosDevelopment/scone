@@ -833,48 +833,42 @@
             }
           },
           "node": {
-            "FunctionCall": {
-              "parameters": {
-                "parameters": []
-              },
-              "type_parameters": null,
-              "scope": {
+            "Identifier": {
+              "child": {
                 "child": {
-                  "child": {
-                    "child": null,
-                    "identifier": {
-                      "token_type": "Identifier",
-                      "value": "variable",
-                      "location": {
-                        "line": 4,
-                        "column": 12,
-                        "length": 8
-                      }
-                    },
-                    "scope_type": "Dot"
-                  },
+                  "child": null,
                   "identifier": {
                     "token_type": "Identifier",
-                    "value": "nested",
+                    "value": "variable",
                     "location": {
                       "line": 4,
-                      "column": 5,
-                      "length": 6
+                      "column": 12,
+                      "length": 8
                     }
                   },
                   "scope_type": "Dot"
                 },
                 "identifier": {
                   "token_type": "Identifier",
-                  "value": "val",
+                  "value": "nested",
                   "location": {
                     "line": 4,
-                    "column": 1,
-                    "length": 3
+                    "column": 5,
+                    "length": 6
                   }
                 },
-                "scope_type": null
-              }
+                "scope_type": "Dot"
+              },
+              "identifier": {
+                "token_type": "Identifier",
+                "value": "val",
+                "location": {
+                  "line": 4,
+                  "column": 1,
+                  "length": 3
+                }
+              },
+              "scope_type": null
             }
           }
         },
@@ -897,7 +891,7 @@
                     "value": "<",
                     "location": {
                       "line": 4,
-                      "column": 45,
+                      "column": 43,
                       "length": 1
                     }
                   },
@@ -911,7 +905,7 @@
                               "value": "yes",
                               "location": {
                                 "line": 4,
-                                "column": 51,
+                                "column": 49,
                                 "length": 5
                               }
                             },
@@ -922,7 +916,7 @@
                                   "value": "yes",
                                   "location": {
                                     "line": 4,
-                                    "column": 51,
+                                    "column": 49,
                                     "length": 5
                                   }
                                 },
@@ -939,7 +933,7 @@
                             "value": "i32",
                             "location": {
                               "line": 4,
-                              "column": 46,
+                              "column": 44,
                               "length": 3
                             }
                           },
@@ -952,7 +946,7 @@
                                   "value": "i32",
                                   "location": {
                                     "line": 4,
-                                    "column": 46,
+                                    "column": 44,
                                     "length": 3
                                   }
                                 },
@@ -970,7 +964,7 @@
                           "value": "value",
                           "location": {
                             "line": 4,
-                            "column": 40,
+                            "column": 38,
                             "length": 5
                           }
                         },
@@ -985,7 +979,7 @@
                     "value": "-",
                     "location": {
                       "line": 4,
-                      "column": 63,
+                      "column": 61,
                       "length": 1
                     }
                   },
@@ -997,7 +991,7 @@
                           "value": "val",
                           "location": {
                             "line": 4,
-                            "column": 59,
+                            "column": 57,
                             "length": 3
                           }
                         },
@@ -1009,7 +1003,7 @@
                               "value": "val",
                               "location": {
                                 "line": 4,
-                                "column": 59,
+                                "column": 57,
                                 "length": 3
                               }
                             },
@@ -1023,7 +1017,7 @@
                           "value": "2",
                           "location": {
                             "line": 4,
-                            "column": 65,
+                            "column": 63,
                             "length": 1
                           }
                         },
@@ -1034,7 +1028,7 @@
                               "value": "2",
                               "location": {
                                 "line": 4,
-                                "column": 65,
+                                "column": 63,
                                 "length": 1
                               }
                             },
@@ -1047,7 +1041,7 @@
                         "value": "-",
                         "location": {
                           "line": 4,
-                          "column": 63,
+                          "column": 61,
                           "length": 1
                         }
                       }
@@ -1057,6 +1051,50 @@
               ]
             }
           }
+        }
+      }
+    }
+  },
+  {
+    "token": {
+      "token_type": "Break",
+      "value": "break",
+      "location": {
+        "line": 6,
+        "column": 1,
+        "length": 5
+      }
+    },
+    "node": {
+      "Break": {
+        "token_type": "Break",
+        "value": "break",
+        "location": {
+          "line": 6,
+          "column": 1,
+          "length": 5
+        }
+      }
+    }
+  },
+  {
+    "token": {
+      "token_type": "Continue",
+      "value": "continue",
+      "location": {
+        "line": 7,
+        "column": 1,
+        "length": 8
+      }
+    },
+    "node": {
+      "Continue": {
+        "token_type": "Continue",
+        "value": "continue",
+        "location": {
+          "line": 7,
+          "column": 1,
+          "length": 8
         }
       }
     }

@@ -158,6 +158,18 @@ impl ASTGenerator {
                         }
                     }
                 }
+                TokenType::Break => {
+                    ast.push(ASTNode {
+                        token: tokens[0].clone(),
+                        node: Box::new(NodeType::Break(tokens[0].clone())),
+                    });
+                }
+                TokenType::Continue => {
+                    ast.push(ASTNode {
+                        token: tokens[0].clone(),
+                        node: Box::new(NodeType::Continue(tokens[0].clone())),
+                    });
+                }
                 _ => {
                     parser.error("Unexpected token", "Did not expect token to begin line", &tokens[0].location);
                 }
