@@ -120,7 +120,6 @@ impl ASTGenerator {
                     // assigning variable
 
                 }
-                std::fs::write("src/test.json", serde_json::to_string_pretty(&ast[0]).unwrap()).unwrap();
 
                 line_index += 1;
                 continue;
