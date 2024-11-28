@@ -21,7 +21,7 @@ pub enum NodeType {
     FunctionCall(FunctionCall),
     TupleExpression(NodeParameters),
     ArrayExpression(NodeParameters),
-    ReturnExpression(Expression),
+    ReturnExpression(Box<ASTNode>),
 
     // flow
     If(ConditionalRegion),

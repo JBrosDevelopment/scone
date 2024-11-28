@@ -92,7 +92,7 @@ impl ASTGenerator {
                         }
                     }
 
-                    let var_value: Box<ASTNode> = Self::set_node_with_children(parser, &rhs).unwrap_or_else(|_| Box::new(ASTNode::none()));
+                    let var_value: Box<ASTNode> = Self::set_node_with_children(parser, &rhs);
 
                     // println!("{}", Self::print_node_expression(&var_value));
 
@@ -113,15 +113,31 @@ impl ASTGenerator {
                 }
                 else {
                     // assigning variable
+                    let tokens_after_return = lhs[1..].to_vec();
 
-                    let left = Self::set_node_with_children(parser, &lhs).unwrap_or_else(|_| Box::new(ASTNode::none()));
-                    let right = Self::set_node_with_children(parser, &rhs).unwrap_or_else(|_| Box::new(ASTNode::none()));
-
-                    let assign = Assignment { left, right };
-                    ast.push(ASTNode{
-                        token: lhs[0].clone(),
-                        node: Box::new(NodeType::Assignment(assign))
-                    });
+                    if lhs.get(0).map_or(false, |t| t.token_type == TokenType::Return) {
+                        let left = Self::set_node_with_children(parser, &tokens_after_return);
+                        let right = Self::set_node_with_children(parser, &rhs);
+                        
+                        let assign = ASTNode {
+                            token: lhs[0].clone(), 
+                            node: Box::new(NodeType::Assignment(Assignment { left, right })) 
+                        };
+                        ast.push(ASTNode{
+                            token: lhs[0].clone(),
+                            node: Box::new(NodeType::ReturnExpression(Box::new(assign)))
+                        });
+                    }
+                    else {
+                        let left = Self::set_node_with_children(parser, &lhs);
+                        let right = Self::set_node_with_children(parser, &rhs);
+                        
+                        let assign = Assignment { left, right };
+                        ast.push(ASTNode{
+                            token: lhs[0].clone(),
+                            node: Box::new(NodeType::Assignment(assign))
+                        });
+                    }
                 }
 
                 line_index += 1;
@@ -168,6 +184,14 @@ impl ASTGenerator {
                     ast.push(ASTNode {
                         token: tokens[0].clone(),
                         node: Box::new(NodeType::Continue(tokens[0].clone())),
+                    });
+                }
+                TokenType::Return => {
+                    let tokens_after_return = tokens[1..].to_vec();
+                    let return_node = Self::set_node_with_children(parser, &tokens_after_return);
+                    ast.push(ASTNode {
+                        token: tokens[0].clone(),
+                        node: Box::new(NodeType::ReturnExpression(return_node))
                     });
                 }
                 _ => {
@@ -226,7 +250,7 @@ impl ASTGenerator {
         }
     }
 
-    pub fn set_node_with_children(parser: &mut Parser, tokens: &Vec<Box<Token>>) -> Result<Box<ASTNode>, &'static str> {
+    pub fn set_node_with_children(parser: &mut Parser, tokens: &Vec<Box<Token>>) -> Box<ASTNode> {
         let mut expr_stack: Vec<Box<ASTNode>> = Vec::new(); 
         let mut op_stack: Vec<Box<Token>> = Vec::new();
         let mut last_was_ident = false;
@@ -346,7 +370,7 @@ impl ASTGenerator {
                     }));
                 } else {
                     parser.error("Could not parse constant", "Couldn't decide type from constant", &token.location);
-                    return Err("could not get constant type");
+                    return Box::new(ASTNode::none());
                 }
 
                 expr_stack.push(node);
@@ -401,17 +425,17 @@ impl ASTGenerator {
                     }
                     else {
                         parser.error("Failed to parse tuple", "Couldn't parse tuple", &token.location);
-                        return Err("Failed to parse tuple");
+                        return Box::new(ASTNode::none());
                     }
                 }
                 else {
                     parser.error("Unexpected token in expression", "Didn't expect this token in expression. Maybe you meant to use a comma in a tuple, If that's so, put inside parentheises", &token.location);
-                    return Err("Unexpected token in expression");
+                    return Box::new(ASTNode::none());
                 }
             }
             else {
                 parser.error("Unexpected token in expression", "Didn't expect this token in expression", &token.location);
-                return Err("Unexpected token in expression");
+                return Box::new(ASTNode::none());
             }
     
             i += 1;
@@ -422,21 +446,21 @@ impl ASTGenerator {
         if let Some(final_node) = expression_node {
             tuple_vec.push(final_node);
         } else {
-            return Err("Failed to parse expression")
+            return Box::new(ASTNode::none());
         }
 
         if tuple_vec.len() == 1 {
-            return Ok(tuple_vec[0].clone());
+            return tuple_vec[0].clone();
         }
 
         let node = Box::new(NodeType::TupleExpression({
             NodeParameters { parameters: tuple_vec }
         }));
 
-        return Ok(Box::new(ASTNode {
+        return Box::new(ASTNode {
             token: Box::new(Token::new_empty()),
             node,
-        }))
+        })
     }
 
     pub fn expression_stacks_to_ast_node(op_stack: &mut Vec<Box<Token>>, expr_stack: &mut Vec<Box<ASTNode>>, parser: &mut Parser) -> Option<Box<ASTNode>> {
@@ -526,9 +550,7 @@ impl ASTGenerator {
 
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
-            if let Ok(ast_node) = Self::set_node_with_children(parser, &tokens) {
-                return_tokens.push(ast_node);
-            }
+            return_tokens.push(Self::set_node_with_children(parser, &tokens));
         }
 
         return_tokens
