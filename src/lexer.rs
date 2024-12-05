@@ -92,7 +92,6 @@ pub enum TokenType {
 
     // other
     Identifier,
-    AnonymousType,
     EndOfLine,
 }
 impl TokenType {
@@ -283,24 +282,6 @@ impl Lexer {
                 }
     
                 current_location.advance(name.len() as i32);
-                
-                // Check if it's an anonymous type
-                // is one uppercase letter followed by any number of digits
-                let mut first_char = true;
-                let mut is_anonymous_type = false; 
-                for c in name.chars().collect::<Vec<char>>() {
-                    if c.is_lowercase() {
-                        is_anonymous_type = false;
-                    }
-                    if first_char && !c.is_alphabetic() {
-                        is_anonymous_type = false;
-                    } 
-                    if !first_char && !c.is_numeric() {
-                        is_anonymous_type = false;
-                    }
-    
-                    first_char = false;
-                }
     
                 let new_token = match name.as_str() {
                     "true" | "false" => Token::new(TokenType::BoolConstant, name.clone(), current_location.clone()),
@@ -336,7 +317,7 @@ impl Lexer {
                     "abstract" => Token::new(TokenType::Abstract, name.clone(), current_location.clone()),
                     "unsafe" => Token::new(TokenType::Unsafe, name.clone(), current_location.clone()),
                     "_" => Token::new(TokenType::Underscore, name.clone(), current_location.clone()),
-                    _ => if is_anonymous_type { Token::new(TokenType::AnonymousType, name.clone(), current_location.clone()) } else { Token::new(TokenType::Identifier, name.clone(), current_location.clone()) },
+                    _ => Token::new(TokenType::Identifier, name.clone(), current_location.clone()),
                 };
     
                 tokens.push(new_token);
