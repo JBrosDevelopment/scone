@@ -19,11 +19,11 @@
   },
   {
     "token_type": "Identifier",
-    "value": "val",
+    "value": "chain",
     "location": {
       "line": 1,
       "column": 6,
-      "length": 3
+      "length": 5
     }
   },
   {
@@ -31,25 +31,61 @@
     "value": "=",
     "location": {
       "line": 1,
-      "column": 10,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "3",
-    "location": {
-      "line": 1,
       "column": 12,
       "length": 1
     }
   },
   {
-    "token_type": "Dash",
-    "value": "-",
+    "token_type": "Identifier",
+    "value": "object",
     "location": {
       "line": 1,
       "column": 14,
+      "length": 6
+    }
+  },
+  {
+    "token_type": "Dot",
+    "value": ".",
+    "location": {
+      "line": 1,
+      "column": 20,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "method",
+    "location": {
+      "line": 1,
+      "column": 21,
+      "length": 6
+    }
+  },
+  {
+    "token_type": "LessThan",
+    "value": "<",
+    "location": {
+      "line": 1,
+      "column": 27,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "Type",
+    "location": {
+      "line": 1,
+      "column": 28,
+      "length": 4
+    }
+  },
+  {
+    "token_type": "GreaterThan",
+    "value": ">",
+    "location": {
+      "line": 1,
+      "column": 32,
       "length": 1
     }
   },
@@ -58,16 +94,97 @@
     "value": "(",
     "location": {
       "line": 1,
-      "column": 16,
+      "column": 33,
       "length": 1
     }
   },
   {
-    "token_type": "NumberConstant",
-    "value": "5",
+    "token_type": "Identifier",
+    "value": "arg",
     "location": {
       "line": 1,
-      "column": 17,
+      "column": 34,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "RParen",
+    "value": ")",
+    "location": {
+      "line": 1,
+      "column": 37,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Dot",
+    "value": ".",
+    "location": {
+      "line": 1,
+      "column": 38,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "other",
+    "location": {
+      "line": 1,
+      "column": 39,
+      "length": 5
+    }
+  },
+  {
+    "token_type": "LessThan",
+    "value": "<",
+    "location": {
+      "line": 1,
+      "column": 44,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "Another",
+    "location": {
+      "line": 1,
+      "column": 45,
+      "length": 7
+    }
+  },
+  {
+    "token_type": "GreaterThan",
+    "value": ">",
+    "location": {
+      "line": 1,
+      "column": 52,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LParen",
+    "value": "(",
+    "location": {
+      "line": 1,
+      "column": 53,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "arg2",
+    "location": {
+      "line": 1,
+      "column": 54,
+      "length": 4
+    }
+  },
+  {
+    "token_type": "RParen",
+    "value": ")",
+    "location": {
+      "line": 1,
+      "column": 58,
       "length": 1
     }
   },
@@ -76,16 +193,70 @@
     "value": "+",
     "location": {
       "line": 1,
-      "column": 19,
+      "column": 60,
       "length": 1
     }
   },
   {
-    "token_type": "NumberConstant",
-    "value": "3",
+    "token_type": "LParen",
+    "value": "(",
     "location": {
       "line": 1,
-      "column": 21,
+      "column": 62,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "value",
+    "location": {
+      "line": 1,
+      "column": 63,
+      "length": 5
+    }
+  },
+  {
+    "token_type": "Modulas",
+    "value": "%",
+    "location": {
+      "line": 1,
+      "column": 69,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "nested",
+    "location": {
+      "line": 1,
+      "column": 71,
+      "length": 6
+    }
+  },
+  {
+    "token_type": "DoubleColon",
+    "value": "::",
+    "location": {
+      "line": 1,
+      "column": 77,
+      "length": 2
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "func",
+    "location": {
+      "line": 1,
+      "column": 79,
+      "length": 4
+    }
+  },
+  {
+    "token_type": "LParen",
+    "value": "(",
+    "location": {
+      "line": 1,
+      "column": 83,
       "length": 1
     }
   },
@@ -94,16 +265,25 @@
     "value": ")",
     "location": {
       "line": 1,
-      "column": 22,
+      "column": 84,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RParen",
+    "value": ")",
+    "location": {
+      "line": 1,
+      "column": 85,
       "length": 1
     }
   },
   {
     "token_type": "EndOfLine",
-    "value": "\n",
+    "value": ";",
     "location": {
       "line": 1,
-      "column": 23,
+      "column": 86,
       "length": 1
     }
   }

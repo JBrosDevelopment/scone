@@ -2,11 +2,11 @@
   {
     "token": {
       "token_type": "Identifier",
-      "value": "val",
+      "value": "chain",
       "location": {
         "line": 1,
         "column": 6,
-        "length": 3
+        "length": 5
       }
     },
     "node": {
@@ -42,11 +42,11 @@
         },
         "var_name": {
           "token_type": "Identifier",
-          "value": "val",
+          "value": "chain",
           "location": {
             "line": 1,
             "column": 6,
-            "length": 3
+            "length": 5
           }
         },
         "var_value": {
@@ -55,7 +55,7 @@
             "value": "+",
             "location": {
               "line": 1,
-              "column": 19,
+              "column": 60,
               "length": 1
             }
           },
@@ -63,51 +63,197 @@
             "Operator": {
               "left": {
                 "token": {
-                  "token_type": "NumberConstant",
-                  "value": "5",
+                  "token_type": "LessThan",
+                  "value": "<",
                   "location": {
                     "line": 1,
-                    "column": 17,
+                    "column": 44,
                     "length": 1
                   }
                 },
                 "node": {
-                  "Constant": {
-                    "value": {
-                      "token_type": "NumberConstant",
-                      "value": "5",
-                      "location": {
-                        "line": 1,
-                        "column": 17,
-                        "length": 1
-                      }
+                  "FunctionCall": {
+                    "parameters": {
+                      "parameters": [
+                        {
+                          "token": {
+                            "token_type": "Identifier",
+                            "value": "arg2",
+                            "location": {
+                              "line": 1,
+                              "column": 54,
+                              "length": 4
+                            }
+                          },
+                          "node": {
+                            "Identifier": {
+                              "child": null,
+                              "identifier": {
+                                "token_type": "Identifier",
+                                "value": "arg2",
+                                "location": {
+                                  "line": 1,
+                                  "column": 54,
+                                  "length": 4
+                                }
+                              },
+                              "scope_type": null
+                            }
+                          }
+                        }
+                      ]
                     },
-                    "constant_type": "U8"
+                    "type_parameters": [
+                      {
+                        "token": {
+                          "token_type": "Identifier",
+                          "value": "Another",
+                          "location": {
+                            "line": 1,
+                            "column": 45,
+                            "length": 7
+                          }
+                        },
+                        "node": {
+                          "TypeIdentifier": {
+                            "scope": {
+                              "child": null,
+                              "identifier": {
+                                "token_type": "Identifier",
+                                "value": "Another",
+                                "location": {
+                                  "line": 1,
+                                  "column": 45,
+                                  "length": 7
+                                }
+                              },
+                              "scope_type": null
+                            },
+                            "types": null
+                          }
+                        }
+                      }
+                    ],
+                    "scope": {
+                      "child": null,
+                      "identifier": {
+                        "token_type": "Identifier",
+                        "value": "other",
+                        "location": {
+                          "line": 1,
+                          "column": 39,
+                          "length": 5
+                        }
+                      },
+                      "scope_type": null
+                    }
                   }
                 }
               },
               "right": {
                 "token": {
-                  "token_type": "NumberConstant",
-                  "value": "3",
+                  "token_type": "Modulas",
+                  "value": "%",
                   "location": {
                     "line": 1,
-                    "column": 21,
+                    "column": 69,
                     "length": 1
                   }
                 },
                 "node": {
-                  "Constant": {
-                    "value": {
-                      "token_type": "NumberConstant",
-                      "value": "3",
-                      "location": {
-                        "line": 1,
-                        "column": 21,
-                        "length": 1
+                  "Operator": {
+                    "left": {
+                      "token": {
+                        "token_type": "Identifier",
+                        "value": "value",
+                        "location": {
+                          "line": 1,
+                          "column": 63,
+                          "length": 5
+                        }
+                      },
+                      "node": {
+                        "Identifier": {
+                          "child": null,
+                          "identifier": {
+                            "token_type": "Identifier",
+                            "value": "value",
+                            "location": {
+                              "line": 1,
+                              "column": 63,
+                              "length": 5
+                            }
+                          },
+                          "scope_type": null
+                        }
                       }
                     },
-                    "constant_type": "U8"
+                    "right": {
+                      "token": {
+                        "token_type": "DoubleColon",
+                        "value": "::",
+                        "location": {
+                          "line": 1,
+                          "column": 77,
+                          "length": 2
+                        }
+                      },
+                      "node": {
+                        "FunctionCall": {
+                          "parameters": {
+                            "parameters": [
+                              {
+                                "token": {
+                                  "token_type": "None",
+                                  "value": "",
+                                  "location": {
+                                    "line": 0,
+                                    "column": 0,
+                                    "length": 0
+                                  }
+                                },
+                                "node": "None"
+                              }
+                            ]
+                          },
+                          "type_parameters": null,
+                          "scope": {
+                            "child": {
+                              "child": null,
+                              "identifier": {
+                                "token_type": "Identifier",
+                                "value": "func",
+                                "location": {
+                                  "line": 1,
+                                  "column": 79,
+                                  "length": 4
+                                }
+                              },
+                              "scope_type": "DoubleColon"
+                            },
+                            "identifier": {
+                              "token_type": "Identifier",
+                              "value": "nested",
+                              "location": {
+                                "line": 1,
+                                "column": 71,
+                                "length": 6
+                              }
+                            },
+                            "scope_type": null
+                          }
+                        }
+                      }
+                    },
+                    "operator": {
+                      "token_type": "Modulas",
+                      "value": "%",
+                      "location": {
+                        "line": 1,
+                        "column": 69,
+                        "length": 1
+                      }
+                    }
                   }
                 }
               },
@@ -116,7 +262,7 @@
                 "value": "+",
                 "location": {
                   "line": 1,
-                  "column": 19,
+                  "column": 60,
                   "length": 1
                 }
               }

@@ -24,6 +24,7 @@ pub enum NodeType {
     ReturnExpression(Box<ASTNode>),
     TernaryOperator(ConditionalRegion),
     UnaryOperator(UnaryExpression),
+    ObjectInstantiation(ObjectInstantiation),
 
     // flow
     If(ConditionalRegion),
@@ -114,6 +115,12 @@ pub struct DefinedNodeParameters {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct NodeProperties {
+    pub parameters: Vec<Box<ASTNode>>,
+    pub values: Vec<Box<ASTNode>>
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct FunctionCall {
     pub parameters: NodeParameters,
     pub type_parameters: Option<Vec<Box<ASTNode>>>,
@@ -199,6 +206,14 @@ pub struct Assignment {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub enum ScopeType { Dot, DoubleColon }
+impl ScopeType {
+    pub fn to_string(&self) -> String {
+        match self {
+            ScopeType::Dot => ".".to_string(),
+            ScopeType::DoubleColon => "::".to_string(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ScopeToIdentifier {
@@ -263,4 +278,10 @@ pub struct TypeIdentifier {
 pub struct UnaryExpression {
     pub operand: Box<ASTNode>,
     pub operator: Box<Token>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct ObjectInstantiation {
+    pub object_type: Box<ASTNode>,
+    pub properties: NodeProperties,
 }

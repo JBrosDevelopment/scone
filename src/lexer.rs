@@ -93,6 +93,7 @@ pub enum TokenType {
     // other
     Identifier,
     EndOfLine,
+    None
 }
 impl TokenType {
     pub fn is_operator(&self) -> bool {
@@ -119,6 +120,7 @@ impl TokenType {
             TokenType::Or => true,
             TokenType::RangeOperator => true,
             TokenType::PowerOf => true,
+            TokenType::Not => true,
             _ => false
         }
     }
@@ -164,6 +166,7 @@ impl TokenType {
             TokenType::Not => true,
             TokenType::Star => true,
             TokenType::Ampersand => true,
+            TokenType::Tilda => true,
             _ => false
         }
     }
@@ -211,7 +214,7 @@ impl Token {
     }
     pub fn new_empty() -> Token {
         Token {
-            token_type: TokenType::EndOfLine,
+            token_type: TokenType::None,
             value: String::new(),
             location: Location::new(0, 0, 0)
         }

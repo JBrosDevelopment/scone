@@ -1,14 +1,6 @@
-i32: val = 3 - (5 + 3)
-
-/*
-i32: func() {
-    return 50
-}
-
-(string, input): complex<bool>(i32: input, string: other = "help") -> "description" {
-    thing<bool>(len(other));
-    input = input ** 2;
-
-    ("hello", input)
-}
-*/
+// TODO:
+// auto: negated = !(-value);
+// i32: chain = func::in.here<T, Y>(a, b).other("function");
+// bool: v = 5 == 5 ? print("yes") : print("no")
+// string: s = array[0]
+// char: c = this::thing { v = 1, c = 2 };

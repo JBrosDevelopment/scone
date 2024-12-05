@@ -94,9 +94,10 @@ impl ASTGenerator {
                         }
                     }
 
-                    let var_value: Box<ASTNode> = Self::set_node_with_children(parser, &rhs);
+                    let mut __ = usize::MAX;
+                    let var_value: Box<ASTNode> = Self::set_node_with_children(parser, &rhs, &mut __);
 
-                    // println!("{}", Self::print_node_expression(&var_value));
+                    println!("{}", Self::print_node_expression(&var_value));
 
                     let type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
                     let var_type: Box<ASTNode> = Self::get_type_from_tokens(&type_tokens, &lhs[lhs.len() - 2].location, parser);
@@ -118,8 +119,10 @@ impl ASTGenerator {
                     let tokens_after_return = lhs[1..].to_vec();
 
                     if lhs.get(0).map_or(false, |t| t.token_type == TokenType::Return) {
-                        let left = Self::set_node_with_children(parser, &tokens_after_return);
-                        let right = Self::set_node_with_children(parser, &rhs);
+                        let mut __ = usize::MAX;
+                        let left = Self::set_node_with_children(parser, &tokens_after_return, &mut __);
+                        let mut __ = usize::MAX;
+                        let right = Self::set_node_with_children(parser, &rhs, &mut __);
                         
                         let assign = ASTNode {
                             token: lhs[0].clone(), 
@@ -131,8 +134,10 @@ impl ASTGenerator {
                         });
                     }
                     else {
-                        let left = Self::set_node_with_children(parser, &lhs);
-                        let right = Self::set_node_with_children(parser, &rhs);
+                        let mut __ = usize::MAX;
+                        let left = Self::set_node_with_children(parser, &lhs, &mut __);
+                        let mut __ = usize::MAX;
+                        let right = Self::set_node_with_children(parser, &rhs, &mut __);
                         
                         let assign = Assignment { left, right };
                         ast.push(ASTNode{
@@ -190,7 +195,8 @@ impl ASTGenerator {
                 }
                 TokenType::Return => {
                     let tokens_after_return = tokens[1..].to_vec();
-                    let return_node = Self::set_node_with_children(parser, &tokens_after_return);
+                    let mut __ = usize::MAX;
+                    let return_node = Self::set_node_with_children(parser, &tokens_after_return, &mut __);
                     ast.push(ASTNode {
                         token: tokens[0].clone(),
                         node: Box::new(NodeType::ReturnExpression(return_node))
@@ -252,35 +258,97 @@ impl ASTGenerator {
         }
     }
 
-    pub fn set_node_with_children(parser: &mut Parser, tokens: &Vec<Box<Token>>) -> Box<ASTNode> {
+    pub fn set_node_with_children(parser: &mut Parser, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
         let mut expr_stack: Vec<Box<ASTNode>> = Vec::new(); 
         let mut op_stack: Vec<Box<Token>> = Vec::new();
-        let mut last_was_ident = false;
         let mut tuple_vec: Vec<Box<ASTNode>> = Vec::new();
+        let mut last_was_ident = false;
         let mut is_inside_parenthesis = false;
-        
-        let mut i = 0;
-        while i < tokens.len() {
-            let token = tokens[i].clone();
+        let mut last_was_unary_operator = false;
+        let mut param_index = 0;
+        let mut is_1_expression = true;
+
+        if *i == usize::MAX {
+            is_1_expression = false;
+            *i = 0;
+        }
+    
+        while *i < tokens.len() {
+            let token = tokens[*i].clone();
     
             if token.token_type == TokenType::RightArrow {
                 break;
             }
             else if token.token_type.is_operator() {
+                let mut handle_as_operator = true;
                 if last_was_ident && token.token_type == TokenType::LessThan {
                     // part of function call: function<TYPE>()
                     expr_stack.push(Box::new(ASTNode { 
                         token: token.clone(),
-                        node: Self::function_from_tokens(&tokens, parser, None, &mut i),
+                        node: Self::function_from_tokens(&tokens, parser, None, i),
                     }));
+                    handle_as_operator = false;
+                    last_was_ident = false;
                 }
-                else {
+                else if last_was_unary_operator {
+                    handle_as_operator = false;
+                }
+                else if token.token_type.is_unary_operator() && tokens.get(*i + 1).is_some().then(|| !tokens[*i + 1].token_type.is_operator()).unwrap_or(false) {
+                    handle_as_operator = false;
+                    if *i == 0 {
+                        last_was_unary_operator = false;
+                        
+                        *i += 1;
+                        let next_expression = Self::set_node_with_children(parser, &tokens.to_vec(), i);
+                        *i -= 1;
+                        
+                        let unary = UnaryExpression {
+                            operator: token.clone(),
+                            operand: next_expression.clone(),
+                        };
+
+                        expr_stack.push(Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::UnaryOperator(unary)),
+                        }));
+                    }
+                    else if tokens.get(*i - 1).is_some().then(|| tokens[*i - 1].token_type.is_operator()).unwrap_or(false) {
+                        last_was_unary_operator = false;
+
+                        *i += 1;
+                        let next_expression = Self::set_node_with_children(parser, &tokens.to_vec(), i);
+                        *i -= 1;
+                        
+                        let unary = UnaryExpression {
+                            operator: token.clone(),
+                            operand: next_expression.clone(),
+                        };
+
+                        expr_stack.push(Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::UnaryOperator(unary)),
+                        }));
+                    }
+                    else {
+                        handle_as_operator = true;
+                    }
+                }
+                if handle_as_operator {
+                    last_was_unary_operator = false;
                     while let Some(top_op) = op_stack.last() {
-                        // Check if the top operator has higher precedence, and if so, pop it to expr_stack
                         if token.token_type.precedence() <= top_op.token_type.precedence() {
-                            let operator = op_stack.pop().unwrap();
-                            let right = expr_stack.pop().unwrap();
-                            let left = expr_stack.pop().unwrap();
+                            let operator = op_stack.pop().unwrap_or_else(|| {
+                                parser.error("Error parsing expression", "Operator stack is empty", &token.location);
+                                return Box::new(Token::new_empty());
+                            });
+                            let right = expr_stack.pop().unwrap_or_else(|| {
+                                parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, val + / val", &token.location);
+                                return Box::new(ASTNode::none());
+                            });
+                            let left = expr_stack.pop().unwrap_or_else(|| {
+                                parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, val + / val", &token.location);
+                                return Box::new(ASTNode::none());
+                            });
                             
                             let node = Box::new(ASTNode {
                                 token: operator.clone(),
@@ -296,49 +364,58 @@ impl ASTGenerator {
                             break;
                         }
                     }
-                    op_stack.push(token); 
+                    op_stack.push(token.clone()); 
                 }
             }
             else if token.token_type == TokenType::DoubleColon {
+                last_was_unary_operator = false;
                 if last_was_ident {
                     // scope traversal
                     expr_stack.push(Box::new(ASTNode { 
                         token: token.clone(),
-                        node: Self::traverse_scope_from_tokens(&tokens, parser, &mut i),
+                        node: Self::traverse_scope_from_tokens(&tokens, parser, i),
                     }));
                 }
                 else {
                     parser.error("Expected identifier before double colon", "Expected identifier before double colon: IDENT::IDENT", &token.location);
                 }
+                last_was_ident = false;
             }
             else if token.token_type == TokenType::Dot {
+                last_was_unary_operator = false;
                 if last_was_ident {
                     // scope traversal
                     expr_stack.push(Box::new(ASTNode { 
                         token: token.clone(),
-                        node: Self::traverse_scope_from_tokens(&tokens, parser, &mut i),
+                        node: Self::traverse_scope_from_tokens(&tokens, parser, i),
                     }));
                 }
                 else {
                     parser.error("Expected identifier before dot", "Expected identifier before dot: IDENT.IDENT", &token.location);
                 }
+                last_was_ident = false;
             }
             else if token.token_type == TokenType::LParen {
+                last_was_unary_operator = false;
                 if last_was_ident {
                     // part of function call
                     expr_stack.push(Box::new(ASTNode { 
                         token: token.clone(),
-                        node: Self::function_from_tokens(&tokens, parser, None, &mut i),
+                        node: Self::function_from_tokens(&tokens, parser, None, i),
                     }));
                 }
                 else {
                     // part of expression
                     is_inside_parenthesis = true;
+                    param_index += 1;
                     op_stack.push(token);
                 }
+                last_was_ident = false;
             }
             else if token.token_type == TokenType::RParen {
+                last_was_unary_operator = false;
                 is_inside_parenthesis = false;
+                param_index -= 1;
                 while let Some(top_op) = op_stack.pop() {
                     if top_op.token_type == TokenType::LParen {
                         break; 
@@ -360,6 +437,7 @@ impl ASTGenerator {
                 }
             }
             else if token.token_type.is_constant() {
+                last_was_unary_operator = false;
                 let mut node = Box::new(ASTNode {
                     token: token.clone(),
                     node: Box::new(NodeType::None),
@@ -378,7 +456,8 @@ impl ASTGenerator {
                 expr_stack.push(node);
             }
             else if token.token_type == TokenType::Identifier {
-                if tokens.get(i + 1).is_some() && (tokens[i + 1].token_type == TokenType::DoubleColon || tokens[i + 1].token_type == TokenType::Dot || tokens[i + 1].token_type == TokenType::LParen || tokens[i + 1].token_type == TokenType::LessThan) {
+                last_was_unary_operator = false;
+                if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LessThan) {
                     last_was_ident = true;
                 }
                 else {
@@ -394,6 +473,7 @@ impl ASTGenerator {
                 }
             }
             else if token.token_type == TokenType::Comma {
+                last_was_unary_operator = false;
                 if is_inside_parenthesis {
                     
                     // handle right parenthesis
@@ -440,7 +520,10 @@ impl ASTGenerator {
                 return Box::new(ASTNode::none());
             }
     
-            i += 1;
+            *i += 1;
+            if is_1_expression && param_index == 0 && !last_was_ident {
+                break;
+            }
         }
     
         let expression_node = Self::expression_stacks_to_ast_node(&mut op_stack, &mut expr_stack, parser);
@@ -499,11 +582,55 @@ impl ASTGenerator {
 
             format!("({} {} {})", left, value.operator.value, right)
         }
+        else if let NodeType::UnaryOperator(ref value) = *node.node {
+            let operand = Self::print_node_expression(&value.operand);
+
+            format!("({}{})", value.operator.value, operand)
+        }
+        else if let NodeType::FunctionCall(ref value) = *node.node {
+            let mut scope = "".to_string();
+            let mut s_child = Some(Box::new(value.scope.clone()));
+            while let Some(child) = s_child {
+                scope += format!("{}{}", child.scope_type.clone().is_some().then(|| child.scope_type.clone().unwrap().to_string()).unwrap_or("".to_string()), child.identifier.value.clone()).as_str();
+                s_child = child.child.clone();
+            }
+            let mut parameters = "".to_string();
+            for (index, param) in value.parameters.parameters.iter().enumerate() {
+                parameters += format!("{}{}", Self::print_node_expression(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+            }
+            let mut type_parameters = "".to_string();
+            if value.type_parameters.is_some() {
+                type_parameters += "<";
+                for (index, param) in value.type_parameters.clone().unwrap().iter().enumerate() {
+                    type_parameters += format!("{}{}", Self::print_node_expression(param).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                }
+                type_parameters += ">";
+            }
+            format!("{}{}({})", scope, type_parameters, parameters)
+        }
         else if let NodeType::Identifier(ref value) = *node.node {
-            value.identifier.value.clone()
+            let mut scope = "".to_string();
+            let mut s_child = Some(Box::new(value.clone()));
+            while let Some(child) = s_child {
+                scope += format!("{}{}", child.scope_type.clone().is_some().then(|| child.scope_type.clone().unwrap().to_string()).unwrap_or("".to_string()), child.identifier.value.clone()).as_str();
+                s_child = child.child.clone();
+            }
+            scope
+        }
+        else if let NodeType::TupleExpression(ref value) = *node.node {
+            let mut tuple = "".to_string();
+            for (index, param) in value.parameters.iter().enumerate() {
+                tuple += format!("{}{}", Self::print_node_expression(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+            }
+            format!("({})", tuple)
         }
         else if let NodeType::Constant(ref value) = *node.node {
-            value.value.value.clone()
+            if value.constant_type == ConstantType::String {
+                format!("\"{}\"", value.value.value)
+            }
+            else {
+                value.value.value.clone()
+            }
         }
         else {
             node.token.value.clone()
@@ -552,7 +679,8 @@ impl ASTGenerator {
 
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
-            return_tokens.push(Self::set_node_with_children(parser, &tokens));
+            let mut __ = usize::MAX;
+            return_tokens.push(Self::set_node_with_children(parser, &tokens, &mut __));
         }
 
         return_tokens
@@ -712,7 +840,7 @@ impl ASTGenerator {
         let mut comma_count = 0;
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
         
-        let mut name = tokens[0].clone();
+        let mut name = tokens[*i].clone();
         if let Some(token) = tokens.get(*i) {
             name = token.clone();
         }
@@ -777,14 +905,14 @@ impl ASTGenerator {
     pub fn get_scope_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> (ScopeToIdentifier, Option<Vec<Box<ASTNode>>>) { // returns (scope, type parameters) 
         let mut iterate = tokens.iter().skip(*i).peekable();
         let mut root = ScopeToIdentifier { 
-            identifier: tokens[0].clone(), 
+            identifier: tokens[*i].clone(), 
             child: None,
             scope_type: None
         };
         let mut current_scope = &mut root;
         let mut last_punc: Option<ScopeType> = None; 
         let mut first_token = true;
-        let mut last_index = 0;
+        let mut last_index = *i;
     
         while let Some(token) = iterate.next() {
             match token.token_type {
