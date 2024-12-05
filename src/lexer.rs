@@ -49,6 +49,7 @@ pub enum TokenType {
     LeftArrow,
     DoubleArrow,
     AtBang,
+    QuestionMark,
 
     // keywords
     Return,
@@ -72,6 +73,7 @@ pub enum TokenType {
     Priv,
     Virtual,
     Override,
+    Abstract,
     SelfUpper,
     SelfLower,
     Extern,
@@ -80,6 +82,7 @@ pub enum TokenType {
     TypeOf,
     NameOf,
     SizeOf,
+    Unsafe,
 
     // constants
     BoolConstant,
@@ -154,6 +157,15 @@ impl TokenType {
             TokenType::PowerOf => 6,
             TokenType::LParen | TokenType::RParen => 0, 
             _ => -1, 
+        }
+    }
+    pub fn is_unary_operator(&self) -> bool {
+        match self {
+            TokenType::Dash => true,
+            TokenType::Not => true,
+            TokenType::Star => true,
+            TokenType::Ampersand => true,
+            _ => false
         }
     }
     
@@ -321,6 +333,8 @@ impl Lexer {
                     "nameof" => Token::new(TokenType::NameOf, name.clone(), current_location.clone()),
                     "typeof" => Token::new(TokenType::TypeOf, name.clone(), current_location.clone()),
                     "sizeof" => Token::new(TokenType::SizeOf, name.clone(), current_location.clone()),
+                    "abstract" => Token::new(TokenType::Abstract, name.clone(), current_location.clone()),
+                    "unsafe" => Token::new(TokenType::Unsafe, name.clone(), current_location.clone()),
                     "_" => Token::new(TokenType::Underscore, name.clone(), current_location.clone()),
                     _ => if is_anonymous_type { Token::new(TokenType::AnonymousType, name.clone(), current_location.clone()) } else { Token::new(TokenType::Identifier, name.clone(), current_location.clone()) },
                 };
@@ -383,6 +397,10 @@ impl Lexer {
             else if c == '~' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::Tilda, "~".to_string(), current_location.clone()));
+            }
+            else if c == '?' {
+                current_location.advance(1);
+                tokens.push(Token::new(TokenType::QuestionMark, "?".to_string(), current_location.clone()));
             }
             else if c == '@' {
                 if chars.get(i + 1) == Some(&'!') {

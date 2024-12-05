@@ -1,3 +1,14 @@
-return val += 5;
+i32: val = 3 - (5 + 3)
 
-return a::b()
+/*
+i32: func() {
+    return 50
+}
+
+(string, input): complex<bool>(i32: input, string: other = "help") -> "description" {
+    thing<bool>(len(other));
+    input = input ** 2;
+
+    ("hello", input)
+}
+*/

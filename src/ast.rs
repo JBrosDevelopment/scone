@@ -22,6 +22,8 @@ pub enum NodeType {
     TupleExpression(NodeParameters),
     ArrayExpression(NodeParameters),
     ReturnExpression(Box<ASTNode>),
+    TernaryOperator(ConditionalRegion),
+    UnaryOperator(UnaryExpression),
 
     // flow
     If(ConditionalRegion),
@@ -79,6 +81,7 @@ pub enum AccessModifier {
     Private,
     Override,
     Virtual,
+    Abstract,
     Static,
     Const,
     Extern
@@ -254,4 +257,10 @@ pub struct Expression {
 pub struct TypeIdentifier {
     pub scope: ScopeToIdentifier,
     pub types: Option<NodeParameters>
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct UnaryExpression {
+    pub operand: Box<ASTNode>,
+    pub operator: Box<Token>,
 }

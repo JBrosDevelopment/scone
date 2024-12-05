@@ -80,6 +80,8 @@ impl ASTGenerator {
                             TokenType::Virtual => access_modifier.push(AccessModifier::Virtual),
                             TokenType::Static => access_modifier.push(AccessModifier::Static),
                             TokenType::Const => access_modifier.push(AccessModifier::Const),
+                            TokenType::Extern => access_modifier.push(AccessModifier::Extern),
+                            TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
                             _ => break
                         }
                         accessing_end_index += 1;
@@ -476,7 +478,7 @@ impl ASTGenerator {
                         Box::new(ASTNode::none())
                     }),
                     right: right.unwrap_or_else(|| { 
-                        parser.error("Error parsing expression", "Left hand side of expression is empty", &operator.location); 
+                        parser.error("Error parsing expression", "Right hand side of expression is empty", &operator.location); 
                         Box::new(ASTNode::none())
                     }),
                     operator: operator.clone(),
