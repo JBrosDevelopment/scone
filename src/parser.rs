@@ -295,7 +295,7 @@ impl ASTGenerator {
                 }
                 else if token.token_type.is_unary_operator() && tokens.get(*i + 1).is_some().then(|| !tokens[*i + 1].token_type.is_operator()).unwrap_or(false) {
                     handle_as_operator = false;
-                    if *i == 0 {
+                    if *i == 0 || is_1_expression {
                         last_was_unary_operator = false;
                         
                         *i += 1;

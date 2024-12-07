@@ -1,5 +1,4 @@
 // TODO:
-// auto: negated = !(-value);
 // i32: chain = func::in.here<T, Y>(a, b).other("function");
 // bool: v = 5 == 5 ? print("yes") : print("no")
 // string: s = array[0]
