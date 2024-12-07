@@ -97,56 +97,37 @@ pub enum TokenType {
 }
 impl TokenType {
     pub fn is_operator(&self) -> bool {
-        match self {
-            TokenType::Plus => true,
-            TokenType::Dash => true,
-            TokenType::Star => true,
-            TokenType::Slash => true,
-            TokenType::Pipe => true,
-            TokenType::Carrot => true,
-            TokenType::Ampersand => true,
-            TokenType::Tilda => true,
-            TokenType::Modulas => true,
-            TokenType::Increment => true,
-            TokenType::Decrement => true,
-            TokenType::Equal => true,
-            TokenType::NotEqual => true,
-            TokenType::GreaterThan => true,
-            TokenType::GreaterThanOrEqual => true,
-            TokenType::LessThan => true,
-            TokenType::LessThanOrEqual => true,
-            TokenType::Assign => true,
-            TokenType::And => true,
-            TokenType::Or => true,
-            TokenType::RangeOperator => true,
-            TokenType::PowerOf => true,
-            TokenType::Not => true,
-            _ => false
-        }
+        matches!(self,
+            TokenType::Plus |
+            TokenType::Dash |
+            TokenType::Star |
+            TokenType::Slash |
+            TokenType::Pipe |
+            TokenType::Carrot |
+            TokenType::Ampersand |
+            TokenType::Tilda |
+            TokenType::Modulas |
+            TokenType::Increment |
+            TokenType::Decrement |
+            TokenType::Equal |
+            TokenType::NotEqual |
+            TokenType::GreaterThan |
+            TokenType::GreaterThanOrEqual |
+            TokenType::LessThan |
+            TokenType::LessThanOrEqual |
+            TokenType::Assign |
+            TokenType::And |
+            TokenType::Or |
+            TokenType::RangeOperator |
+            TokenType::PowerOf |
+            TokenType::Not
+        )
     }
     pub fn operator_assignable(&self) -> bool {
-        match self {
-            TokenType::Plus => true,
-            TokenType::Dash => true,
-            TokenType::Star => true,
-            TokenType::Slash => true,
-            TokenType::Pipe => true,
-            TokenType::Carrot => true,
-            TokenType::Ampersand => true,
-            TokenType::Modulas => true,
-            TokenType::And => true,
-            TokenType::Or => true,
-            _ => false
-        }
+        matches!(self, TokenType::Plus | TokenType::Dash | TokenType::Star | TokenType::Slash | TokenType::Pipe | TokenType::Carrot | TokenType::Ampersand | TokenType::Modulas | TokenType::And | TokenType::Or)
     }
     pub fn is_constant(&self) -> bool {
-        match self {
-            TokenType::BoolConstant => true,
-            TokenType::StringConstant => true,
-            TokenType::CharConstant => true,
-            TokenType::NumberConstant => true,
-            _ => false
-        }
+        matches!(self, TokenType::BoolConstant | TokenType::StringConstant | TokenType::CharConstant | TokenType::NumberConstant)
     }
     pub fn precedence(&self) -> i32 {
         match self {
@@ -161,14 +142,7 @@ impl TokenType {
         }
     }
     pub fn is_unary_operator(&self) -> bool {
-        match self {
-            TokenType::Dash => true,
-            TokenType::Not => true,
-            TokenType::Star => true,
-            TokenType::Ampersand => true,
-            TokenType::Tilda => true,
-            _ => false
-        }
+        matches!(self, TokenType::Dash | TokenType::Not | TokenType::Star | TokenType::Ampersand | TokenType::Tilda)
     }
     
 }
