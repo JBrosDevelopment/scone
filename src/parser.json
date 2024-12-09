@@ -2,10 +2,10 @@
   {
     "token": {
       "token_type": "Identifier",
-      "value": "value",
+      "value": "chain",
       "location": {
         "line": 1,
-        "column": 7,
+        "column": 6,
         "length": 5
       }
     },
@@ -14,11 +14,11 @@
         "var_type": {
           "token": {
             "token_type": "Identifier",
-            "value": "bool",
+            "value": "i32",
             "location": {
               "line": 1,
               "column": 1,
-              "length": 4
+              "length": 3
             }
           },
           "node": {
@@ -27,14 +27,15 @@
                 "child": null,
                 "identifier": {
                   "token_type": "Identifier",
-                  "value": "bool",
+                  "value": "i32",
                   "location": {
                     "line": 1,
                     "column": 1,
-                    "length": 4
+                    "length": 3
                   }
                 },
-                "scope_type": null
+                "scope_type": null,
+                "as_expression": null
               },
               "types": null
             }
@@ -42,82 +43,94 @@
         },
         "var_name": {
           "token_type": "Identifier",
-          "value": "value",
+          "value": "chain",
           "location": {
             "line": 1,
-            "column": 7,
+            "column": 6,
             "length": 5
           }
         },
         "var_value": {
           "token": {
-            "token_type": "Not",
-            "value": "!",
+            "token_type": "Identifier",
+            "value": "func",
             "location": {
               "line": 1,
-              "column": 15,
-              "length": 1
+              "column": 14,
+              "length": 4
             }
           },
           "node": {
-            "UnaryOperator": {
-              "operand": {
-                "token": {
-                  "token_type": "Dash",
-                  "value": "-",
-                  "location": {
-                    "line": 1,
-                    "column": 17,
-                    "length": 1
-                  }
-                },
-                "node": {
-                  "UnaryOperator": {
-                    "operand": {
+            "FunctionCall": {
+              "parameters": {
+                "parameters": []
+              },
+              "type_parameters": null,
+              "scope": {
+                "child": {
+                  "child": {
+                    "child": null,
+                    "identifier": {
+                      "token_type": "Identifier",
+                      "value": "a",
+                      "location": {
+                        "line": 1,
+                        "column": 27,
+                        "length": 1
+                      }
+                    },
+                    "scope_type": null,
+                    "as_expression": {
                       "token": {
-                        "token_type": "BoolConstant",
-                        "value": "true",
+                        "token_type": "Identifier",
+                        "value": "a",
                         "location": {
                           "line": 1,
-                          "column": 18,
-                          "length": 4
+                          "column": 27,
+                          "length": 1
                         }
                       },
                       "node": {
-                        "Constant": {
-                          "value": {
-                            "token_type": "BoolConstant",
-                            "value": "true",
+                        "Identifier": {
+                          "child": null,
+                          "identifier": {
+                            "token_type": "Identifier",
+                            "value": "a",
                             "location": {
                               "line": 1,
-                              "column": 18,
-                              "length": 4
+                              "column": 27,
+                              "length": 1
                             }
                           },
-                          "constant_type": "Bool"
+                          "scope_type": null,
+                          "as_expression": null
                         }
                       }
-                    },
-                    "operator": {
-                      "token_type": "Dash",
-                      "value": "-",
-                      "location": {
-                        "line": 1,
-                        "column": 17,
-                        "length": 1
-                      }
                     }
+                  },
+                  "identifier": {
+                    "token_type": "Identifier",
+                    "value": "other",
+                    "location": {
+                      "line": 1,
+                      "column": 19,
+                      "length": 5
+                    }
+                  },
+                  "scope_type": "Dot",
+                  "as_expression": null
+                },
+                "identifier": {
+                  "token_type": "Identifier",
+                  "value": "func",
+                  "location": {
+                    "line": 1,
+                    "column": 14,
+                    "length": 4
                   }
-                }
-              },
-              "operator": {
-                "token_type": "Not",
-                "value": "!",
-                "location": {
-                  "line": 1,
-                  "column": 15,
-                  "length": 1
-                }
+                },
+                "scope_type": null,
+                "as_expression": null
               }
             }
           }

@@ -2,6 +2,7 @@ use crate::lexer::{Token, TokenType, Location};
 use crate::ast::*;
 use crate::error_handling::ErrorHandling;
 
+
 pub fn parse(tokens: Vec<Token>, file: &String, code: &String) -> Result<Vec<ASTNode>, String> {
     let mut parser = Parser::new(Some(file.clone()), code.clone());
     parser.generate_ast(tokens);
@@ -162,7 +163,7 @@ impl ASTGenerator {
                 TokenType::Identifier => {
                     match tokens[1].token_type {
                         TokenType::Colon | TokenType::Assign => { // Previously handled
-                            parser.error("Previously handled token", "Expected declaration to be found with patterns: '=', ': IDENT <'', or ': IDENT ('", &tokens[0].location);
+                            parser.error("Previously handled token", "Expected declaration to be found with patterns: `=`, `: IDENT <``, or `: IDENT (`", &tokens[0].location);
                         }
                         TokenType::LParen => { // Function call
                             ast.push(ASTNode {
@@ -230,16 +231,81 @@ impl ASTGenerator {
             node_parameters = Self::get_expression_node_parameters(&tokens, parser, i);
         }
         else {
-            parser.error("Invalid token for funciton call", format!("Expected either '<' or '(' for function call, got: {}", tokens[*i + 1].value).as_str(), &tokens[*i].location);
+            parser.error("Invalid token for funciton call", format!("Expected either `<` or `(` for function call, got: {}", tokens[*i + 1].value).as_str(), &tokens[*i].location);
         }
-
-        *i -= 1;
-
-        Box::new(NodeType::FunctionCall(FunctionCall {
+        
+        let mut function_call = FunctionCall {
             parameters: NodeParameters { parameters: node_parameters },
-            scope: scope.unwrap_or_else(|| ScopeToIdentifier { identifier: name, child: None, scope_type: None }),
+            scope: scope.unwrap_or_else(|| ScopeToIdentifier { identifier: name, child: None, scope_type: None, as_expression: None }),
             type_parameters: type_parameters.is_empty().then(|| None).unwrap_or(Some(type_parameters)),
-        }))
+        };
+
+        if tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::Dot { // is chaining
+            /* This part is slightly complext and I need to write it out so I know what I'm doing
+
+                The `function_call_node` variable has a scope that does not have a `child`, or an `as_expression` value
+                when we chain, we need to update the scope of the `function_call_node` to have a `child` value to the next token after the dot
+                we also need to set the `as_expression` value of the `child` to be set by `set_node_with_children`
+                In the end, it should generate this structure for this example code: `a().b()`
+                ```
+                ASTNode {
+                    token: a string
+                    node: FunctionCall {
+                        parameters: []
+                        type_parameters: []
+                        scope: ScopeToIdentifier {
+                            identifier: a token
+                            as_expression: None ASTNode // `as_expression` is none because `a` is the function call defined in root 
+                            child: ScopeToIdentifier {
+                                identifier: b token
+                                as_expression: { ... } // defines the function call of `b()` using the `set_node_with_children` function. It's scope would be relatice to `a()`
+                                child: None
+                                scope_type: None
+                            }
+                        }
+                    }
+                }
+                ```
+                What about a member chain instead of a function chain, like so: `a().b`
+                It would be the same, but b's `as_expression` would be an identifier instead
+                The identifier's scope would have to be relarive to the chained function so there would be no infinite loop
+                If there is `a().b.c`, then `a` would be the function call and then it would scope to `c` releative to `a` as `b.c`
+            */
+            *i += 1;
+            let chained_token = tokens[*i].clone();
+            let chained_expression = Self::set_node_with_children(parser, tokens, i);
+            
+            match *chained_expression.node.clone() {
+                NodeType::FunctionCall(func) => {
+                    let mut current = &mut function_call.scope;
+                    while current.child.is_some() {
+                        current = current.child.as_mut().unwrap(); 
+                    }
+                    current.child = Some(Box::new(func.scope));
+                    current.child.as_mut().unwrap().as_expression = Some(chained_expression);
+                }
+                NodeType::Identifier(ident) => {
+                    let mut current = &mut function_call.scope;
+                    while current.child.is_some() {
+                        current = current.child.as_mut().unwrap(); 
+                    }
+                    current.child = Some(Box::new(ident));
+                    current.child.as_mut().unwrap().as_expression = Some(chained_expression);
+                }
+                _ => {
+                    parser.error("Error with chained member", "Expects a member or function after preceding funciton for a valid chain: `a().b` or `a().b()`", &chained_token.location);
+                    return Box::new(NodeType::None)
+                }
+            }
+
+            *i -= 1;
+            Box::new(NodeType::FunctionCall(function_call))
+        }
+        else {
+
+            *i -= 1;
+            Box::new(NodeType::FunctionCall(function_call))
+        }
     }
 
     pub fn traverse_scope_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Box<NodeType> {
@@ -342,11 +408,11 @@ impl ASTGenerator {
                                 return Box::new(Token::new_empty());
                             });
                             let right = expr_stack.pop().unwrap_or_else(|| {
-                                parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, val + / val", &token.location);
+                                parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
                                 return Box::new(ASTNode::none());
                             });
                             let left = expr_stack.pop().unwrap_or_else(|| {
-                                parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, val + / val", &token.location);
+                                parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
                                 return Box::new(ASTNode::none());
                             });
                             
@@ -372,12 +438,12 @@ impl ASTGenerator {
                 if last_was_ident {
                     // scope traversal
                     expr_stack.push(Box::new(ASTNode { 
-                        token: token.clone(),
+                        token: tokens[*i - 1].clone(),
                         node: Self::traverse_scope_from_tokens(&tokens, parser, i),
                     }));
                 }
                 else {
-                    parser.error("Expected identifier before double colon", "Expected identifier before double colon: IDENT::IDENT", &token.location);
+                    parser.error("Expected identifier before double colon", "Expected identifier before double colon: `IDENT::IDENT`", &token.location);
                 }
                 last_was_ident = false;
             }
@@ -386,12 +452,12 @@ impl ASTGenerator {
                 if last_was_ident {
                     // scope traversal
                     expr_stack.push(Box::new(ASTNode { 
-                        token: token.clone(),
+                        token: tokens[*i - 1].clone(),
                         node: Self::traverse_scope_from_tokens(&tokens, parser, i),
                     }));
                 }
                 else {
-                    parser.error("Expected identifier before dot", "Expected identifier before dot: IDENT.IDENT", &token.location);
+                    parser.error("Expected identifier before dot", "Expected identifier before dot: `IDENT.IDENT`", &token.location);
                 }
                 last_was_ident = false;
             }
@@ -400,7 +466,7 @@ impl ASTGenerator {
                 if last_was_ident {
                     // part of function call
                     expr_stack.push(Box::new(ASTNode { 
-                        token: token.clone(),
+                        token: tokens[*i - 1].clone(),
                         node: Self::function_from_tokens(&tokens, parser, None, i),
                     }));
                 }
@@ -466,6 +532,7 @@ impl ASTGenerator {
                         node: Box::new(NodeType::Identifier(ScopeToIdentifier {
                             identifier: token.clone(),
                             child: None,
+                            as_expression: None,
                             scope_type: None
                         })),
                     });
@@ -576,64 +643,66 @@ impl ASTGenerator {
 
     #[allow(dead_code)]
     fn print_node_expression(node: &Box<ASTNode>) -> String {
-        if let NodeType::Operator(ref value) = *node.node {
-            let left = Self::print_node_expression(&value.left);
-            let right = Self::print_node_expression(&value.right);
-
-            format!("({} {} {})", left, value.operator.value, right)
-        }
-        else if let NodeType::UnaryOperator(ref value) = *node.node {
-            let operand = Self::print_node_expression(&value.operand);
-
-            format!("({}{})", value.operator.value, operand)
-        }
-        else if let NodeType::FunctionCall(ref value) = *node.node {
-            let mut scope = "".to_string();
-            let mut s_child = Some(Box::new(value.scope.clone()));
-            while let Some(child) = s_child {
-                scope += format!("{}{}", child.scope_type.clone().is_some().then(|| child.scope_type.clone().unwrap().to_string()).unwrap_or("".to_string()), child.identifier.value.clone()).as_str();
-                s_child = child.child.clone();
+        match *node.node {
+            NodeType::Operator(ref value) => {
+                let left = Self::print_node_expression(&value.left);
+                let right = Self::print_node_expression(&value.right);
+    
+                format!("({} {} {})", left, value.operator.value, right)
             }
-            let mut parameters = "".to_string();
-            for (index, param) in value.parameters.parameters.iter().enumerate() {
-                parameters += format!("{}{}", Self::print_node_expression(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+            NodeType::UnaryOperator(ref value) => {
+                let operand = Self::print_node_expression(&value.operand);
+    
+                format!("({}{})", value.operator.value, operand)
             }
-            let mut type_parameters = "".to_string();
-            if value.type_parameters.is_some() {
-                type_parameters += "<";
-                for (index, param) in value.type_parameters.clone().unwrap().iter().enumerate() {
-                    type_parameters += format!("{}{}", Self::print_node_expression(param).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+            NodeType::FunctionCall(ref value) => {
+                let mut scope = "".to_string();
+                let mut s_child = Some(Box::new(value.scope.clone()));
+                while let Some(child) = s_child {
+                    scope += format!("{}{}", child.scope_type.clone().is_some().then(|| child.scope_type.clone().unwrap().to_string()).unwrap_or(child.is_chained().then(|| "/*CHAINED*/.".to_string()).unwrap_or("".to_string()) ), child.identifier.value.clone()).as_str();
+                    s_child = child.child.clone();
                 }
-                type_parameters += ">";
+                let mut parameters = "".to_string();
+                for (index, param) in value.parameters.parameters.iter().enumerate() {
+                    parameters += format!("{}{}", Self::print_node_expression(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                }
+                let mut type_parameters = "".to_string();
+                if value.type_parameters.is_some() {
+                    type_parameters += "<";
+                    for (index, param) in value.type_parameters.clone().unwrap().iter().enumerate() {
+                        type_parameters += format!("{}{}", Self::print_node_expression(param).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    }
+                    type_parameters += ">";
+                }
+                format!("{}{}({})", scope, type_parameters, parameters)
             }
-            format!("{}{}({})", scope, type_parameters, parameters)
-        }
-        else if let NodeType::Identifier(ref value) = *node.node {
-            let mut scope = "".to_string();
-            let mut s_child = Some(Box::new(value.clone()));
-            while let Some(child) = s_child {
-                scope += format!("{}{}", child.scope_type.clone().is_some().then(|| child.scope_type.clone().unwrap().to_string()).unwrap_or("".to_string()), child.identifier.value.clone()).as_str();
-                s_child = child.child.clone();
+            NodeType::Identifier(ref value) => {
+                let mut scope = "".to_string();
+                let mut s_child = Some(Box::new(value.clone()));
+                while let Some(child) = s_child {
+                    scope += format!("{}{}", child.scope_type.clone().is_some().then(|| child.scope_type.clone().unwrap().to_string()).unwrap_or(child.is_chained().then(|| "/*CHAINED*/.".to_string()).unwrap_or("".to_string())), child.identifier.value.clone()).as_str();
+                    s_child = child.child.clone();
+                }
+                scope
             }
-            scope
-        }
-        else if let NodeType::TupleExpression(ref value) = *node.node {
-            let mut tuple = "".to_string();
-            for (index, param) in value.parameters.iter().enumerate() {
-                tuple += format!("{}{}", Self::print_node_expression(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+            NodeType::TupleExpression(ref value) => {
+                let mut tuple = "".to_string();
+                for (index, param) in value.parameters.iter().enumerate() {
+                    tuple += format!("{}{}", Self::print_node_expression(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                }
+                format!("({})", tuple)
             }
-            format!("({})", tuple)
-        }
-        else if let NodeType::Constant(ref value) = *node.node {
-            if value.constant_type == ConstantType::String {
-                format!("\"{}\"", value.value.value)
+            NodeType::Constant(ref value) => {
+                if value.constant_type == ConstantType::String {
+                    format!("\"{}\"", value.value.value)
+                }
+                else {
+                    value.value.value.clone()
+                }
             }
-            else {
-                value.value.value.clone()
+            _ => {
+                node.token.value.clone()
             }
-        }
-        else {
-            node.token.value.clone()
         }
     }
 
@@ -676,6 +745,9 @@ impl ASTGenerator {
 
     pub fn get_expression_node_parameters(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Vec<Box<ASTNode>> {
         let all_tokens = Self::get_node_parameters_from_tokens(tokens, parser, i);
+        if all_tokens.len() == 1 && all_tokens[0].len() == 0 {
+            return vec![];
+        }
 
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
@@ -684,7 +756,6 @@ impl ASTGenerator {
         }
 
         return_tokens
-        
     }
 
     pub fn get_type_from_tokens(tokens: &Vec<Box<Token>>, location: &Location, parser: &mut Parser) -> Box<ASTNode> {
@@ -692,7 +763,7 @@ impl ASTGenerator {
             return ast_node;
         }
 
-        parser.error("Variable declaration has no type", "Expected a type before the ':', no type was provided", &location);
+        parser.error("Variable declaration has no type", "Expected a type before the `:`, no type was provided", &location);
         Box::new(ASTNode::none()) 
     }
     
@@ -706,7 +777,7 @@ impl ASTGenerator {
                     return Ok(Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
-                            scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None },
+                            scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None, as_expression: None },
                             types: None
                         }))
                     }));
@@ -718,7 +789,7 @@ impl ASTGenerator {
                     return Ok(Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
-                            scope: ScopeToIdentifier { identifier: type_parameters.0, child: None, scope_type: None },
+                            scope: ScopeToIdentifier { identifier: type_parameters.0, child: None, scope_type: None, as_expression: None },
                             types: Some(NodeParameters { parameters: type_parameters.1 })
                         }))
                     }));
@@ -740,7 +811,7 @@ impl ASTGenerator {
                     return Err("Incorrect type");
                 }
                 else {
-                    parser.error("Incorrect type", "Expected a tuple or type before the '::' or  '.'", &tokens.get(1).unwrap().location);
+                    parser.error("Incorrect type", "Expected a tuple or type before the `::` or  `.`", &tokens.get(1).unwrap().location);
                     return Err("Incorrect type");
                 }
             }
@@ -756,7 +827,7 @@ impl ASTGenerator {
                 }));
             }
             else {
-                parser.error("Variable declaration has incorrect type", format!("Expected tuple or type, found: '{}'", first_token.value).as_str(), &first_token.location);
+                parser.error("Variable declaration has incorrect type", format!("Expected tuple or type, found: `{}`", first_token.value).as_str(), &first_token.location);
                 return Err("Variable declaration has incorrect type")
             }
         }
@@ -786,7 +857,7 @@ impl ASTGenerator {
 
         if let Some(token) = tokens.get(*i) {
             if token.token_type != TokenType::LParen {
-                parser.error("Error getting node parameters", "Expected to start with '('", &token.location);
+                parser.error("Error getting node parameters", "Expected to start with `(`", &token.location);
             }
         }
 
@@ -847,7 +918,7 @@ impl ASTGenerator {
 
         if let Some(token) = tokens.get(*i + 1) {
             if token.token_type != TokenType::LessThan {
-                parser.error("Error getting type parameters", "Expected to start with '<'", &token.location);
+                parser.error("Error getting type parameters", "Expected to start with `<`", &token.location);
             }
         }
 
@@ -907,19 +978,20 @@ impl ASTGenerator {
         let mut root = ScopeToIdentifier { 
             identifier: tokens[*i].clone(), 
             child: None,
-            scope_type: None
+            scope_type: None,
+            as_expression: None
         };
         let mut current_scope = &mut root;
         let mut last_punc: Option<ScopeType> = None; 
         let mut first_token = true;
         let mut last_index = *i;
-    
+
         while let Some(token) = iterate.next() {
             match token.token_type {
                 TokenType::DoubleColon => {
                     *i += 1;
                     if last_punc.is_some() || first_token {
-                        parser.error("Scope has incorrect type", "Consecutive '::' found. Use '::' only between valid names, for example 'A::B::C'", &token.location);
+                        parser.error("Scope has incorrect type", "Consecutive `::` found. Use `::` only between valid names, for example `A::B::C`", &token.location);
                         return (root, None);
                     }
                     last_punc = Some(ScopeType::DoubleColon);
@@ -927,7 +999,7 @@ impl ASTGenerator {
                 TokenType::Dot => {
                     *i += 1;
                     if last_punc.is_some() || first_token {
-                        parser.error("Scope has incorrect type", "Consecutive '.' found. Use '.' only between valid names, for example 'A.B.C'", &token.location);
+                        parser.error("Scope has incorrect type", "Consecutive `.` found. Use `.` only between valid names, for example `A.B.C`", &token.location);
                         return (root, None);
                     }
                     last_punc = Some(ScopeType::Dot);
@@ -939,14 +1011,15 @@ impl ASTGenerator {
                         continue;
                     }
                     if last_punc.is_none() {
-                        parser.error("Scope has incorrect type", "Expected '::' or '.' before identifier. Use '::' and '.' to separate scope levels.", &token.location);
+                        parser.error("Scope has incorrect type", "Expected `::` or `.` before identifier. Use `::` and `.` to separate scope levels.", &token.location);
                         return (root, None);
                     }
     
                     current_scope.child = Some(Box::new(ScopeToIdentifier {
                         identifier: token.clone(),
                         child: None,
-                        scope_type: last_punc
+                        scope_type: last_punc,
+                        as_expression: None
                     }));
                     current_scope = current_scope.child.as_mut().unwrap();
                     last_punc = None; 
@@ -959,7 +1032,7 @@ impl ASTGenerator {
         }
     
         if last_punc.is_some() {
-            parser.error("Scope has incorrect type", "Trailing punctuation found. A valid identifier must follow '::' or '.'", &tokens.last().unwrap().location);
+            parser.error("Scope has incorrect type", "Trailing punctuation found. A valid identifier must follow `::` or `.`", &tokens.last().unwrap().location);
             return (root, None);
         }
 

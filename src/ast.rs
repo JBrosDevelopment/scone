@@ -219,7 +219,13 @@ impl ScopeType {
 pub struct ScopeToIdentifier {
     pub child: Option<Box<ScopeToIdentifier>>,
     pub identifier: Box<Token>,
-    pub scope_type: Option<ScopeType> // scope for type before, meaning: Scope::Into.dot -> Scope has none, Into has DoubleColon, dot has Dot
+    pub scope_type: Option<ScopeType>, // scope for type before, meaning: Scope::Into.dot -> Scope has none, Into has DoubleColon, dot has Dot
+    pub as_expression: Option<Box<ASTNode>>, // This is for function/member chaining: Scope::function().other_func() -> Scope has None, function has None, other_func has function's ASTNode
+}
+impl ScopeToIdentifier {
+    pub fn is_chained(&self) -> bool {
+        self.as_expression.is_some()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
