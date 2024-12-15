@@ -22,7 +22,7 @@ pub enum NodeType {
     TupleExpression(NodeParameters),
     ArrayExpression(NodeParameters),
     ReturnExpression(Box<ASTNode>),
-    TernaryOperator(ConditionalRegion),
+    TernaryOperator(TernaryConditional),
     UnaryOperator(UnaryExpression),
     ObjectInstantiation(ObjectInstantiation),
 
@@ -290,4 +290,11 @@ pub struct UnaryExpression {
 pub struct ObjectInstantiation {
     pub object_type: Box<ASTNode>,
     pub properties: NodeProperties,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct TernaryConditional {
+    pub condition: Box<ASTNode>,
+    pub then: Box<ASTNode>,
+    pub else_then: Box<ASTNode>,
 }

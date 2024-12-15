@@ -279,7 +279,7 @@ impl ASTGenerator {
                 NodeType::FunctionCall(func) => {
                     let mut current = &mut function_call.scope;
                     while current.child.is_some() {
-                        current = current.child.as_mut().unwrap(); 
+                        current = current.child.as_mut().unwrap();
                     }
                     current.child = Some(Box::new(func.scope));
                     current.child.as_mut().unwrap().as_expression = Some(chained_expression);
@@ -287,7 +287,7 @@ impl ASTGenerator {
                 NodeType::Identifier(ident) => {
                     let mut current = &mut function_call.scope;
                     while current.child.is_some() {
-                        current = current.child.as_mut().unwrap(); 
+                        current = current.child.as_mut().unwrap();
                     }
                     current.child = Some(Box::new(ident));
                     current.child.as_mut().unwrap().as_expression = Some(chained_expression);
@@ -323,21 +323,183 @@ impl ASTGenerator {
             return Box::new(NodeType::Identifier(scope));
         }
     }
+    pub fn get_ternary_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> NodeType {
+        #[derive(PartialEq)]
+        enum TernaryState {
+            Condition,
+            Then,
+            Else,
+        }
+    
+        struct TernaryType {
+            condition: Vec<Box<Token>>,
+            then: Vec<Box<Token>>,
+            else_then: Vec<Box<Token>>,
+        }
+    
+        let mut ternary_state = TernaryState::Condition;
+        let mut ternary_tokens = TernaryType {
+            condition: vec![],
+            then: vec![],
+            else_then: vec![],
+        };
+    
+        let mut current_tokens: Vec<Box<Token>> = vec![];
+        let mut nesting_level = 0;
+        let mut left_parenthesis_started = false;
 
+        /*
+            But then there is another problem, when it gets to the `?` and there is a parenthesis before it,
+            even if the entire ternary operation is wrapped in parenthesis, it has no way of knowing that the end parenthesis
+            is at the end of the expression. I need to allow both of these to be valid: `(a ? b : c ) ? d : e` and `(a ? b : c)`.
+            It won't be able to tell if the first `?` is apart of nested expression, or if it is wraps the entire ternary operation.
+            To solve this, we will need to check if it's wrapped when it hits the first `(` by looping and checking the nested level.
+            The variable `parenthesis_wrapped` will be set it the there is no matching `(` in the condition. When it gets to the else section, 
+            and `parenthesis_wrapped`, if the nesting level goes below 0, then we will not throw an error because it's the matching end `)`.
+        */
+
+        let mut parenthesis_wrapped = 0;
+    
+        while *i < tokens.len() {
+            match tokens[*i].token_type {
+                TokenType::QuestionMark => {
+                    if nesting_level > 0 {
+                        current_tokens.push(tokens[*i].clone());
+                    } else {
+                        if ternary_state != TernaryState::Condition {
+                            parser.error("Unexpected `?`", "Unexpected `?` found in ternary expression: `a ? b : c`", &tokens[*i].location);
+                            return NodeType::None;
+                        }
+                        left_parenthesis_started = false;
+                        ternary_tokens.condition = std::mem::take(&mut current_tokens);
+                        ternary_state = TernaryState::Then;
+                    }
+                }
+                TokenType::Colon => {
+                    if nesting_level > 0 {
+                        current_tokens.push(tokens[*i].clone());
+                    } else if ternary_state == TernaryState::Then {
+                        ternary_tokens.then = std::mem::take(&mut current_tokens);
+                        ternary_state = TernaryState::Else;
+                        left_parenthesis_started = false;
+                    } else {
+                        parser.error("Unexpected `:`", "Unexpected `:` found in ternary expression: `a ? b : c`", &tokens[*i].location);
+                        return NodeType::None;
+                    }
+                }
+                TokenType::LParen => {
+                    left_parenthesis_started = true;
+                    nesting_level += 1;
+                    current_tokens.push(tokens[*i].clone());
+                    if ternary_state == TernaryState::Condition {
+                        // we will loop through tokens until we find the matching end parenthesis or a non nested `?` 
+                        // if we find a non nested `?`, then we know the entire ternary operation was wrapped in parenthesis
+                        // if not, then we know the parenthesis is part of the condition
+                        let mut j = i.clone() + 1;
+                        let mut tracking_nesting_level = 1;
+                        while j < tokens.len() {
+                            match tokens[j].token_type {
+                                TokenType::LParen => tracking_nesting_level += 1,
+                                TokenType::RParen => {
+                                    tracking_nesting_level -= 1;
+                                    if tracking_nesting_level == 0 {
+                                        // has found matching end parenthesis
+                                        break;
+                                    }
+                                }
+                                TokenType::QuestionMark => {
+                                    if tracking_nesting_level == 1 {
+                                        // found non nested `?`, so the entire ternary operation was wrapped in parenthesis
+                                        nesting_level -= 1;
+                                        parenthesis_wrapped += 1;
+                                        current_tokens.pop();
+                                        break;
+                                    }
+                                }
+                                _ => {}
+                            }
+                            j += 1;
+                        }
+
+                    }
+                }
+                TokenType::RParen => {
+                    nesting_level -= 1;
+                    if nesting_level < 0 {
+                        if parenthesis_wrapped != 0 {
+                            parenthesis_wrapped -= 1;
+                            nesting_level += 1;
+                        }
+                        else {
+                            parser.error("Unmatched `)`", "Found unmatched `)` in ternary expression: `a ? b : c`", &tokens[*i].location);
+                            return NodeType::None;
+                        }
+                    }
+                    else {
+                        current_tokens.push(tokens[*i].clone());
+                    }
+                }
+                _ => {
+                    current_tokens.push(tokens[*i].clone());
+                }
+            }
+    
+            if ternary_state == TernaryState::Else && nesting_level == 0 && left_parenthesis_started {
+                break;
+            }
+    
+            *i += 1;
+        }
+    
+        if nesting_level != 0 {
+            parser.error("Unmatched parentheses", "Mismatched parentheses in ternary expression.", &tokens[i.saturating_sub(1)].location);
+            return NodeType::None;
+        }
+    
+        match ternary_state {
+            TernaryState::Else => ternary_tokens.else_then = current_tokens,
+            _ => {
+                parser.error("Incomplete ternary expression", "Expected `:` to complete the ternary expression: `a ? b : c`", &tokens[i.saturating_sub(1)].location);
+                return NodeType::None;
+            }
+        }
+
+        *i -= 1;
+
+        println!("Condition: {:#?}", ternary_tokens.condition);
+        println!("Then: {:#?}", ternary_tokens.then);
+        println!("Else: {:#?}", ternary_tokens.else_then);
+    
+        let mut __ = usize::MAX;
+        let condition = Self::set_node_with_children(parser, &ternary_tokens.condition, &mut __);
+        let mut __ = usize::MAX;
+        let then = Self::set_node_with_children(parser, &ternary_tokens.then, &mut __);
+        let mut __ = usize::MAX;
+        let else_then = Self::set_node_with_children(parser, &ternary_tokens.else_then, &mut __);
+    
+        let ternary = TernaryConditional {
+            condition,
+            then,
+            else_then,
+        };
+        NodeType::TernaryOperator(ternary)
+    }
+    
     pub fn set_node_with_children(parser: &mut Parser, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
-        let mut expr_stack: Vec<Box<ASTNode>> = Vec::new(); 
-        let mut op_stack: Vec<Box<Token>> = Vec::new();
+        let mut expr_stack: Vec<(Box<ASTNode>, usize)> = Vec::new();
+        let mut op_stack: Vec<(Box<Token>, usize)> = Vec::new();
         let mut tuple_vec: Vec<Box<ASTNode>> = Vec::new();
         let mut last_was_ident = false;
         let mut is_inside_parenthesis = false;
         let mut last_was_unary_operator = false;
         let mut param_index = 0;
         let mut is_1_expression = true;
-
+        
         if *i == usize::MAX {
             is_1_expression = false;
             *i = 0;
         }
+        let mut starting_index_for_ternary = *i;
     
         while *i < tokens.len() {
             let token = tokens[*i].clone();
@@ -345,14 +507,42 @@ impl ASTGenerator {
             if token.token_type == TokenType::RightArrow {
                 break;
             }
+            else if token.token_type == TokenType::QuestionMark {
+                // ternary operator a ? b : c
+                *i = starting_index_for_ternary;
+                for op in op_stack.clone() {
+                    if op.1 >= *i {
+                        op_stack.remove(op_stack.iter().position(|x| x.1 == op.1).unwrap_or_else(|| {
+                            parser.error("Error parsing expression", "Operator stack is empty in ternary expression", &token.location);
+                            return 0;
+                        }));
+                    }
+                }
+                for expr in expr_stack.clone() {
+                    if expr.1 >= *i {
+                        expr_stack.remove(expr_stack.iter().position(|x| x.1 == expr.1).unwrap_or_else(|| {
+                            parser.error("Error parsing expression", "Expression stack is empty in ternary expression", &token.location);
+                            return 0;
+                        }));
+                    }
+                }
+                let ternary = Self::get_ternary_from_tokens(&tokens, parser, i);
+                expr_stack.push((Box::new(ASTNode {
+                    token: token.clone(),
+                    node: Box::new(ternary),
+                }), *i));
+            }
             else if token.token_type.is_operator() {
                 let mut handle_as_operator = true;
+
+                // To check for unary operators, the operator must be the first token in the expression, or the previous token must be an operator: `-0` or `0+-1`
+
                 if last_was_ident && token.token_type == TokenType::LessThan {
                     // part of function call: function<TYPE>()
-                    expr_stack.push(Box::new(ASTNode { 
+                    expr_stack.push((Box::new(ASTNode { 
                         token: token.clone(),
                         node: Self::function_from_tokens(&tokens, parser, None, i),
-                    }));
+                    }), *i));
                     handle_as_operator = false;
                     last_was_ident = false;
                 }
@@ -373,12 +563,12 @@ impl ASTGenerator {
                             operand: next_expression.clone(),
                         };
 
-                        expr_stack.push(Box::new(ASTNode {
+                        expr_stack.push((Box::new(ASTNode {
                             token: token.clone(),
                             node: Box::new(NodeType::UnaryOperator(unary)),
-                        }));
+                        }), *i));
                     }
-                    else if tokens.get(*i - 1).is_some().then(|| tokens[*i - 1].token_type.is_operator()).unwrap_or(false) {
+                    else if tokens.get(*i - 1).is_some().then(|| tokens[*i - 1].token_type.is_operator() || tokens[*i - 1].token_type == TokenType::LParen).unwrap_or(false) {
                         last_was_unary_operator = false;
 
                         *i += 1;
@@ -390,10 +580,10 @@ impl ASTGenerator {
                             operand: next_expression.clone(),
                         };
 
-                        expr_stack.push(Box::new(ASTNode {
+                        expr_stack.push((Box::new(ASTNode {
                             token: token.clone(),
                             node: Box::new(NodeType::UnaryOperator(unary)),
-                        }));
+                        }), *i));
                     }
                     else {
                         handle_as_operator = true;
@@ -402,19 +592,19 @@ impl ASTGenerator {
                 if handle_as_operator {
                     last_was_unary_operator = false;
                     while let Some(top_op) = op_stack.last() {
-                        if token.token_type.precedence() <= top_op.token_type.precedence() {
+                        if token.token_type.precedence() <= top_op.0.token_type.precedence() {
                             let operator = op_stack.pop().unwrap_or_else(|| {
                                 parser.error("Error parsing expression", "Operator stack is empty", &token.location);
-                                return Box::new(Token::new_empty());
-                            });
+                                return (Box::new(Token::new_empty()), 0);
+                            }).0;
                             let right = expr_stack.pop().unwrap_or_else(|| {
                                 parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
-                                return Box::new(ASTNode::none());
-                            });
+                                return (Box::new(ASTNode::none()), 0);
+                            }).0;
                             let left = expr_stack.pop().unwrap_or_else(|| {
                                 parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
-                                return Box::new(ASTNode::none());
-                            });
+                                return (Box::new(ASTNode::none()), 0);
+                            }).0;
                             
                             let node = Box::new(ASTNode {
                                 token: operator.clone(),
@@ -425,22 +615,22 @@ impl ASTGenerator {
                                 })),
                             });
                             
-                            expr_stack.push(node);
+                            expr_stack.push((node, *i));
                         } else {
                             break;
                         }
                     }
-                    op_stack.push(token.clone()); 
+                    op_stack.push((token.clone(), *i));
                 }
             }
             else if token.token_type == TokenType::DoubleColon {
                 last_was_unary_operator = false;
                 if last_was_ident {
                     // scope traversal
-                    expr_stack.push(Box::new(ASTNode { 
+                    expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
                         node: Self::traverse_scope_from_tokens(&tokens, parser, i),
-                    }));
+                    }), *i));
                 }
                 else {
                     parser.error("Expected identifier before double colon", "Expected identifier before double colon: `IDENT::IDENT`", &token.location);
@@ -451,10 +641,10 @@ impl ASTGenerator {
                 last_was_unary_operator = false;
                 if last_was_ident {
                     // scope traversal
-                    expr_stack.push(Box::new(ASTNode { 
+                    expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
                         node: Self::traverse_scope_from_tokens(&tokens, parser, i),
-                    }));
+                    }), *i));
                 }
                 else {
                     parser.error("Expected identifier before dot", "Expected identifier before dot: `IDENT.IDENT`", &token.location);
@@ -462,19 +652,20 @@ impl ASTGenerator {
                 last_was_ident = false;
             }
             else if token.token_type == TokenType::LParen {
+                starting_index_for_ternary = *i;
                 last_was_unary_operator = false;
                 if last_was_ident {
                     // part of function call
-                    expr_stack.push(Box::new(ASTNode { 
+                    expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
                         node: Self::function_from_tokens(&tokens, parser, None, i),
-                    }));
+                    }), *i));
                 }
                 else {
                     // part of expression
                     is_inside_parenthesis = true;
                     param_index += 1;
-                    op_stack.push(token);
+                    op_stack.push((token, *i));
                 }
                 last_was_ident = false;
             }
@@ -483,22 +674,28 @@ impl ASTGenerator {
                 is_inside_parenthesis = false;
                 param_index -= 1;
                 while let Some(top_op) = op_stack.pop() {
-                    if top_op.token_type == TokenType::LParen {
-                        break; 
+                    if top_op.0.token_type == TokenType::LParen {
+                        break;
                     } else {
-                        let right = expr_stack.pop().unwrap();
-                        let left = expr_stack.pop().unwrap();
+                        let right = expr_stack.pop().unwrap_or_else(|| {
+                            parser.error("Error parsing expression", "Right hand side of expression is empty", &token.location);
+                            return (Box::new(ASTNode::none()), 0);
+                        }).0;
+                        let left = expr_stack.pop().unwrap_or_else(|| {
+                            parser.error("Error parsing expression", "Left hand side of expression is empty", &token.location);
+                            return (Box::new(ASTNode::none()), 0);
+                        }).0;
                         
                         let node = Box::new(ASTNode {
-                            token: top_op.clone(),
+                            token: top_op.0.clone(),
                             node: Box::new(NodeType::Operator(Expression{
                                 left,
                                 right,
-                                operator: top_op.clone(),
+                                operator: top_op.0,
                             })),
                         });
                         
-                        expr_stack.push(node);
+                        expr_stack.push((node, *i));
                     }
                 }
             }
@@ -519,7 +716,7 @@ impl ASTGenerator {
                     return Box::new(ASTNode::none());
                 }
 
-                expr_stack.push(node);
+                expr_stack.push((node, *i));
             }
             else if token.token_type == TokenType::Identifier {
                 last_was_unary_operator = false;
@@ -536,7 +733,7 @@ impl ASTGenerator {
                             scope_type: None
                         })),
                     });
-                    expr_stack.push(node);
+                    expr_stack.push((node, *i));
                 }
             }
             else if token.token_type == TokenType::Comma {
@@ -545,22 +742,28 @@ impl ASTGenerator {
                     
                     // handle right parenthesis
                     while let Some(top_op) = op_stack.pop() {
-                        if top_op.token_type == TokenType::LParen {
-                            break; 
+                        if top_op.0.token_type == TokenType::LParen {
+                            break;
                         } else {
-                            let right = expr_stack.pop().unwrap();
-                            let left = expr_stack.pop().unwrap();
+                            let right = expr_stack.pop().unwrap_or_else(|| {
+                                parser.error("Error parsing expression", "Right hand side of expression is empty", &token.location);
+                                return (Box::new(ASTNode::none()), 0);
+                            }).0;
+                            let left = expr_stack.pop().unwrap_or_else(|| {
+                                parser.error("Error parsing expression", "Left hand side of expression is empty", &token.location);
+                                return (Box::new(ASTNode::none()), 0);
+                            }).0;
                             
                             let node = Box::new(ASTNode {
-                                token: top_op.clone(),
+                                token: top_op.0.clone(),
                                 node: Box::new(NodeType::Operator(Expression{
                                     left,
                                     right,
-                                    operator: top_op.clone(),
+                                    operator: top_op.0
                                 })),
                             });
                             
-                            expr_stack.push(node);
+                            expr_stack.push((node, *i));
                         }
                     }
                     
@@ -588,7 +791,7 @@ impl ASTGenerator {
             }
     
             *i += 1;
-            if is_1_expression && param_index == 0 && !last_was_ident {
+            if is_1_expression && param_index == 0 && !last_was_ident && !(tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::QuestionMark) {
                 break;
             }
         }
@@ -615,30 +818,30 @@ impl ASTGenerator {
         })
     }
 
-    pub fn expression_stacks_to_ast_node(op_stack: &mut Vec<Box<Token>>, expr_stack: &mut Vec<Box<ASTNode>>, parser: &mut Parser) -> Option<Box<ASTNode>> {
+    pub fn expression_stacks_to_ast_node(op_stack: &mut Vec<(Box<Token>, usize)>, expr_stack: &mut Vec<(Box<ASTNode>, usize)>, parser: &mut Parser) -> Option<Box<ASTNode>> {
         while let Some(operator) = op_stack.pop() {
             let right = expr_stack.pop();
             let left = expr_stack.pop();
     
             let node = Box::new(ASTNode {
-                token: operator.clone(),
+                token: operator.0.clone(),
                 node: Box::new(NodeType::Operator(Expression {
                     left: left.unwrap_or_else(|| { 
-                        parser.error("Error parsing expression", "Left hand side of expression is empty", &operator.location); 
-                        Box::new(ASTNode::none())
-                    }),
+                        parser.error("Error parsing expression", "Left hand side of expression is empty", &operator.0.location);
+                        (Box::new(ASTNode::none()), 0)
+                    }).0,
                     right: right.unwrap_or_else(|| { 
-                        parser.error("Error parsing expression", "Right hand side of expression is empty", &operator.location); 
-                        Box::new(ASTNode::none())
-                    }),
-                    operator: operator.clone(),
+                        parser.error("Error parsing expression", "Right hand side of expression is empty", &operator.0.location);
+                        (Box::new(ASTNode::none()), 0)
+                    }).0,
+                    operator: operator.0.clone(),
                 })),
             });
     
-            expr_stack.push(node);
+            expr_stack.push((node, 0));
         }
 
-        return expr_stack.pop()
+        return expr_stack.pop().map(|x| x.0);
     }
 
     #[allow(dead_code)]
@@ -699,6 +902,13 @@ impl ASTGenerator {
                 else {
                     value.value.value.clone()
                 }
+            }
+            NodeType::TernaryOperator(ref value) => {
+                let condition = Self::print_node_expression(&value.condition);
+                let then = Self::print_node_expression(&value.then);
+                let else_then = Self::print_node_expression(&value.else_then);
+    
+                format!("({} ? {} : {})", condition, then, else_then)
             }
             _ => {
                 node.token.value.clone()
@@ -982,7 +1192,7 @@ impl ASTGenerator {
             as_expression: None
         };
         let mut current_scope = &mut root;
-        let mut last_punc: Option<ScopeType> = None; 
+        let mut last_punc: Option<ScopeType> = None;
         let mut first_token = true;
         let mut last_index = *i;
 
@@ -1022,7 +1232,7 @@ impl ASTGenerator {
                         as_expression: None
                     }));
                     current_scope = current_scope.child.as_mut().unwrap();
-                    last_punc = None; 
+                    last_punc = None;
                 }
                 _ => {
                     break;

@@ -237,8 +237,10 @@ impl Lexer {
             }
             else if c == '\n' {
                 current_location.advance('\n'.to_string().len() as i32);
-                if tokens.last().clone().unwrap().token_type != TokenType::EndOfLine {
-                    tokens.push(Token::new(TokenType::EndOfLine, "\n".to_string(), current_location.clone()));
+                if let Some(t) = tokens.last().clone() {
+                    if t.token_type != TokenType::EndOfLine {
+                        tokens.push(Token::new(TokenType::EndOfLine, "\n".to_string(), current_location.clone()));
+                    }
                 }
                 current_location.advance_line();
             }

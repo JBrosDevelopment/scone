@@ -19,11 +19,11 @@
   },
   {
     "token_type": "Identifier",
-    "value": "chain",
+    "value": "i",
     "location": {
       "line": 1,
       "column": 6,
-      "length": 5
+      "length": 1
     }
   },
   {
@@ -31,35 +31,8 @@
     "value": "=",
     "location": {
       "line": 1,
-      "column": 12,
+      "column": 8,
       "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "func",
-    "location": {
-      "line": 1,
-      "column": 14,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "Dot",
-    "value": ".",
-    "location": {
-      "line": 1,
-      "column": 18,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "other",
-    "location": {
-      "line": 1,
-      "column": 19,
-      "length": 5
     }
   },
   {
@@ -67,7 +40,52 @@
     "value": "(",
     "location": {
       "line": 1,
-      "column": 24,
+      "column": 10,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Dash",
+    "value": "-",
+    "location": {
+      "line": 1,
+      "column": 11,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LParen",
+    "value": "(",
+    "location": {
+      "line": 1,
+      "column": 12,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "NumberConstant",
+    "value": "1",
+    "location": {
+      "line": 1,
+      "column": 13,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Plus",
+    "value": "+",
+    "location": {
+      "line": 1,
+      "column": 14,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "NumberConstant",
+    "value": "2",
+    "location": {
+      "line": 1,
+      "column": 15,
       "length": 1
     }
   },
@@ -76,25 +94,16 @@
     "value": ")",
     "location": {
       "line": 1,
-      "column": 25,
+      "column": 16,
       "length": 1
     }
   },
   {
-    "token_type": "Dot",
-    "value": ".",
+    "token_type": "RParen",
+    "value": ")",
     "location": {
       "line": 1,
-      "column": 26,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "a",
-    "location": {
-      "line": 1,
-      "column": 27,
+      "column": 17,
       "length": 1
     }
   },
@@ -103,7 +112,7 @@
     "value": "\n",
     "location": {
       "line": 1,
-      "column": 28,
+      "column": 18,
       "length": 1
     }
   }

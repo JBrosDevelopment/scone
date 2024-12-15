@@ -2,11 +2,11 @@
   {
     "token": {
       "token_type": "Identifier",
-      "value": "chain",
+      "value": "i",
       "location": {
         "line": 1,
         "column": 6,
-        "length": 5
+        "length": 1
       }
     },
     "node": {
@@ -43,94 +43,107 @@
         },
         "var_name": {
           "token_type": "Identifier",
-          "value": "chain",
+          "value": "i",
           "location": {
             "line": 1,
             "column": 6,
-            "length": 5
+            "length": 1
           }
         },
         "var_value": {
           "token": {
-            "token_type": "Identifier",
-            "value": "func",
+            "token_type": "Dash",
+            "value": "-",
             "location": {
               "line": 1,
-              "column": 14,
-              "length": 4
+              "column": 11,
+              "length": 1
             }
           },
           "node": {
-            "FunctionCall": {
-              "parameters": {
-                "parameters": []
-              },
-              "type_parameters": null,
-              "scope": {
-                "child": {
-                  "child": {
-                    "child": null,
-                    "identifier": {
-                      "token_type": "Identifier",
-                      "value": "a",
-                      "location": {
-                        "line": 1,
-                        "column": 27,
-                        "length": 1
-                      }
-                    },
-                    "scope_type": null,
-                    "as_expression": {
+            "UnaryOperator": {
+              "operand": {
+                "token": {
+                  "token_type": "Plus",
+                  "value": "+",
+                  "location": {
+                    "line": 1,
+                    "column": 14,
+                    "length": 1
+                  }
+                },
+                "node": {
+                  "Operator": {
+                    "left": {
                       "token": {
-                        "token_type": "Identifier",
-                        "value": "a",
+                        "token_type": "NumberConstant",
+                        "value": "1",
                         "location": {
                           "line": 1,
-                          "column": 27,
+                          "column": 13,
                           "length": 1
                         }
                       },
                       "node": {
-                        "Identifier": {
-                          "child": null,
-                          "identifier": {
-                            "token_type": "Identifier",
-                            "value": "a",
+                        "Constant": {
+                          "value": {
+                            "token_type": "NumberConstant",
+                            "value": "1",
                             "location": {
                               "line": 1,
-                              "column": 27,
+                              "column": 13,
                               "length": 1
                             }
                           },
-                          "scope_type": null,
-                          "as_expression": null
+                          "constant_type": "U8"
                         }
                       }
+                    },
+                    "right": {
+                      "token": {
+                        "token_type": "NumberConstant",
+                        "value": "2",
+                        "location": {
+                          "line": 1,
+                          "column": 15,
+                          "length": 1
+                        }
+                      },
+                      "node": {
+                        "Constant": {
+                          "value": {
+                            "token_type": "NumberConstant",
+                            "value": "2",
+                            "location": {
+                              "line": 1,
+                              "column": 15,
+                              "length": 1
+                            }
+                          },
+                          "constant_type": "U8"
+                        }
+                      }
+                    },
+                    "operator": {
+                      "token_type": "Plus",
+                      "value": "+",
+                      "location": {
+                        "line": 1,
+                        "column": 14,
+                        "length": 1
+                      }
                     }
-                  },
-                  "identifier": {
-                    "token_type": "Identifier",
-                    "value": "other",
-                    "location": {
-                      "line": 1,
-                      "column": 19,
-                      "length": 5
-                    }
-                  },
-                  "scope_type": "Dot",
-                  "as_expression": null
-                },
-                "identifier": {
-                  "token_type": "Identifier",
-                  "value": "func",
-                  "location": {
-                    "line": 1,
-                    "column": 14,
-                    "length": 4
                   }
-                },
-                "scope_type": null,
-                "as_expression": null
+                }
+              },
+              "operator": {
+                "token_type": "Dash",
+                "value": "-",
+                "location": {
+                  "line": 1,
+                  "column": 11,
+                  "length": 1
+                }
               }
             }
           }
