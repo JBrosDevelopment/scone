@@ -98,8 +98,6 @@ impl ASTGenerator {
                     let mut __ = usize::MAX;
                     let var_value: Box<ASTNode> = Self::set_node_with_children(parser, &rhs, &mut __);
 
-                    println!("{}", Self::print_node_expression(&var_value));
-
                     let type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
                     let var_type: Box<ASTNode> = Self::get_type_from_tokens(&type_tokens, &lhs[lhs.len() - 2].location, parser);
 
@@ -114,6 +112,8 @@ impl ASTGenerator {
                         token: var_name.clone(),
                         node: Box::new(NodeType::VariableDeclaration(var_decl)),
                     });
+
+                    println!("{}", Self::node_expr_to_string(&ast[ast.len() - 1]));
                 }
                 else {
                     // assigning variable
@@ -349,9 +349,9 @@ impl ASTGenerator {
         let mut left_parenthesis_started = false;
 
         /*
-            But then there is another problem, when it gets to the `?` and there is a parenthesis before it,
+            Another problem, when it gets to the `?` and there is a parenthesis before it,
             even if the entire ternary operation is wrapped in parenthesis, it has no way of knowing that the end parenthesis
-            is at the end of the expression. I need to allow both of these to be valid: `(a ? b : c ) ? d : e` and `(a ? b : c)`.
+            is at the end of the expression. I need to allow both of these to be valid: `(a ? b : c) ? d : e` and `(a ? b : c)`.
             It won't be able to tell if the first `?` is apart of nested expression, or if it is wraps the entire ternary operation.
             To solve this, we will need to check if it's wrapped when it hits the first `(` by looping and checking the nested level.
             The variable `parenthesis_wrapped` will be set it the there is no matching `(` in the condition. When it gets to the else section, 
@@ -465,10 +465,6 @@ impl ASTGenerator {
         }
 
         *i -= 1;
-
-        println!("Condition: {:#?}", ternary_tokens.condition);
-        println!("Then: {:#?}", ternary_tokens.then);
-        println!("Else: {:#?}", ternary_tokens.else_then);
     
         let mut __ = usize::MAX;
         let condition = Self::set_node_with_children(parser, &ternary_tokens.condition, &mut __);
@@ -845,16 +841,52 @@ impl ASTGenerator {
     }
 
     #[allow(dead_code)]
-    fn print_node_expression(node: &Box<ASTNode>) -> String {
+    fn node_expr_to_string(node: &ASTNode) -> String {
         match *node.node {
+            NodeType::VariableDeclaration(ref value) => {
+                let var_type = Self::node_expr_to_string(&value.var_type);
+                let var_name = value.var_name.value.clone();
+                let var_value = Self::node_expr_to_string(&value.var_value);
+                let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
+                if value.description.is_some() {
+                    format!("{}{}: {} = {} -> \"{}\"", access_modifiers, var_type, var_name, var_value, value.description.clone().unwrap().value)
+                }
+                else {
+                    format!("{}{}: {} = {}", access_modifiers, var_type, var_name, var_value)
+                }
+            }
+            NodeType::TypeIdentifier(ref value) => {
+                let mut scope = "".to_string();
+                let mut s_child = Some(Box::new(value.scope.clone()));
+                while let Some(child) = s_child {
+                    scope += format!("{}{}", child.scope_type.clone().is_some().then(|| child.scope_type.clone().unwrap().to_string()).unwrap_or(child.is_chained().then(|| "/*CHAINED*/.".to_string()).unwrap_or("".to_string())), child.identifier.value.clone()).as_str();
+                    s_child = child.child.clone();
+                }
+                let mut type_parameters = "".to_string();
+                if value.type_parameters.is_some() {
+                    type_parameters += "<";
+                    for (index, param) in value.type_parameters.clone().unwrap().parameters.iter().enumerate() {
+                        type_parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.type_parameters.clone().unwrap().parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    }
+                    type_parameters += ">";
+                }
+                format!("{}{}", scope, type_parameters)
+            }
+            NodeType::TupleDeclaration(ref value) => {
+                let mut tuple = "".to_string();
+                for (index, param) in value.parameters.iter().enumerate() {
+                    tuple += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                }
+                format!("({})", tuple)
+            }
             NodeType::Operator(ref value) => {
-                let left = Self::print_node_expression(&value.left);
-                let right = Self::print_node_expression(&value.right);
+                let left = Self::node_expr_to_string(&value.left);
+                let right = Self::node_expr_to_string(&value.right);
     
                 format!("({} {} {})", left, value.operator.value, right)
             }
             NodeType::UnaryOperator(ref value) => {
-                let operand = Self::print_node_expression(&value.operand);
+                let operand = Self::node_expr_to_string(&value.operand);
     
                 format!("({}{})", value.operator.value, operand)
             }
@@ -867,13 +899,13 @@ impl ASTGenerator {
                 }
                 let mut parameters = "".to_string();
                 for (index, param) in value.parameters.parameters.iter().enumerate() {
-                    parameters += format!("{}{}", Self::print_node_expression(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 let mut type_parameters = "".to_string();
                 if value.type_parameters.is_some() {
                     type_parameters += "<";
                     for (index, param) in value.type_parameters.clone().unwrap().iter().enumerate() {
-                        type_parameters += format!("{}{}", Self::print_node_expression(param).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                        type_parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                     }
                     type_parameters += ">";
                 }
@@ -891,7 +923,7 @@ impl ASTGenerator {
             NodeType::TupleExpression(ref value) => {
                 let mut tuple = "".to_string();
                 for (index, param) in value.parameters.iter().enumerate() {
-                    tuple += format!("{}{}", Self::print_node_expression(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    tuple += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("({})", tuple)
             }
@@ -904,9 +936,9 @@ impl ASTGenerator {
                 }
             }
             NodeType::TernaryOperator(ref value) => {
-                let condition = Self::print_node_expression(&value.condition);
-                let then = Self::print_node_expression(&value.then);
-                let else_then = Self::print_node_expression(&value.else_then);
+                let condition = Self::node_expr_to_string(&value.condition);
+                let then = Self::node_expr_to_string(&value.then);
+                let else_then = Self::node_expr_to_string(&value.else_then);
     
                 format!("({} ? {} : {})", condition, then, else_then)
             }
@@ -988,7 +1020,7 @@ impl ASTGenerator {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
                             scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None, as_expression: None },
-                            types: None
+                            type_parameters: None
                         }))
                     }));
                 }
@@ -1000,7 +1032,7 @@ impl ASTGenerator {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
                             scope: ScopeToIdentifier { identifier: type_parameters.0, child: None, scope_type: None, as_expression: None },
-                            types: Some(NodeParameters { parameters: type_parameters.1 })
+                            type_parameters: Some(NodeParameters { parameters: type_parameters.1 })
                         }))
                     }));
                 }
@@ -1012,7 +1044,7 @@ impl ASTGenerator {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
                             scope: scope_and_types.0,
-                            types: scope_and_types.1.is_some().then(|| NodeParameters { parameters: scope_and_types.1.unwrap() }) 
+                            type_parameters: scope_and_types.1.is_some().then(|| NodeParameters { parameters: scope_and_types.1.unwrap() }) 
                         }))
                     }));
                 }
@@ -1250,7 +1282,7 @@ impl ASTGenerator {
             let next_tokens: Vec<Box<Token>> = tokens.iter().skip(last_index).cloned().collect();
             if let Ok(node) = Self::ast_node_from_tokens_var_decl(&next_tokens, parser) {
                 if let NodeType::TypeIdentifier(ref value) = *node.node {
-                    if let Some(types) = &value.types {
+                    if let Some(types) = &value.type_parameters {
                         return (root, Some(types.parameters.clone()));
                     }
                 }

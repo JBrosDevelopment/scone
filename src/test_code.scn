@@ -1,3 +1,4 @@
+(A<T>, B): a = 100 - 22 -> "a"
 // TODO:
 // string: s = array[0]
 // char: c = this::thing { v = 1, c = 2 };

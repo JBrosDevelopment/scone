@@ -87,6 +87,22 @@ pub enum AccessModifier {
     Const,
     Extern
 }
+impl AccessModifier {
+    pub fn to_string(&self) -> String {
+        match self {
+            AccessModifier::None => "".to_string(),
+            AccessModifier::Public => "pub".to_string(),
+            AccessModifier::Private => "priv".to_string(),
+            AccessModifier::Override => "override".to_string(),
+            AccessModifier::Virtual => "virtual".to_string(),
+            AccessModifier::Abstract => "abstract".to_string(),
+            AccessModifier::Static => "static".to_string(),
+            AccessModifier::Const => "const".to_string(),
+            AccessModifier::Extern => "extern".to_string(),
+        }
+    }
+    
+}
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ASTNode {
@@ -277,7 +293,7 @@ pub struct Expression {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct TypeIdentifier {
     pub scope: ScopeToIdentifier,
-    pub types: Option<NodeParameters>
+    pub type_parameters: Option<NodeParameters>
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
