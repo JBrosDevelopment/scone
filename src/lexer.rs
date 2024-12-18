@@ -439,20 +439,21 @@ impl Lexer {
                     let mut length = 0;
                     i += 1;
     
-                    while i < chars.len() {
+                    while i < chars.len() {    
+                        if chars[i] == '\n' {
+                            lines += 1;
+                            length = 0;
+                        }
+                        else if chars[i] != '\r' {
+                            length += 1;
+                            is_star = false;    
+                        }
+                        
                         if chars[i] == '*' {
                             is_star = true;
                         }
                         else if chars[i] == '/' && is_star {
                             break;
-                        }
-    
-                        if chars[i] == '\n' {
-                            lines += 1;
-                            length = 0;
-                        }
-                        if chars[i] != '\r' {
-                            length += 1;
                         }
     
                         i += 1;

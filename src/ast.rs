@@ -20,10 +20,11 @@ pub enum NodeType {
     // expression
     FunctionCall(FunctionCall),
     TupleExpression(NodeParameters),
-    ArrayExpression(NodeParameters),
     ReturnExpression(Box<ASTNode>),
     TernaryOperator(TernaryConditional),
     UnaryOperator(UnaryExpression),
+    ArrayExpression(NodeParameters),
+    Indexer(IndexingExpression),
     ObjectInstantiation(ObjectInstantiation),
 
     // flow
@@ -313,4 +314,10 @@ pub struct TernaryConditional {
     pub condition: Box<ASTNode>,
     pub then: Box<ASTNode>,
     pub else_then: Box<ASTNode>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct IndexingExpression {
+    pub object: Box<ASTNode>,
+    pub index: Vec<Box<ASTNode>>,
 }

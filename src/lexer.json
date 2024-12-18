@@ -1,73 +1,10 @@
 [
   {
-    "token_type": "LParen",
-    "value": "(",
+    "token_type": "Identifier",
+    "value": "a",
     "location": {
       "line": 1,
       "column": 1,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "A",
-    "location": {
-      "line": 1,
-      "column": 2,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "LessThan",
-    "value": "<",
-    "location": {
-      "line": 1,
-      "column": 3,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "T",
-    "location": {
-      "line": 1,
-      "column": 4,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "GreaterThan",
-    "value": ">",
-    "location": {
-      "line": 1,
-      "column": 5,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Comma",
-    "value": ",",
-    "location": {
-      "line": 1,
-      "column": 6,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "B",
-    "location": {
-      "line": 1,
-      "column": 8,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RParen",
-    "value": ")",
-    "location": {
-      "line": 1,
-      "column": 9,
       "length": 1
     }
   },
@@ -76,7 +13,7 @@
     "value": ":",
     "location": {
       "line": 1,
-      "column": 10,
+      "column": 2,
       "length": 1
     }
   },
@@ -85,7 +22,7 @@
     "value": "a",
     "location": {
       "line": 1,
-      "column": 12,
+      "column": 3,
       "length": 1
     }
   },
@@ -94,53 +31,53 @@
     "value": "=",
     "location": {
       "line": 1,
-      "column": 14,
+      "column": 4,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LBracket",
+    "value": "[",
+    "location": {
+      "line": 1,
+      "column": 6,
       "length": 1
     }
   },
   {
     "token_type": "NumberConstant",
-    "value": "100",
+    "value": "0",
     "location": {
       "line": 1,
-      "column": 16,
-      "length": 3
+      "column": 7,
+      "length": 1
     }
   },
   {
-    "token_type": "Dash",
-    "value": "-",
+    "token_type": "Comma",
+    "value": ",",
     "location": {
       "line": 1,
-      "column": 20,
+      "column": 8,
       "length": 1
     }
   },
   {
     "token_type": "NumberConstant",
-    "value": "22",
+    "value": "99",
     "location": {
       "line": 1,
-      "column": 22,
+      "column": 10,
       "length": 2
     }
   },
   {
-    "token_type": "RightArrow",
-    "value": "->",
+    "token_type": "RBracket",
+    "value": "]",
     "location": {
       "line": 1,
-      "column": 25,
-      "length": 2
-    }
-  },
-  {
-    "token_type": "StringConstant",
-    "value": "a",
-    "location": {
-      "line": 1,
-      "column": 28,
-      "length": 3
+      "column": 12,
+      "length": 1
     }
   },
   {
@@ -148,7 +85,7 @@
     "value": "\n",
     "location": {
       "line": 1,
-      "column": 31,
+      "column": 13,
       "length": 1
     }
   }

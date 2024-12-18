@@ -50,16 +50,11 @@ impl ASTGenerator {
         while line_index < lines.len() {
             let tokens = lines[line_index].clone();
 
-            let mut is_func = 0;
             let mut assign_index = -1;
             for (index, token) in tokens.iter().enumerate() {
                 match token.token_type {
                     TokenType::Assign => { assign_index = index as i32; break; },
-                    TokenType::Colon => is_func = 1,
-                    TokenType::Identifier => if is_func == 1 { is_func = 2 } else { is_func = 0 },
-                    TokenType::LParen => if is_func == 2 { is_func = 3 } else { is_func = 0 },
-                    TokenType::LessThan => if is_func == 2 { is_func = 3 } else { is_func = 0 },
-                    _ => is_func = 0
+                    _ => {}
                 }
             }
 
@@ -152,33 +147,20 @@ impl ASTGenerator {
                 continue;
             }
 
-            if is_func == 3 {
-
+            if tokens.len() <= 1 {
+                parser.error("Unexpected token", "Expected an expression, declaration, or assignment", &tokens[0].location);
                 line_index += 1;
                 continue;
             }
-
-            let mut token_index = 0;
             match tokens[0].token_type {
                 TokenType::Identifier => {
                     match tokens[1].token_type {
                         TokenType::Colon | TokenType::Assign => { // Previously handled
                             parser.error("Previously handled token", "Expected declaration to be found with patterns: `=`, `: IDENT <``, or `: IDENT (`", &tokens[0].location);
                         }
-                        TokenType::LParen => { // Function call
-                            ast.push(ASTNode {
-                                token: tokens[0].clone(),
-                                node: Self::function_from_tokens(&tokens, parser, None, &mut token_index),
-                            });
-                        }
-                        TokenType::DoubleColon => { // Traverse Scope
-                            ast.push(ASTNode {
-                                token: tokens[0].clone(),
-                                node: Self::traverse_scope_from_tokens(&tokens, parser, &mut token_index),
-                            });
-                        }
                         _ => {
-                            parser.error("Unexpected token", "Unexpected token after identifier", &tokens[0].location);
+                            let mut __ = usize::MAX;
+                            ast.push(*Self::set_node_with_children(parser, &tokens, &mut __));
                         }
                     }
                 }
@@ -221,17 +203,20 @@ impl ASTGenerator {
         let mut type_parameters: Vec<Box<ASTNode>> = vec![];
         let mut name = tokens[*i].clone();
 
-        if tokens[*i + 1].token_type == TokenType::LessThan {
-            let type_parameters_from_tokens = Self::get_type_parameters_from_tokens(&tokens, parser, i);
-            type_parameters = type_parameters_from_tokens.1;
-            name = type_parameters_from_tokens.0;
-        }
-        if tokens[*i + 1].token_type == TokenType::LParen {
-            *i += 1;
-            node_parameters = Self::get_expression_node_parameters(&tokens, parser, i);
-        }
-        else {
-            parser.error("Invalid token for funciton call", format!("Expected either `<` or `(` for function call, got: {}", tokens[*i + 1].value).as_str(), &tokens[*i].location);
+        if let Some(next_token) = tokens.get(*i + 1) {
+            if next_token.token_type == TokenType::LessThan {
+                let type_parameters_from_tokens = Self::get_type_parameters_from_tokens(&tokens, parser, i);
+                type_parameters = type_parameters_from_tokens.1;
+                name = type_parameters_from_tokens.0;
+            }
+
+            if tokens.get(*i + 1).is_some() && tokens[*i + 1].token_type == TokenType::LParen {
+                *i += 1;
+                node_parameters = Self::get_expression_node_parameters(&tokens, parser, i);
+            }
+            else {
+                parser.error("Invalid token for funciton call", format!("Expected either `<` or `(` for function call, got: `{}`", next_token.value).as_str(), &tokens[*i].location);
+            }
         }
         
         let mut function_call = FunctionCall {
@@ -312,15 +297,37 @@ impl ASTGenerator {
         *i -= 1;
 
         let (scope, type_parameters) = Self::get_scope_from_tokens(&tokens, parser, i);
+        let identifier_node = Box::new(NodeType::Identifier(scope.clone()));
+
         if type_parameters.is_some() {
             return Self::function_from_tokens(&tokens, parser, Some(scope), i);
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LParen) {
             return Self::function_from_tokens(&tokens, parser, Some(scope), i);
         }
+        else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) { 
+            let index_array = Self::get_array_expression_from_tokens(&tokens, parser, i);
+            match index_array.node.as_ref() {
+                NodeType::ArrayExpression(ref index) => {
+                    let object = Box::new(ASTNode {
+                        token: tokens[*i].clone(), 
+                        node: identifier_node.clone(),
+                    });
+                    return Box::new(NodeType::Indexer(IndexingExpression { object, index: index.parameters.clone() }));
+                }
+                _ => {
+                    parser.error("Error parsing indexing", "Expected an indexing, but no index was provided: `obj[indexing]`", &tokens[*i].location);
+                    return Box::new(NodeType::None);
+                }
+            }
+        }
+        else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
+            parser.warning("NOT IMPLEMENTED", "in traverse_scope_from_tokens", &tokens[*i].location);
+            return Box::new(NodeType::None);
+        }
         else {
             *i -= 1;
-            return Box::new(NodeType::Identifier(scope));
+            return identifier_node;
         }
     }
     pub fn get_ternary_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> NodeType {
@@ -345,8 +352,10 @@ impl ASTGenerator {
         };
     
         let mut current_tokens: Vec<Box<Token>> = vec![];
-        let mut nesting_level = 0;
         let mut left_parenthesis_started = false;
+        let mut parenthesis_level = 0;
+        let mut brace_level = 0;
+        let mut bracket_level = 0;
 
         /*
             Another problem, when it gets to the `?` and there is a parenthesis before it,
@@ -362,8 +371,24 @@ impl ASTGenerator {
     
         while *i < tokens.len() {
             match tokens[*i].token_type {
+                TokenType::LBrace => {
+                    brace_level += 1;
+                    current_tokens.push(tokens[*i].clone());
+                }
+                TokenType::RBrace => {
+                    brace_level -= 1;
+                    current_tokens.push(tokens[*i].clone());
+                }
+                TokenType::LBracket => {
+                    bracket_level += 1;
+                    current_tokens.push(tokens[*i].clone());
+                }
+                TokenType::RBracket => {
+                    bracket_level -= 1;
+                    current_tokens.push(tokens[*i].clone());
+                }
                 TokenType::QuestionMark => {
-                    if nesting_level > 0 {
+                    if parenthesis_level > 0 || brace_level > 0 || bracket_level > 0 {
                         current_tokens.push(tokens[*i].clone());
                     } else {
                         if ternary_state != TernaryState::Condition {
@@ -376,7 +401,7 @@ impl ASTGenerator {
                     }
                 }
                 TokenType::Colon => {
-                    if nesting_level > 0 {
+                    if parenthesis_level > 0 || brace_level > 0 || bracket_level > 0 {
                         current_tokens.push(tokens[*i].clone());
                     } else if ternary_state == TernaryState::Then {
                         ternary_tokens.then = std::mem::take(&mut current_tokens);
@@ -389,28 +414,34 @@ impl ASTGenerator {
                 }
                 TokenType::LParen => {
                     left_parenthesis_started = true;
-                    nesting_level += 1;
+                    parenthesis_level += 1;
                     current_tokens.push(tokens[*i].clone());
                     if ternary_state == TernaryState::Condition {
                         // we will loop through tokens until we find the matching end parenthesis or a non nested `?` 
                         // if we find a non nested `?`, then we know the entire ternary operation was wrapped in parenthesis
                         // if not, then we know the parenthesis is part of the condition
                         let mut j = i.clone() + 1;
-                        let mut tracking_nesting_level = 1;
+                        let mut tracking_parenthesis_level = 1;
+                        let mut tracking_brace_level = 0;
+                        let mut tracking_bracket_level = 0;
                         while j < tokens.len() {
                             match tokens[j].token_type {
-                                TokenType::LParen => tracking_nesting_level += 1,
+                                TokenType::LBrace => tracking_brace_level += 1,
+                                TokenType::RBrace => tracking_brace_level -= 1,
+                                TokenType::LBracket => tracking_bracket_level += 1,
+                                TokenType::RBracket => tracking_bracket_level -= 1,
+                                TokenType::LParen => tracking_parenthesis_level += 1,
                                 TokenType::RParen => {
-                                    tracking_nesting_level -= 1;
-                                    if tracking_nesting_level == 0 {
+                                    tracking_parenthesis_level -= 1;
+                                    if tracking_parenthesis_level == 0 && tracking_brace_level == 0 && tracking_bracket_level == 0 {
                                         // has found matching end parenthesis
                                         break;
                                     }
                                 }
                                 TokenType::QuestionMark => {
-                                    if tracking_nesting_level == 1 {
+                                    if tracking_parenthesis_level == 1 {
                                         // found non nested `?`, so the entire ternary operation was wrapped in parenthesis
-                                        nesting_level -= 1;
+                                        parenthesis_level -= 1;
                                         parenthesis_wrapped += 1;
                                         current_tokens.pop();
                                         break;
@@ -424,11 +455,11 @@ impl ASTGenerator {
                     }
                 }
                 TokenType::RParen => {
-                    nesting_level -= 1;
-                    if nesting_level < 0 {
+                    parenthesis_level -= 1;
+                    if parenthesis_level < 0 {
                         if parenthesis_wrapped != 0 {
                             parenthesis_wrapped -= 1;
-                            nesting_level += 1;
+                            parenthesis_level += 1;
                         }
                         else {
                             parser.error("Unmatched `)`", "Found unmatched `)` in ternary expression: `a ? b : c`", &tokens[*i].location);
@@ -444,14 +475,14 @@ impl ASTGenerator {
                 }
             }
     
-            if ternary_state == TernaryState::Else && nesting_level == 0 && left_parenthesis_started {
+            if ternary_state == TernaryState::Else && parenthesis_level == 0 && left_parenthesis_started {
                 break;
             }
     
             *i += 1;
         }
     
-        if nesting_level != 0 {
+        if parenthesis_level != 0 {
             parser.error("Unmatched parentheses", "Mismatched parentheses in ternary expression.", &tokens[i.saturating_sub(1)].location);
             return NodeType::None;
         }
@@ -480,6 +511,130 @@ impl ASTGenerator {
         };
         NodeType::TernaryOperator(ternary)
     }
+
+    pub fn get_array_expression_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Box<ASTNode> {
+        // I need to loop through until I find the matching end bracket. I need to keep track of parenthesis and braces.
+        let original_token = tokens[*i].clone();
+        let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
+        let mut comma_vec_index = 0;
+        let mut parenthesis_level = 0;
+        let mut brace_level = 0;
+        let mut bracket_level = 0;
+        let mut last_was_comma = 0;
+
+        // this will go up if it finds `<` and will increase as many times there are `<` before there is the `>`. This is slightly different then the other ones.S
+        let mut angle_bracket_level_count = 0; 
+
+        while *i < tokens.len() {
+            last_was_comma -= 1;
+            match tokens[*i].token_type {
+                TokenType::LBracket => {
+                    bracket_level += 1;
+                    if bracket_level > 1 {
+                        all_tokens[comma_vec_index].push(tokens[*i].clone());
+                    }
+                }
+                TokenType::RBracket => {
+                    bracket_level -= 1;
+                    if bracket_level == 0 && brace_level == 0 && parenthesis_level == 0 && angle_bracket_level_count == 0 {
+                        if last_was_comma > 0 {
+                            all_tokens.pop();
+                        }
+                        break;
+                    }
+                    else {
+                        all_tokens[comma_vec_index].push(tokens[*i].clone());
+                    }
+                }
+                TokenType::Comma => {
+                    if bracket_level == 1 && parenthesis_level == 0 && brace_level == 0 && angle_bracket_level_count == 0 {
+                        last_was_comma = 2;
+                        all_tokens.push(vec![]);
+                        comma_vec_index += 1;
+                    }
+                    else {
+                        all_tokens[comma_vec_index].push(tokens[*i].clone());
+                    }
+                }
+                TokenType::LessThan => {
+                    if angle_bracket_level_count == 0 {
+                        let mut j = *i;
+                        let mut temp_angle_bracket_level = 0;
+                        let mut highest = 0;
+                        let mut is_angle_bracket = true; // if is operator: `X < Y` or `Type<T>`
+                        while j < tokens.len() {
+                            match tokens[j].token_type {
+                                TokenType::GreaterThan => {
+                                    temp_angle_bracket_level -= 1;
+                                    if temp_angle_bracket_level == 0 {
+                                        if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen).unwrap_or(false) {
+                                            is_angle_bracket = false;
+                                        }
+                                        break;
+                                    }
+                                }
+                                TokenType::LessThan => {
+                                    temp_angle_bracket_level += 1;
+                                    highest = temp_angle_bracket_level;
+                                }
+                                _ => {
+                                    if tokens[j].token_type.is_operator() {
+                                        is_angle_bracket = false;
+                                    }
+                                }
+                                
+                            }
+                            j += 1;
+                        }
+                        if is_angle_bracket && temp_angle_bracket_level == 0 {
+                            angle_bracket_level_count = highest;
+                        }
+                    }
+                    all_tokens[comma_vec_index].push(tokens[*i].clone());
+                }
+                TokenType::GreaterThan => {
+                    if angle_bracket_level_count > 0 {
+                        angle_bracket_level_count -= 1;
+                    }
+                    all_tokens[comma_vec_index].push(tokens[*i].clone());
+                }
+                TokenType::LBrace => {
+                    brace_level += 1;
+                    all_tokens[comma_vec_index].push(tokens[*i].clone());
+                }
+                TokenType::RBrace => {
+                    brace_level -= 1;
+                    all_tokens[comma_vec_index].push(tokens[*i].clone());
+                }
+                TokenType::LParen => {
+                    parenthesis_level += 1;
+                    all_tokens[comma_vec_index].push(tokens[*i].clone());
+                }
+                TokenType::RParen => {
+                    parenthesis_level -= 1;
+                    all_tokens[comma_vec_index].push(tokens[*i].clone());
+                }
+                _ => {
+                    all_tokens[comma_vec_index].push(tokens[*i].clone());
+                }
+            }
+            *i += 1;
+        }
+
+        let mut array_nodes: Vec<Box<ASTNode>> = vec![];
+        for token_vec in all_tokens {
+            let mut __ = usize::MAX;
+            let node = Self::set_node_with_children(parser, &token_vec, &mut __);
+            array_nodes.push(node);
+        }
+
+        let array_expression = Box::new(NodeType::ArrayExpression(NodeParameters { parameters: array_nodes }));
+
+        return Box::new(ASTNode {
+            token: original_token,
+            node: array_expression,
+        });
+    }
     
     pub fn set_node_with_children(parser: &mut Parser, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
         let mut expr_stack: Vec<(Box<ASTNode>, usize)> = Vec::new();
@@ -488,7 +643,7 @@ impl ASTGenerator {
         let mut last_was_ident = false;
         let mut is_inside_parenthesis = false;
         let mut last_was_unary_operator = false;
-        let mut param_index = 0;
+        let mut paran_index = 0;
         let mut is_1_expression = true;
         
         if *i == usize::MAX {
@@ -529,10 +684,8 @@ impl ASTGenerator {
                 }), *i));
             }
             else if token.token_type.is_operator() {
-                let mut handle_as_operator = true;
-
                 // To check for unary operators, the operator must be the first token in the expression, or the previous token must be an operator: `-0` or `0+-1`
-
+                let mut handle_as_operator = true;
                 if last_was_ident && token.token_type == TokenType::LessThan {
                     // part of function call: function<TYPE>()
                     expr_stack.push((Box::new(ASTNode { 
@@ -564,7 +717,7 @@ impl ASTGenerator {
                             node: Box::new(NodeType::UnaryOperator(unary)),
                         }), *i));
                     }
-                    else if tokens.get(*i - 1).is_some().then(|| tokens[*i - 1].token_type.is_operator() || tokens[*i - 1].token_type == TokenType::LParen).unwrap_or(false) {
+                    else if tokens.get(*i - 1).is_some().then(|| tokens[*i - 1].token_type.is_operator() || tokens[*i - 1].token_type == TokenType::LParen || tokens[*i - 1].token_type == TokenType::LBracket || tokens[*i - 1].token_type == TokenType::LBrace).unwrap_or(false) {
                         last_was_unary_operator = false;
 
                         *i += 1;
@@ -660,7 +813,7 @@ impl ASTGenerator {
                 else {
                     // part of expression
                     is_inside_parenthesis = true;
-                    param_index += 1;
+                    paran_index += 1;
                     op_stack.push((token, *i));
                 }
                 last_was_ident = false;
@@ -668,7 +821,7 @@ impl ASTGenerator {
             else if token.token_type == TokenType::RParen {
                 last_was_unary_operator = false;
                 is_inside_parenthesis = false;
-                param_index -= 1;
+                paran_index -= 1;
                 while let Some(top_op) = op_stack.pop() {
                     if top_op.0.token_type == TokenType::LParen {
                         break;
@@ -695,6 +848,45 @@ impl ASTGenerator {
                     }
                 }
             }
+            else if token.token_type == TokenType::LBracket {
+                if last_was_ident {
+                    // indexing
+                    let indexing_index = Self::get_array_expression_from_tokens(&tokens, parser, i);
+                    match indexing_index.node.as_ref() {
+                        NodeType::ArrayExpression(ref node_parameters) => {
+                            let indexing_object = expr_stack.pop();
+                            expr_stack.push((Box::new(ASTNode {
+                                token: token.clone(),
+                                node: Box::new(NodeType::Indexer(IndexingExpression {
+                                    object: indexing_object.unwrap_or_else(|| {
+                                        parser.error("Error parsing indexing", "Expected an indexing, but no object was provided: `obj[indexing]`", &token.location);
+                                        return (Box::new(ASTNode::none()), 0);
+                                    }).0,
+                                    index: node_parameters.parameters.clone(),
+                                })),
+                            }), *i));
+                        }
+                        _ => {
+                            parser.error("Error parsing indexing", "Expected an indexing, but no index was provided: `obj[indexing]`", &token.location);
+                            return Box::new(ASTNode::none());
+                        }
+                    }
+                }
+                else {
+                    // array expression
+                    let array_expression = Self::get_array_expression_from_tokens(&tokens, parser, i);
+                    expr_stack.push((array_expression, *i));
+                }
+            }
+            else if token.token_type == TokenType::RBracket {
+                parser.error("Missing delimeter", "Expected opening bracket `[`", &tokens[*i].location);
+            }
+            else if token.token_type == TokenType::LBrace {
+                parser.warning("NOT IMPLEMENTED", "in set_node_with_children", &tokens[*i].location);
+            }
+            else if token.token_type == TokenType::RBrace {
+                parser.error("Missing delimeter", "Expected opening brace `{`", &tokens[*i].location);
+            }
             else if token.token_type.is_constant() {
                 last_was_unary_operator = false;
                 let mut node = Box::new(ASTNode {
@@ -716,10 +908,44 @@ impl ASTGenerator {
             }
             else if token.token_type == TokenType::Identifier {
                 last_was_unary_operator = false;
-                if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LessThan) {
-                    last_was_ident = true;
+                if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LBrace || tokens[*i + 1].token_type == TokenType::LessThan) {
+                    if tokens[*i + 1].token_type == TokenType::LessThan {
+                        let mut j = *i;
+                        let mut angle_bracket_level = 0;
+                        while j < tokens.len() {
+                            if tokens[j].token_type == TokenType::LessThan {
+                                angle_bracket_level += 1;
+                            }
+                            else if tokens[j].token_type == TokenType::GreaterThan {
+                                angle_bracket_level -= 1;
+                                if angle_bracket_level == 0 {
+                                    last_was_ident = tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type == TokenType::LParen).unwrap_or(false);
+                                    break;
+                                }
+                            }
+                            j += 1;
+                        }
+                        if !last_was_ident {
+                            let node = Box::new(ASTNode {
+                                token: token.clone(),
+                                node: Box::new(NodeType::Identifier(ScopeToIdentifier {
+                                    identifier: token.clone(),
+                                    child: None,
+                                    as_expression: None,
+                                    scope_type: None
+                                })),
+                            });
+                            expr_stack.push((node, *i));
+                        }
+                    }
+                    else {
+                        last_was_ident = true;
+                    }
                 }
                 else {
+                    if tokens.get(*i + 1).unwrap_or(&Box::new(Token::new_empty())).token_type == TokenType::LBracket {
+                        last_was_ident = true;
+                    }
                     let node = Box::new(ASTNode {
                         token: token.clone(),
                         node: Box::new(NodeType::Identifier(ScopeToIdentifier {
@@ -787,7 +1013,7 @@ impl ASTGenerator {
             }
     
             *i += 1;
-            if is_1_expression && param_index == 0 && !last_was_ident && !(tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::QuestionMark) {
+            if is_1_expression && paran_index == 0 && !last_was_ident && !(tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::QuestionMark) {
                 break;
             }
         }
@@ -942,6 +1168,21 @@ impl ASTGenerator {
     
                 format!("({} ? {} : {})", condition, then, else_then)
             }
+            NodeType::ArrayExpression(ref value) => {
+                let mut array = "".to_string();
+                for (index, param) in value.parameters.iter().enumerate() {
+                    array += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                }
+                format!("[{}]", array)
+            }
+            NodeType::Indexer(ref value) => {
+                let object = Self::node_expr_to_string(&value.object);
+                let mut index = "".to_string();
+                for (i, param) in value.index.iter().enumerate() {
+                    index += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.index.get(i + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                }
+                format!("{}[{}]", object, index)
+            }
             _ => {
                 node.token.value.clone()
             }
@@ -1001,79 +1242,90 @@ impl ASTGenerator {
     }
 
     pub fn get_type_from_tokens(tokens: &Vec<Box<Token>>, location: &Location, parser: &mut Parser) -> Box<ASTNode> {
-        if let Ok(ast_node) = Self::ast_node_from_tokens_var_decl(tokens, parser) {
-            return ast_node;
+        let node = Self::ast_node_from_tokens_var_decl(tokens, parser);
+        if node.as_ref() != &ASTNode::none() {
+            return node;
         }
 
         parser.error("Variable declaration has no type", "Expected a type before the `:`, no type was provided", &location);
         Box::new(ASTNode::none()) 
     }
     
-    pub fn ast_node_from_tokens_var_decl(tokens: &Vec<Box<Token>>, parser: &mut Parser) -> Result<Box<ASTNode>, &'static str> {
+    pub fn ast_node_from_tokens_var_decl(tokens: &Vec<Box<Token>>, parser: &mut Parser) -> Box<ASTNode> {
         if let Some(first_token) = tokens.first() {
             let mut uneeded_index = 0_usize;
             if first_token.token_type == TokenType::Identifier {
                 if tokens.len() == 1 {
                     // TYPE
                     // parser.message("TYPE", "TYPE", &first_token.location);
-                    return Ok(Box::new(ASTNode {
+                    return Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
                             scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None, as_expression: None },
                             type_parameters: None
                         }))
-                    }));
+                    });
                 }
                 else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::LessThan) {
                     // Type<TYPE, TYPE>
                     // parser.message("Type<TYPE, TYPE>", "Type<TYPE, TYPE>", &first_token.location);
                     let type_parameters = Self::get_type_parameters_from_tokens(tokens, parser, &mut uneeded_index);
-                    return Ok(Box::new(ASTNode {
+                    return Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
                             scope: ScopeToIdentifier { identifier: type_parameters.0, child: None, scope_type: None, as_expression: None },
                             type_parameters: Some(NodeParameters { parameters: type_parameters.1 })
                         }))
-                    }));
+                    });
                 }
                 else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot) {
                     // Scope::Type
                     // parser.message("Scope::Type", "Scope::Type", &first_token.location);
                     let scope_and_types = Self::get_scope_from_tokens(tokens, parser, &mut uneeded_index);
-                    return Ok(Box::new(ASTNode {
+                    return Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
                             scope: scope_and_types.0,
                             type_parameters: scope_and_types.1.is_some().then(|| NodeParameters { parameters: scope_and_types.1.unwrap() }) 
                         }))
-                    }));
+                    });
                 }
                 else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::Comma) {
                     parser.error("Incorrect type", "Multiple variables in one declaration is not supported, try instead using a tuple by putting parenthesis around types", &tokens.get(1).unwrap().location);
-                    return Err("Incorrect type");
+                    return Box::new(ASTNode::none());
                 }
                 else {
                     parser.error("Incorrect type", "Expected a tuple or type before the `::` or  `.`", &tokens.get(1).unwrap().location);
-                    return Err("Incorrect type");
+                    return Box::new(ASTNode::none());
                 }
             }
             else if first_token.token_type == TokenType::LParen {
                 // Tuple
                 // parser.message("Tuple", "Tuple", &first_token.location);
                 let tuple = Self::get_tuple_node_parameters(tokens, parser, &mut uneeded_index);
-                return Ok(Box::new(ASTNode {
+                return Box::new(ASTNode {
                     token: first_token.clone(),
                     node: Box::new(NodeType::TupleDeclaration(NodeParameters {
                         parameters: tuple
                     }))
-                }));
+                });
+            }
+            else if first_token.token_type == TokenType::LBrace {
+                parser.error("Incorrect type", "Incorrect type declaration `type: name`, objects `{}` are not supported as a type", &tokens.get(1).unwrap().location);
+                return Box::new(ASTNode::none());
+            }
+            else if first_token.token_type == TokenType::LBracket {
+                parser.error("Incorrect type", "Incorrect type declaration. If you were trying to create an array, do: `type[]`", &tokens.get(1).unwrap().location);
+                return Box::new(ASTNode::none());
             }
             else {
                 parser.error("Variable declaration has incorrect type", format!("Expected tuple or type, found: `{}`", first_token.value).as_str(), &first_token.location);
-                return Err("Variable declaration has incorrect type")
+                return Box::new(ASTNode::none());
             }
         }
-        Err("Variable declaration has incorrect type")
+        else {
+            return Box::new(ASTNode::none());
+        }
     }
 
     pub fn get_tuple_node_parameters(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Vec<Box<ASTNode>> {
@@ -1082,9 +1334,7 @@ impl ASTGenerator {
 
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
-            if let Ok(ast_node) = Self::ast_node_from_tokens_var_decl(&tokens, parser) {
-                return_tokens.push(ast_node);
-            }
+            return_tokens.push(Self::ast_node_from_tokens_var_decl(&tokens, parser));
         }
 
         return_tokens
@@ -1092,10 +1342,12 @@ impl ASTGenerator {
     }
 
     pub fn get_node_parameters_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Vec<Vec<Box<Token>>> {
-        let mut paran_count = 0;
         let mut comma_count = 0;
-        let mut chevron_count = 0;
+        let mut angle_bracket_level = 0;
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
+        let mut paranthesis_level = 0;
+        let mut brace_level = 0;
+        let mut bracket_level = 0;
 
         if let Some(token) = tokens.get(*i) {
             if token.token_type != TokenType::LParen {
@@ -1105,41 +1357,57 @@ impl ASTGenerator {
 
         for token in tokens.iter().skip(*i) {
             match token.token_type {
+                TokenType::LBrace => {
+                    brace_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RBrace => {
+                    brace_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LBracket => {
+                    bracket_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RBracket => {
+                    bracket_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LessThan => {
+                    angle_bracket_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::GreaterThan => {
+                    angle_bracket_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
                 TokenType::LParen => {
-                    paran_count += 1;
-                    if paran_count != 1 {
+                    paranthesis_level += 1;
+                    if paranthesis_level != 1 {
                         all_tokens[comma_count].push(token.clone());
                     }
                 }
                 TokenType::RParen => {
-                    paran_count -= 1;
-                    if paran_count != 0 {
+                    paranthesis_level -= 1;
+                    if paranthesis_level != 0 {
                         all_tokens[comma_count].push(token.clone());
                     }
                 }
                 TokenType::Comma => {
-                    if chevron_count == 0 && paran_count == 1 {
+                    if paranthesis_level == 1 && angle_bracket_level == 0 && brace_level == 0 && bracket_level == 0 {
                         comma_count += 1;
                         all_tokens.push(Vec::new());
                     }
-                    else if paran_count != 1 || chevron_count != 0 {
+                    else {
                         all_tokens[comma_count].push(token.clone());
                     }
-                }
-                TokenType::LessThan => {
-                    chevron_count += 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::GreaterThan => {
-                    chevron_count -= 1;
-                    all_tokens[comma_count].push(token.clone());
                 }
                 _ => {
                     all_tokens[comma_count].push(token.clone());
                 }
             }
             *i += 1;
-            if paran_count == 0 {
+            if paranthesis_level == 0 && angle_bracket_level == 0 && brace_level == 0 && bracket_level == 0 {
                 break;
             }
         }
@@ -1148,10 +1416,12 @@ impl ASTGenerator {
 
     pub fn get_type_parameters_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> (Box<Token>, Vec<Box<ASTNode>>) { // returns (name, parameters)
         // Type<With, Parameters>
-        let mut chevron_count = 0;
-        let mut paren_count = 0;
         let mut comma_count = 0;
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
+        let mut angle_bracket_level = 0;
+        let mut parenthesis_level = 0;
+        let mut bracket_level = 0;
+        let mut brace_level = 0;
         
         let mut name = tokens[*i].clone();
         if let Some(token) = tokens.get(*i) {
@@ -1166,50 +1436,64 @@ impl ASTGenerator {
 
         for token in tokens.iter().skip(*i + 1) {
             match token.token_type {
+                TokenType::LBrace => {
+                    brace_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RBrace => {
+                    brace_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LBracket => {
+                    bracket_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RBracket => {
+                    bracket_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LParen => {
+                    parenthesis_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RParen => {
+                    parenthesis_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
                 TokenType::LessThan => {
-                    chevron_count += 1;
-                    if chevron_count != 1 {
+                    angle_bracket_level += 1;
+                    if angle_bracket_level != 1 {
                         all_tokens[comma_count].push(token.clone());
                     }
                 }
                 TokenType::GreaterThan => {
-                    chevron_count -= 1;
-                    if chevron_count != 0 {
+                    angle_bracket_level -= 1;
+                    if angle_bracket_level != 0 {
                         all_tokens[comma_count].push(token.clone());
                     }
                 }
                 TokenType::Comma => {
-                    if paren_count == 0 && chevron_count == 1 {
+                    if parenthesis_level == 0 && angle_bracket_level == 1 && brace_level == 0 && bracket_level == 0 {
                         comma_count += 1;
                         all_tokens.push(Vec::new());
                     }
-                    else if chevron_count != 1 || paren_count != 0 {
+                    else {
                         all_tokens[comma_count].push(token.clone());
                     }
-                }
-                TokenType::LParen => {
-                    paren_count += 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::RParen => {
-                    paren_count -= 1;
-                    all_tokens[comma_count].push(token.clone());
                 }
                 _ => {
                     all_tokens[comma_count].push(token.clone());
                 }
             }
             *i += 1;
-            if chevron_count == 0 {
+            if angle_bracket_level == 0 && parenthesis_level == 0 && brace_level == 0 && bracket_level == 0 {
                 break;
             }
         }
 
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
-            if let Ok(ast_node) = Self::ast_node_from_tokens_var_decl(&tokens, parser) {
-                return_tokens.push(ast_node);
-            }
+            return_tokens.push(Self::ast_node_from_tokens_var_decl(&tokens, parser));
         }
 
         (name, return_tokens)
@@ -1280,11 +1564,10 @@ impl ASTGenerator {
 
         if tokens.get(last_index + 1).is_some_and(|t| t.token_type == TokenType::LessThan) {
             let next_tokens: Vec<Box<Token>> = tokens.iter().skip(last_index).cloned().collect();
-            if let Ok(node) = Self::ast_node_from_tokens_var_decl(&next_tokens, parser) {
-                if let NodeType::TypeIdentifier(ref value) = *node.node {
-                    if let Some(types) = &value.type_parameters {
-                        return (root, Some(types.parameters.clone()));
-                    }
+            let node = Self::ast_node_from_tokens_var_decl(&next_tokens, parser);
+            if let NodeType::TypeIdentifier(ref value) = *node.node {
+                if let Some(types) = &value.type_parameters {
+                    return (root, Some(types.parameters.clone()));
                 }
             }
 
