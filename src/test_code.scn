@@ -1,6 +1,5 @@
-a:a= [0, 99]
+string<T>[]: s = ["a", "b"]
 // TODO:
-// string: s = array[0]
 // i32[]: arr = [1, 2, 3]
 // char: c = this::thing { v = 1, c = 2 };
 

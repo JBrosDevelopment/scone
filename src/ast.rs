@@ -294,7 +294,8 @@ pub struct Expression {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct TypeIdentifier {
     pub scope: ScopeToIdentifier,
-    pub type_parameters: Option<NodeParameters>
+    pub type_parameters: Option<NodeParameters>,
+    pub is_array: bool,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

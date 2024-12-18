@@ -1,37 +1,37 @@
 [
   {
     "token_type": "Identifier",
-    "value": "a",
+    "value": "string",
     "location": {
       "line": 1,
       "column": 1,
-      "length": 1
+      "length": 6
     }
   },
   {
-    "token_type": "Colon",
-    "value": ":",
+    "token_type": "LessThan",
+    "value": "<",
     "location": {
       "line": 1,
-      "column": 2,
+      "column": 7,
       "length": 1
     }
   },
   {
     "token_type": "Identifier",
-    "value": "a",
+    "value": "T",
     "location": {
       "line": 1,
-      "column": 3,
+      "column": 8,
       "length": 1
     }
   },
   {
-    "token_type": "Assign",
-    "value": "=",
+    "token_type": "GreaterThan",
+    "value": ">",
     "location": {
       "line": 1,
-      "column": 4,
+      "column": 9,
       "length": 1
     }
   },
@@ -40,17 +40,53 @@
     "value": "[",
     "location": {
       "line": 1,
-      "column": 6,
+      "column": 10,
       "length": 1
     }
   },
   {
-    "token_type": "NumberConstant",
-    "value": "0",
+    "token_type": "Colon",
+    "value": ":",
     "location": {
       "line": 1,
-      "column": 7,
+      "column": 11,
       "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "s",
+    "location": {
+      "line": 1,
+      "column": 13,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Assign",
+    "value": "=",
+    "location": {
+      "line": 1,
+      "column": 15,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LBracket",
+    "value": "[",
+    "location": {
+      "line": 1,
+      "column": 17,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "StringConstant",
+    "value": "a",
+    "location": {
+      "line": 1,
+      "column": 18,
+      "length": 3
     }
   },
   {
@@ -58,17 +94,17 @@
     "value": ",",
     "location": {
       "line": 1,
-      "column": 8,
+      "column": 21,
       "length": 1
     }
   },
   {
-    "token_type": "NumberConstant",
-    "value": "99",
+    "token_type": "StringConstant",
+    "value": "b",
     "location": {
       "line": 1,
-      "column": 10,
-      "length": 2
+      "column": 23,
+      "length": 3
     }
   },
   {
@@ -76,7 +112,7 @@
     "value": "]",
     "location": {
       "line": 1,
-      "column": 12,
+      "column": 26,
       "length": 1
     }
   },
@@ -85,7 +121,7 @@
     "value": "\n",
     "location": {
       "line": 1,
-      "column": 13,
+      "column": 27,
       "length": 1
     }
   }

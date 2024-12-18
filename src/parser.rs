@@ -296,7 +296,7 @@ impl ASTGenerator {
     pub fn traverse_scope_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Box<NodeType> {
         *i -= 1;
 
-        let (scope, type_parameters) = Self::get_scope_from_tokens(&tokens, parser, i);
+        let (scope, type_parameters, _is_array) = Self::get_scope_from_tokens(&tokens, parser, i);
         let identifier_node = Box::new(NodeType::Identifier(scope.clone()));
 
         if type_parameters.is_some() {
@@ -1096,7 +1096,8 @@ impl ASTGenerator {
                     }
                     type_parameters += ">";
                 }
-                format!("{}{}", scope, type_parameters)
+                let array_brackets = value.is_array.then(|| "[]").unwrap_or("");
+                format!("{}{}{}", scope, type_parameters, array_brackets)
             }
             NodeType::TupleDeclaration(ref value) => {
                 let mut tuple = "".to_string();
@@ -1262,7 +1263,18 @@ impl ASTGenerator {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
                             scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None, as_expression: None },
-                            type_parameters: None
+                            type_parameters: None,
+                            is_array: false
+                        }))
+                    });
+                }
+                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::LBracket) {
+                    return Box::new(ASTNode {
+                        token: first_token.clone(),
+                        node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
+                            scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None, as_expression: None },
+                            type_parameters: None,
+                            is_array: true
                         }))
                     });
                 }
@@ -1274,7 +1286,8 @@ impl ASTGenerator {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
                             scope: ScopeToIdentifier { identifier: type_parameters.0, child: None, scope_type: None, as_expression: None },
-                            type_parameters: Some(NodeParameters { parameters: type_parameters.1 })
+                            type_parameters: Some(NodeParameters { parameters: type_parameters.1 }),
+                            is_array: type_parameters.2
                         }))
                     });
                 }
@@ -1286,7 +1299,8 @@ impl ASTGenerator {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
                             scope: scope_and_types.0,
-                            type_parameters: scope_and_types.1.is_some().then(|| NodeParameters { parameters: scope_and_types.1.unwrap() }) 
+                            type_parameters: scope_and_types.1.is_some().then(|| NodeParameters { parameters: scope_and_types.1.unwrap() }),
+                            is_array: scope_and_types.2
                         }))
                     });
                 }
@@ -1414,7 +1428,7 @@ impl ASTGenerator {
         all_tokens
     }
 
-    pub fn get_type_parameters_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> (Box<Token>, Vec<Box<ASTNode>>) { // returns (name, parameters)
+    pub fn get_type_parameters_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> (Box<Token>, Vec<Box<ASTNode>>, bool) { // returns (name, parameters, is_array)
         // Type<With, Parameters>
         let mut comma_count = 0;
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
@@ -1496,10 +1510,21 @@ impl ASTGenerator {
             return_tokens.push(Self::ast_node_from_tokens_var_decl(&tokens, parser));
         }
 
-        (name, return_tokens)
+        if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::LBracket) {
+            if tokens.get(*i + 2).is_some_and(|t| t.token_type == TokenType::RBracket) {
+                *i += 2;
+                return (name, return_tokens, true);
+            }
+            else {
+                parser.error("Error setting type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[*i].location);
+                return (name, return_tokens, false);
+            }
+        }
+
+        (name, return_tokens, false)
     }
 
-    pub fn get_scope_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> (ScopeToIdentifier, Option<Vec<Box<ASTNode>>>) { // returns (scope, type parameters) 
+    pub fn get_scope_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> (ScopeToIdentifier, Option<Vec<Box<ASTNode>>>, bool) { // returns (scope, type parameters, is_array) 
         let mut iterate = tokens.iter().skip(*i).peekable();
         let mut root = ScopeToIdentifier { 
             identifier: tokens[*i].clone(), 
@@ -1518,7 +1543,7 @@ impl ASTGenerator {
                     *i += 1;
                     if last_punc.is_some() || first_token {
                         parser.error("Scope has incorrect type", "Consecutive `::` found. Use `::` only between valid names, for example `A::B::C`", &token.location);
-                        return (root, None);
+                        return (root, None, false);
                     }
                     last_punc = Some(ScopeType::DoubleColon);
                 }
@@ -1526,7 +1551,7 @@ impl ASTGenerator {
                     *i += 1;
                     if last_punc.is_some() || first_token {
                         parser.error("Scope has incorrect type", "Consecutive `.` found. Use `.` only between valid names, for example `A.B.C`", &token.location);
-                        return (root, None);
+                        return (root, None, false);
                     }
                     last_punc = Some(ScopeType::Dot);
                 }
@@ -1538,7 +1563,7 @@ impl ASTGenerator {
                     }
                     if last_punc.is_none() {
                         parser.error("Scope has incorrect type", "Expected `::` or `.` before identifier. Use `::` and `.` to separate scope levels.", &token.location);
-                        return (root, None);
+                        return (root, None, false);
                     }
     
                     current_scope.child = Some(Box::new(ScopeToIdentifier {
@@ -1559,7 +1584,7 @@ impl ASTGenerator {
     
         if last_punc.is_some() {
             parser.error("Scope has incorrect type", "Trailing punctuation found. A valid identifier must follow `::` or `.`", &tokens.last().unwrap().location);
-            return (root, None);
+            return (root, None, false);
         }
 
         if tokens.get(last_index + 1).is_some_and(|t| t.token_type == TokenType::LessThan) {
@@ -1567,16 +1592,25 @@ impl ASTGenerator {
             let node = Self::ast_node_from_tokens_var_decl(&next_tokens, parser);
             if let NodeType::TypeIdentifier(ref value) = *node.node {
                 if let Some(types) = &value.type_parameters {
-                    return (root, Some(types.parameters.clone()));
+                    return (root.clone(), Some(types.parameters.clone()), value.is_array);
                 }
             }
 
             parser.error("Error setting scope type parameters", "Type parameter for scoped type is giving errors", &tokens[last_index].location);
-            return (root, None);
+            return (root.clone(), None, false);
         }
-        else {
-            return (root, None);
+
+        if tokens.get(last_index + 1).is_some_and(|t| t.token_type == TokenType::LBracket) {
+            if tokens.get(last_index + 2).is_some_and(|t| t.token_type == TokenType::RBracket) {
+                *i += 2;
+                return (root, None, true);
+            }
+            else {
+                parser.error("Error setting scope type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[last_index].location);
+                return (root, None, false);
+            }
         }
+        return (root.clone(), None, false);
     }
 
     pub fn split_tokens_into_lines(tokens: &Vec<Token>) -> Vec<Vec<Box<Token>>> {
