@@ -1,10 +1,5 @@
-string<T>[]: s = ["a", "b"]
+char: c = this::thing { v = 1, c = 2 };
 // TODO:
-// i32[]: arr = [1, 2, 3]
-// char: c = this::thing { v = 1, c = 2 };
-
-/* lambda ideas:
-Fn<i32, i32>: add_factor = (i32: x) => i32 { x + factor }; // Explicit type and block
-Fn<i32, i32>: square = (i32: x) => x * x; // Type inferred
-array.select(x => x * 2); // Fully inferred for functional call
-*/
+// Fn<i32, i32>: add_factor = (i32: x) => i32 { x + factor }; // Explicit type and block
+// Fn<i32, i32>: square = (i32: x) => x * x; // Type inferred
+// array.select(x => x * 2); // Fully inferred for functional call

@@ -74,6 +74,7 @@ pub enum ConstantType {
     Bool,
     Array(Box<ConstantType>),
     Range(Box<ConstantType>, Box<ConstantType>),
+    Object
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -132,9 +133,9 @@ pub struct DefinedNodeParameters {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct NodeProperties {
-    pub parameters: Vec<Box<ASTNode>>,
-    pub values: Vec<Box<ASTNode>>
+pub struct NodeProperty {
+    pub name: Box<Token>,
+    pub value: Box<ASTNode>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -307,7 +308,7 @@ pub struct UnaryExpression {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ObjectInstantiation {
     pub object_type: Box<ASTNode>,
-    pub properties: NodeProperties,
+    pub properties: Vec<NodeProperty>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

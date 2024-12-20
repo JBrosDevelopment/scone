@@ -8,14 +8,13 @@ fn main() {
     let code = std::fs::read_to_string(&path).unwrap();
     
     // lexer
-    let mut lexer = lexer::Lexer::new(&code, &path);
-    let tokens = lexer.lex();
+    let tokens = lexer::lex(&code, &path);
     
     let json = serde_json::to_string_pretty(&tokens).unwrap();
     std::fs::write("src/lexer.json", json).unwrap();
 
     // parser    
-    let ast = parser::parse(tokens, &path, &code).unwrap();
+    let ast = parser::parse(tokens, &path, &code);
 
     let fmt_json = serde_json::to_string_pretty(&ast).unwrap();
     std::fs::write("src/parser.json", fmt_json).unwrap();

@@ -1,6 +1,14 @@
 use serde::Serialize;
 use crate::error_handling::ErrorHandling;
 
+pub fn lex(code: &String, file: &String) -> Vec<Token> {
+    let mut lexer = Lexer::new(code, file);
+    let tokens = lexer.lex();
+
+    lexer.output.print_messages();
+    tokens
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum TokenType {
     // operators
@@ -83,6 +91,8 @@ pub enum TokenType {
     NameOf,
     SizeOf,
     Unsafe,
+    Safe,
+    Auto,
 
     // constants
     BoolConstant,
@@ -198,15 +208,13 @@ impl Token {
 #[derive(Debug, Clone)]
 pub struct Lexer {
     output: ErrorHandling,
-    tokens: Vec<Token>,
     // code at: self.output.full_code
 }
 
 impl Lexer {
     pub fn new(code: &String, file: &String) -> Lexer {
         Lexer {
-            output: ErrorHandling::new(Some(file.clone()), code.clone()),
-            tokens: Vec::new(),
+            output: ErrorHandling::new(Some(file.clone()), code.clone())
         }
     }
     pub fn error(&mut self, message: &str, help: &str, location: &Location) {
@@ -295,6 +303,8 @@ impl Lexer {
                     "sizeof" => Token::new(TokenType::SizeOf, name.clone(), current_location.clone()),
                     "abstract" => Token::new(TokenType::Abstract, name.clone(), current_location.clone()),
                     "unsafe" => Token::new(TokenType::Unsafe, name.clone(), current_location.clone()),
+                    "safe" => Token::new(TokenType::Safe, name.clone(), current_location.clone()),
+                    "auto" => Token::new(TokenType::Auto, name.clone(), current_location.clone()),
                     "_" => Token::new(TokenType::Underscore, name.clone(), current_location.clone()),
                     _ => Token::new(TokenType::Identifier, name.clone(), current_location.clone()),
                 };
@@ -735,9 +745,6 @@ impl Lexer {
                 i += 1;
             }
         }
-    
-        self.tokens = tokens.clone();
-        self.output.print_messages();
 
         tokens
     }

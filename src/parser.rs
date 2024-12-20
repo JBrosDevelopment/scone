@@ -2,30 +2,27 @@ use crate::lexer::{Token, TokenType, Location};
 use crate::ast::*;
 use crate::error_handling::ErrorHandling;
 
+pub fn parse(tokens: Vec<Token>, file: &String, code: &String) -> Vec<ASTNode> {
+    let mut parser = Parser::new(Some(file.clone()), code.clone(), tokens);
+    parser.generate_ast();
 
-pub fn parse(tokens: Vec<Token>, file: &String, code: &String) -> Result<Vec<ASTNode>, String> {
-    let mut parser = Parser::new(Some(file.clone()), code.clone());
-    parser.generate_ast(tokens);
     parser.output.print_messages();
-    Ok(parser.ast)
+    parser.ast
 }
 
 #[derive(Debug, Clone)]
 pub struct Parser {
     output: ErrorHandling,
-    ast: Vec<ASTNode>
+    ast: Vec<ASTNode>,
+    input_tokens: Vec<Token>,
 }
 
 impl Parser {
-    pub fn new(file: Option<String>, full_code: String) -> Parser {
-        Parser { output: ErrorHandling::new(file, full_code), ast: Vec::new() }
+    pub fn new(file: Option<String>, full_code: String, tokens: Vec<Token>) -> Parser {
+        Parser { output: ErrorHandling::new(file, full_code), ast: Vec::new(), input_tokens: tokens }
     }
-    pub fn generate_ast(&mut self, tokens: Vec<Token>) {
-        // self.error("this is a test parsing error", "this should help", &Location { line: 3, column: 6, length: 5 });
-        // self.warning("this is a test parsing error over 10 lines", "right here", &Location { line: 13, column: 18, length: 4 });
-        // self.message("this is a test parsing error over 100 lines", "here", &Location { line: 125, column: 3, length: 4 });
-        
-        self.ast = ASTGenerator::generate(&tokens, self);
+    pub fn generate_ast(&mut self) {        
+        self.ast = self.generate();
     }
 
     pub fn error(&mut self, message: &str, help: &str, location: &Location) {
@@ -37,12 +34,9 @@ impl Parser {
     pub fn message(&mut self, message: &str, help: &str, location: &Location) {
         self.output.message("parsing message", message, help, location);
     }
-}
-
-pub(crate) struct ASTGenerator {}
-
-impl ASTGenerator {
-    pub fn generate(tokens: &Vec<Token>, parser: &mut Parser) -> Vec<ASTNode> {
+    
+    pub fn generate(&mut self) -> Vec<ASTNode> {
+        let tokens = self.input_tokens.clone();
         let mut ast: Vec<ASTNode> = Vec::new();
         let lines = Self::split_tokens_into_lines(&tokens);
 
@@ -86,15 +80,15 @@ impl ASTGenerator {
                     let description: Option<Box<Token>> = rhs.iter().position(|x| x.token_type == TokenType::RightArrow).and_then(|arrow_index| rhs.get(arrow_index + 1).cloned());
                     if let Some(des) = description.clone() {
                         if des.token_type != TokenType::StringConstant {
-                            parser.error("variable description must be a string", "Description must be a string. Try placing quotes arounf it", &des.location);
+                            self.error("variable description must be a string", "Description must be a string. Try placing quotes arounf it", &des.location);
                         }
                     }
 
                     let mut __ = usize::MAX;
-                    let var_value: Box<ASTNode> = Self::set_node_with_children(parser, &rhs, &mut __);
+                    let var_value: Box<ASTNode> = self.set_node_with_children(&rhs, &mut __);
 
                     let type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
-                    let var_type: Box<ASTNode> = Self::get_type_from_tokens(&type_tokens, &lhs[lhs.len() - 2].location, parser);
+                    let var_type: Box<ASTNode> = self.get_type_from_tokens(&type_tokens, &lhs[lhs.len() - 2].location);
 
                     let var_decl = VariableDeclaration {
                         access_modifier,
@@ -108,7 +102,7 @@ impl ASTGenerator {
                         node: Box::new(NodeType::VariableDeclaration(var_decl)),
                     });
 
-                    println!("{}", Self::node_expr_to_string(&ast[ast.len() - 1]));
+                    println!("{}", self.node_expr_to_string(&ast[ast.len() - 1]));
                 }
                 else {
                     // assigning variable
@@ -116,9 +110,9 @@ impl ASTGenerator {
 
                     if lhs.get(0).map_or(false, |t| t.token_type == TokenType::Return) {
                         let mut __ = usize::MAX;
-                        let left = Self::set_node_with_children(parser, &tokens_after_return, &mut __);
+                        let left = self.set_node_with_children(&tokens_after_return, &mut __);
                         let mut __ = usize::MAX;
-                        let right = Self::set_node_with_children(parser, &rhs, &mut __);
+                        let right = self.set_node_with_children(&rhs, &mut __);
                         
                         let assign = ASTNode {
                             token: lhs[0].clone(), 
@@ -131,9 +125,9 @@ impl ASTGenerator {
                     }
                     else {
                         let mut __ = usize::MAX;
-                        let left = Self::set_node_with_children(parser, &lhs, &mut __);
+                        let left = self.set_node_with_children(&lhs, &mut __);
                         let mut __ = usize::MAX;
-                        let right = Self::set_node_with_children(parser, &rhs, &mut __);
+                        let right = self.set_node_with_children(&rhs, &mut __);
                         
                         let assign = Assignment { left, right };
                         ast.push(ASTNode{
@@ -148,7 +142,7 @@ impl ASTGenerator {
             }
 
             if tokens.len() <= 1 {
-                parser.error("Unexpected token", "Expected an expression, declaration, or assignment", &tokens[0].location);
+                self.error("Unexpected token", "Expected an expression, declaration, or assignment", &tokens[0].location);
                 line_index += 1;
                 continue;
             }
@@ -156,11 +150,11 @@ impl ASTGenerator {
                 TokenType::Identifier => {
                     match tokens[1].token_type {
                         TokenType::Colon | TokenType::Assign => { // Previously handled
-                            parser.error("Previously handled token", "Expected declaration to be found with patterns: `=`, `: IDENT <``, or `: IDENT (`", &tokens[0].location);
+                            self.error("Previously handled token", "Expected declaration to be found with patterns: `=`, `: IDENT <``, or `: IDENT (`", &tokens[0].location);
                         }
                         _ => {
                             let mut __ = usize::MAX;
-                            ast.push(*Self::set_node_with_children(parser, &tokens, &mut __));
+                            ast.push(*self.set_node_with_children(&tokens, &mut __));
                         }
                     }
                 }
@@ -179,14 +173,14 @@ impl ASTGenerator {
                 TokenType::Return => {
                     let tokens_after_return = tokens[1..].to_vec();
                     let mut __ = usize::MAX;
-                    let return_node = Self::set_node_with_children(parser, &tokens_after_return, &mut __);
+                    let return_node = self.set_node_with_children(&tokens_after_return, &mut __);
                     ast.push(ASTNode {
                         token: tokens[0].clone(),
                         node: Box::new(NodeType::ReturnExpression(return_node))
                     });
                 }
                 _ => {
-                    parser.error("Unexpected token", "Did not expect token to begin line", &tokens[0].location);
+                    self.error("Unexpected token", "Did not expect token to begin line", &tokens[0].location);
                 }
             }
 
@@ -196,7 +190,7 @@ impl ASTGenerator {
         ast
     }
 
-    pub fn function_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, scope: Option<ScopeToIdentifier>, i: &mut usize) -> Box<NodeType> {
+    pub fn function_from_tokens(&mut self, tokens: &Vec<Box<Token>>, scope: Option<ScopeToIdentifier>, i: &mut usize) -> Box<NodeType> {
         *i -= 1;
 
         let mut node_parameters: Vec<Box<ASTNode>> = vec![];
@@ -205,17 +199,17 @@ impl ASTGenerator {
 
         if let Some(next_token) = tokens.get(*i + 1) {
             if next_token.token_type == TokenType::LessThan {
-                let type_parameters_from_tokens = Self::get_type_parameters_from_tokens(&tokens, parser, i);
+                let type_parameters_from_tokens = self.get_type_parameters_from_tokens(&tokens, i);
                 type_parameters = type_parameters_from_tokens.1;
                 name = type_parameters_from_tokens.0;
             }
 
             if tokens.get(*i + 1).is_some() && tokens[*i + 1].token_type == TokenType::LParen {
                 *i += 1;
-                node_parameters = Self::get_expression_node_parameters(&tokens, parser, i);
+                node_parameters = self.get_expression_node_parameters(&tokens, i);
             }
             else {
-                parser.error("Invalid token for funciton call", format!("Expected either `<` or `(` for function call, got: `{}`", next_token.value).as_str(), &tokens[*i].location);
+                self.error("Invalid token for funciton call", format!("Expected either `<` or `(` for function call, got: `{}`", next_token.value).as_str(), &tokens[*i].location);
             }
         }
         
@@ -258,7 +252,7 @@ impl ASTGenerator {
             */
             *i += 1;
             let chained_token = tokens[*i].clone();
-            let chained_expression = Self::set_node_with_children(parser, tokens, i);
+            let chained_expression = self.set_node_with_children(tokens, i);
             
             match *chained_expression.node.clone() {
                 NodeType::FunctionCall(func) => {
@@ -278,7 +272,7 @@ impl ASTGenerator {
                     current.child.as_mut().unwrap().as_expression = Some(chained_expression);
                 }
                 _ => {
-                    parser.error("Error with chained member", "Expects a member or function after preceding funciton for a valid chain: `a().b` or `a().b()`", &chained_token.location);
+                    self.error("Error with chained member", "Expects a member or function after preceding funciton for a valid chain: `a().b` or `a().b()`", &chained_token.location);
                     return Box::new(NodeType::None)
                 }
             }
@@ -293,20 +287,20 @@ impl ASTGenerator {
         }
     }
 
-    pub fn traverse_scope_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Box<NodeType> {
+    pub fn traverse_scope_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<NodeType> {
         *i -= 1;
 
-        let (scope, type_parameters, _is_array) = Self::get_scope_from_tokens(&tokens, parser, i);
+        let (scope, type_parameters, _is_array) = self.get_scope_from_tokens(&tokens, i);
         let identifier_node = Box::new(NodeType::Identifier(scope.clone()));
 
         if type_parameters.is_some() {
-            return Self::function_from_tokens(&tokens, parser, Some(scope), i);
+            return self.function_from_tokens(&tokens, Some(scope), i);
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LParen) {
-            return Self::function_from_tokens(&tokens, parser, Some(scope), i);
+            return self.function_from_tokens(&tokens, Some(scope), i);
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) { 
-            let index_array = Self::get_array_expression_from_tokens(&tokens, parser, i);
+            let index_array = self.get_array_expression_from_tokens(&tokens, i);
             match index_array.node.as_ref() {
                 NodeType::ArrayExpression(ref index) => {
                     let object = Box::new(ASTNode {
@@ -316,13 +310,13 @@ impl ASTGenerator {
                     return Box::new(NodeType::Indexer(IndexingExpression { object, index: index.parameters.clone() }));
                 }
                 _ => {
-                    parser.error("Error parsing indexing", "Expected an indexing, but no index was provided: `obj[indexing]`", &tokens[*i].location);
+                    self.error("Error parsing indexing", "Expected an indexing, but no index was provided: `obj[indexing]`", &tokens[*i].location);
                     return Box::new(NodeType::None);
                 }
             }
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
-            parser.warning("NOT IMPLEMENTED", "in traverse_scope_from_tokens", &tokens[*i].location);
+            self.warning("NOT IMPLEMENTED", "in traverse_scope_from_tokens", &tokens[*i].location); /////////////////////////////////////////////////////////////
             return Box::new(NodeType::None);
         }
         else {
@@ -330,7 +324,7 @@ impl ASTGenerator {
             return identifier_node;
         }
     }
-    pub fn get_ternary_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> NodeType {
+    pub fn get_ternary_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> NodeType {
         #[derive(PartialEq)]
         enum TernaryState {
             Condition,
@@ -392,7 +386,7 @@ impl ASTGenerator {
                         current_tokens.push(tokens[*i].clone());
                     } else {
                         if ternary_state != TernaryState::Condition {
-                            parser.error("Unexpected `?`", "Unexpected `?` found in ternary expression: `a ? b : c`", &tokens[*i].location);
+                            self.error("Unexpected `?`", "Unexpected `?` found in ternary expression: `a ? b : c`", &tokens[*i].location);
                             return NodeType::None;
                         }
                         left_parenthesis_started = false;
@@ -408,7 +402,7 @@ impl ASTGenerator {
                         ternary_state = TernaryState::Else;
                         left_parenthesis_started = false;
                     } else {
-                        parser.error("Unexpected `:`", "Unexpected `:` found in ternary expression: `a ? b : c`", &tokens[*i].location);
+                        self.error("Unexpected `:`", "Unexpected `:` found in ternary expression: `a ? b : c`", &tokens[*i].location);
                         return NodeType::None;
                     }
                 }
@@ -462,7 +456,7 @@ impl ASTGenerator {
                             parenthesis_level += 1;
                         }
                         else {
-                            parser.error("Unmatched `)`", "Found unmatched `)` in ternary expression: `a ? b : c`", &tokens[*i].location);
+                            self.error("Unmatched `)`", "Found unmatched `)` in ternary expression: `a ? b : c`", &tokens[*i].location);
                             return NodeType::None;
                         }
                     }
@@ -483,14 +477,14 @@ impl ASTGenerator {
         }
     
         if parenthesis_level != 0 {
-            parser.error("Unmatched parentheses", "Mismatched parentheses in ternary expression.", &tokens[i.saturating_sub(1)].location);
+            self.error("Unmatched parentheses", "Mismatched parentheses in ternary expression.", &tokens[i.saturating_sub(1)].location);
             return NodeType::None;
         }
     
         match ternary_state {
             TernaryState::Else => ternary_tokens.else_then = current_tokens,
             _ => {
-                parser.error("Incomplete ternary expression", "Expected `:` to complete the ternary expression: `a ? b : c`", &tokens[i.saturating_sub(1)].location);
+                self.error("Incomplete ternary expression", "Expected `:` to complete the ternary expression: `a ? b : c`", &tokens[i.saturating_sub(1)].location);
                 return NodeType::None;
             }
         }
@@ -498,11 +492,11 @@ impl ASTGenerator {
         *i -= 1;
     
         let mut __ = usize::MAX;
-        let condition = Self::set_node_with_children(parser, &ternary_tokens.condition, &mut __);
+        let condition = self.set_node_with_children(&ternary_tokens.condition, &mut __);
         let mut __ = usize::MAX;
-        let then = Self::set_node_with_children(parser, &ternary_tokens.then, &mut __);
+        let then = self.set_node_with_children(&ternary_tokens.then, &mut __);
         let mut __ = usize::MAX;
-        let else_then = Self::set_node_with_children(parser, &ternary_tokens.else_then, &mut __);
+        let else_then = self.set_node_with_children(&ternary_tokens.else_then, &mut __);
     
         let ternary = TernaryConditional {
             condition,
@@ -512,7 +506,7 @@ impl ASTGenerator {
         NodeType::TernaryOperator(ternary)
     }
 
-    pub fn get_array_expression_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Box<ASTNode> {
+    pub fn get_array_expression_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
         // I need to loop through until I find the matching end bracket. I need to keep track of parenthesis and braces.
         let original_token = tokens[*i].clone();
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
@@ -624,7 +618,7 @@ impl ASTGenerator {
         let mut array_nodes: Vec<Box<ASTNode>> = vec![];
         for token_vec in all_tokens {
             let mut __ = usize::MAX;
-            let node = Self::set_node_with_children(parser, &token_vec, &mut __);
+            let node = self.set_node_with_children(&token_vec, &mut __);
             array_nodes.push(node);
         }
 
@@ -635,8 +629,16 @@ impl ASTGenerator {
             node: array_expression,
         });
     }
+
+    pub fn get_object_instantiation_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> ObjectInstantiation {
+        todo!()
+    }
+
+    pub fn get_code_block(&mut self, tokens: &Vec<Box<Token>>, token_index: &mut usize, line_index: &mut usize) -> BodyRegion {
+        todo!()
+    }
     
-    pub fn set_node_with_children(parser: &mut Parser, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
+    pub fn set_node_with_children(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
         let mut expr_stack: Vec<(Box<ASTNode>, usize)> = Vec::new();
         let mut op_stack: Vec<(Box<Token>, usize)> = Vec::new();
         let mut tuple_vec: Vec<Box<ASTNode>> = Vec::new();
@@ -664,7 +666,7 @@ impl ASTGenerator {
                 for op in op_stack.clone() {
                     if op.1 >= *i {
                         op_stack.remove(op_stack.iter().position(|x| x.1 == op.1).unwrap_or_else(|| {
-                            parser.error("Error parsing expression", "Operator stack is empty in ternary expression", &token.location);
+                            self.error("Error parsing expression", "Operator stack is empty in ternary expression", &token.location);
                             return 0;
                         }));
                     }
@@ -672,12 +674,12 @@ impl ASTGenerator {
                 for expr in expr_stack.clone() {
                     if expr.1 >= *i {
                         expr_stack.remove(expr_stack.iter().position(|x| x.1 == expr.1).unwrap_or_else(|| {
-                            parser.error("Error parsing expression", "Expression stack is empty in ternary expression", &token.location);
+                            self.error("Error parsing expression", "Expression stack is empty in ternary expression", &token.location);
                             return 0;
                         }));
                     }
                 }
-                let ternary = Self::get_ternary_from_tokens(&tokens, parser, i);
+                let ternary = self.get_ternary_from_tokens(&tokens, i);
                 expr_stack.push((Box::new(ASTNode {
                     token: token.clone(),
                     node: Box::new(ternary),
@@ -690,7 +692,7 @@ impl ASTGenerator {
                     // part of function call: function<TYPE>()
                     expr_stack.push((Box::new(ASTNode { 
                         token: token.clone(),
-                        node: Self::function_from_tokens(&tokens, parser, None, i),
+                        node: self.function_from_tokens(&tokens, None, i),
                     }), *i));
                     handle_as_operator = false;
                     last_was_ident = false;
@@ -704,7 +706,7 @@ impl ASTGenerator {
                         last_was_unary_operator = false;
                         
                         *i += 1;
-                        let next_expression = Self::set_node_with_children(parser, &tokens.to_vec(), i);
+                        let next_expression = self.set_node_with_children(&tokens.to_vec(), i);
                         *i -= 1;
                         
                         let unary = UnaryExpression {
@@ -721,7 +723,7 @@ impl ASTGenerator {
                         last_was_unary_operator = false;
 
                         *i += 1;
-                        let next_expression = Self::set_node_with_children(parser, &tokens.to_vec(), i);
+                        let next_expression = self.set_node_with_children(&tokens.to_vec(), i);
                         *i -= 1;
                         
                         let unary = UnaryExpression {
@@ -743,15 +745,15 @@ impl ASTGenerator {
                     while let Some(top_op) = op_stack.last() {
                         if token.token_type.precedence() <= top_op.0.token_type.precedence() {
                             let operator = op_stack.pop().unwrap_or_else(|| {
-                                parser.error("Error parsing expression", "Operator stack is empty", &token.location);
+                                self.error("Error parsing expression", "Operator stack is empty", &token.location);
                                 return (Box::new(Token::new_empty()), 0);
                             }).0;
                             let right = expr_stack.pop().unwrap_or_else(|| {
-                                parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
+                                self.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
                                 return (Box::new(ASTNode::none()), 0);
                             }).0;
                             let left = expr_stack.pop().unwrap_or_else(|| {
-                                parser.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
+                                self.error("Error parsing expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
                                 return (Box::new(ASTNode::none()), 0);
                             }).0;
                             
@@ -778,11 +780,11 @@ impl ASTGenerator {
                     // scope traversal
                     expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
-                        node: Self::traverse_scope_from_tokens(&tokens, parser, i),
+                        node: self.traverse_scope_from_tokens(&tokens, i),
                     }), *i));
                 }
                 else {
-                    parser.error("Expected identifier before double colon", "Expected identifier before double colon: `IDENT::IDENT`", &token.location);
+                    self.error("Expected identifier before double colon", "Expected identifier before double colon: `IDENT::IDENT`", &token.location);
                 }
                 last_was_ident = false;
             }
@@ -792,11 +794,11 @@ impl ASTGenerator {
                     // scope traversal
                     expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
-                        node: Self::traverse_scope_from_tokens(&tokens, parser, i),
+                        node: self.traverse_scope_from_tokens(&tokens, i),
                     }), *i));
                 }
                 else {
-                    parser.error("Expected identifier before dot", "Expected identifier before dot: `IDENT.IDENT`", &token.location);
+                    self.error("Expected identifier before dot", "Expected identifier before dot: `IDENT.IDENT`", &token.location);
                 }
                 last_was_ident = false;
             }
@@ -807,7 +809,7 @@ impl ASTGenerator {
                     // part of function call
                     expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
-                        node: Self::function_from_tokens(&tokens, parser, None, i),
+                        node: self.function_from_tokens(&tokens, None, i),
                     }), *i));
                 }
                 else {
@@ -827,11 +829,11 @@ impl ASTGenerator {
                         break;
                     } else {
                         let right = expr_stack.pop().unwrap_or_else(|| {
-                            parser.error("Error parsing expression", "Right hand side of expression is empty", &token.location);
+                            self.error("Error parsing expression", "Right hand side of expression is empty", &token.location);
                             return (Box::new(ASTNode::none()), 0);
                         }).0;
                         let left = expr_stack.pop().unwrap_or_else(|| {
-                            parser.error("Error parsing expression", "Left hand side of expression is empty", &token.location);
+                            self.error("Error parsing expression", "Left hand side of expression is empty", &token.location);
                             return (Box::new(ASTNode::none()), 0);
                         }).0;
                         
@@ -851,7 +853,7 @@ impl ASTGenerator {
             else if token.token_type == TokenType::LBracket {
                 if last_was_ident {
                     // indexing
-                    let indexing_index = Self::get_array_expression_from_tokens(&tokens, parser, i);
+                    let indexing_index = self.get_array_expression_from_tokens(&tokens, i);
                     match indexing_index.node.as_ref() {
                         NodeType::ArrayExpression(ref node_parameters) => {
                             let indexing_object = expr_stack.pop();
@@ -859,7 +861,7 @@ impl ASTGenerator {
                                 token: token.clone(),
                                 node: Box::new(NodeType::Indexer(IndexingExpression {
                                     object: indexing_object.unwrap_or_else(|| {
-                                        parser.error("Error parsing indexing", "Expected an indexing, but no object was provided: `obj[indexing]`", &token.location);
+                                        self.error("Error parsing indexing", "Expected an indexing, but no object was provided: `obj[indexing]`", &token.location);
                                         return (Box::new(ASTNode::none()), 0);
                                     }).0,
                                     index: node_parameters.parameters.clone(),
@@ -867,25 +869,37 @@ impl ASTGenerator {
                             }), *i));
                         }
                         _ => {
-                            parser.error("Error parsing indexing", "Expected an indexing, but no index was provided: `obj[indexing]`", &token.location);
+                            self.error("Error parsing indexing", "Expected an indexing, but no index was provided: `obj[indexing]`", &token.location);
                             return Box::new(ASTNode::none());
                         }
                     }
                 }
                 else {
                     // array expression
-                    let array_expression = Self::get_array_expression_from_tokens(&tokens, parser, i);
+                    let array_expression = self.get_array_expression_from_tokens(&tokens, i);
                     expr_stack.push((array_expression, *i));
                 }
             }
             else if token.token_type == TokenType::RBracket {
-                parser.error("Missing delimeter", "Expected opening bracket `[`", &tokens[*i].location);
+                self.error("Missing delimeter", "Expected opening bracket `[`", &tokens[*i].location);
             }
             else if token.token_type == TokenType::LBrace {
-                parser.warning("NOT IMPLEMENTED", "in set_node_with_children", &tokens[*i].location);
+                if last_was_ident {
+                    // object instantiation
+                    let object_instantiation = self.get_object_instantiation_from_tokens(&tokens, i);
+
+                    expr_stack.push((Box::new(ASTNode {
+                        token: token.clone(),
+                        node: Box::new(NodeType::ObjectInstantiation(object_instantiation)),
+                    }), *i));
+                }
+                else {
+                    // code block
+
+                }
             }
             else if token.token_type == TokenType::RBrace {
-                parser.error("Missing delimeter", "Expected opening brace `{`", &tokens[*i].location);
+                self.error("Missing delimeter", "Expected opening brace `{`", &tokens[*i].location);
             }
             else if token.token_type.is_constant() {
                 last_was_unary_operator = false;
@@ -900,7 +914,7 @@ impl ASTGenerator {
                         constant_type,
                     }));
                 } else {
-                    parser.error("Could not parse constant", "Couldn't decide type from constant", &token.location);
+                    self.error("Could not parse constant", "Couldn't decide type from constant", &token.location);
                     return Box::new(ASTNode::none());
                 }
 
@@ -968,11 +982,11 @@ impl ASTGenerator {
                             break;
                         } else {
                             let right = expr_stack.pop().unwrap_or_else(|| {
-                                parser.error("Error parsing expression", "Right hand side of expression is empty", &token.location);
+                                self.error("Error parsing expression", "Right hand side of expression is empty", &token.location);
                                 return (Box::new(ASTNode::none()), 0);
                             }).0;
                             let left = expr_stack.pop().unwrap_or_else(|| {
-                                parser.error("Error parsing expression", "Left hand side of expression is empty", &token.location);
+                                self.error("Error parsing expression", "Left hand side of expression is empty", &token.location);
                                 return (Box::new(ASTNode::none()), 0);
                             }).0;
                             
@@ -990,7 +1004,7 @@ impl ASTGenerator {
                     }
                     
                     // handle tuple
-                    let tuple_node = Self::expression_stacks_to_ast_node(&mut op_stack, &mut expr_stack, parser);
+                    let tuple_node = self.expression_stacks_to_ast_node(&mut op_stack, &mut expr_stack);
                     op_stack.clear();
                     expr_stack.clear();
 
@@ -998,17 +1012,17 @@ impl ASTGenerator {
                         tuple_vec.push(final_node);
                     }
                     else {
-                        parser.error("Failed to parse tuple", "Couldn't parse tuple", &token.location);
+                        self.error("Failed to parse tuple", "Couldn't parse tuple", &token.location);
                         return Box::new(ASTNode::none());
                     }
                 }
                 else {
-                    parser.error("Unexpected token in expression", "Didn't expect this token in expression. Maybe you meant to use a comma in a tuple, If that's so, put inside parentheises", &token.location);
+                    self.error("Unexpected token in expression", "Didn't expect this token in expression. Maybe you meant to use a comma in a tuple, If that's so, put inside parentheises", &token.location);
                     return Box::new(ASTNode::none());
                 }
             }
             else {
-                parser.error("Unexpected token in expression", "Didn't expect this token in expression", &token.location);
+                self.error("Unexpected token in expression", "Didn't expect this token in expression", &token.location);
                 return Box::new(ASTNode::none());
             }
     
@@ -1018,7 +1032,7 @@ impl ASTGenerator {
             }
         }
     
-        let expression_node = Self::expression_stacks_to_ast_node(&mut op_stack, &mut expr_stack, parser);
+        let expression_node = self.expression_stacks_to_ast_node(&mut op_stack, &mut expr_stack);
     
         if let Some(final_node) = expression_node {
             tuple_vec.push(final_node);
@@ -1040,7 +1054,7 @@ impl ASTGenerator {
         })
     }
 
-    pub fn expression_stacks_to_ast_node(op_stack: &mut Vec<(Box<Token>, usize)>, expr_stack: &mut Vec<(Box<ASTNode>, usize)>, parser: &mut Parser) -> Option<Box<ASTNode>> {
+    pub fn expression_stacks_to_ast_node(&mut self, op_stack: &mut Vec<(Box<Token>, usize)>, expr_stack: &mut Vec<(Box<ASTNode>, usize)>) -> Option<Box<ASTNode>> {
         while let Some(operator) = op_stack.pop() {
             let right = expr_stack.pop();
             let left = expr_stack.pop();
@@ -1049,11 +1063,11 @@ impl ASTGenerator {
                 token: operator.0.clone(),
                 node: Box::new(NodeType::Operator(Expression {
                     left: left.unwrap_or_else(|| { 
-                        parser.error("Error parsing expression", "Left hand side of expression is empty", &operator.0.location);
+                        self.error("Error parsing expression", "Left hand side of expression is empty", &operator.0.location);
                         (Box::new(ASTNode::none()), 0)
                     }).0,
                     right: right.unwrap_or_else(|| { 
-                        parser.error("Error parsing expression", "Right hand side of expression is empty", &operator.0.location);
+                        self.error("Error parsing expression", "Right hand side of expression is empty", &operator.0.location);
                         (Box::new(ASTNode::none()), 0)
                     }).0,
                     operator: operator.0.clone(),
@@ -1067,12 +1081,12 @@ impl ASTGenerator {
     }
 
     #[allow(dead_code)]
-    fn node_expr_to_string(node: &ASTNode) -> String {
+    fn node_expr_to_string(&mut self, node: &ASTNode) -> String {
         match *node.node {
             NodeType::VariableDeclaration(ref value) => {
-                let var_type = Self::node_expr_to_string(&value.var_type);
+                let var_type = self.node_expr_to_string(&value.var_type);
                 let var_name = value.var_name.value.clone();
-                let var_value = Self::node_expr_to_string(&value.var_value);
+                let var_value = self.node_expr_to_string(&value.var_value);
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 if value.description.is_some() {
                     format!("{}{}: {} = {} -> \"{}\"", access_modifiers, var_type, var_name, var_value, value.description.clone().unwrap().value)
@@ -1092,7 +1106,7 @@ impl ASTGenerator {
                 if value.type_parameters.is_some() {
                     type_parameters += "<";
                     for (index, param) in value.type_parameters.clone().unwrap().parameters.iter().enumerate() {
-                        type_parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.type_parameters.clone().unwrap().parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                        type_parameters += format!("{}{}", self.node_expr_to_string(param).as_str(), value.type_parameters.clone().unwrap().parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                     }
                     type_parameters += ">";
                 }
@@ -1102,18 +1116,18 @@ impl ASTGenerator {
             NodeType::TupleDeclaration(ref value) => {
                 let mut tuple = "".to_string();
                 for (index, param) in value.parameters.iter().enumerate() {
-                    tuple += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    tuple += format!("{}{}", self.node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("({})", tuple)
             }
             NodeType::Operator(ref value) => {
-                let left = Self::node_expr_to_string(&value.left);
-                let right = Self::node_expr_to_string(&value.right);
+                let left = self.node_expr_to_string(&value.left);
+                let right = self.node_expr_to_string(&value.right);
     
                 format!("({} {} {})", left, value.operator.value, right)
             }
             NodeType::UnaryOperator(ref value) => {
-                let operand = Self::node_expr_to_string(&value.operand);
+                let operand = self.node_expr_to_string(&value.operand);
     
                 format!("({}{})", value.operator.value, operand)
             }
@@ -1126,13 +1140,13 @@ impl ASTGenerator {
                 }
                 let mut parameters = "".to_string();
                 for (index, param) in value.parameters.parameters.iter().enumerate() {
-                    parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    parameters += format!("{}{}", self.node_expr_to_string(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 let mut type_parameters = "".to_string();
                 if value.type_parameters.is_some() {
                     type_parameters += "<";
                     for (index, param) in value.type_parameters.clone().unwrap().iter().enumerate() {
-                        type_parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                        type_parameters += format!("{}{}", self.node_expr_to_string(param).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                     }
                     type_parameters += ">";
                 }
@@ -1150,7 +1164,7 @@ impl ASTGenerator {
             NodeType::TupleExpression(ref value) => {
                 let mut tuple = "".to_string();
                 for (index, param) in value.parameters.iter().enumerate() {
-                    tuple += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    tuple += format!("{}{}", self.node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("({})", tuple)
             }
@@ -1163,24 +1177,24 @@ impl ASTGenerator {
                 }
             }
             NodeType::TernaryOperator(ref value) => {
-                let condition = Self::node_expr_to_string(&value.condition);
-                let then = Self::node_expr_to_string(&value.then);
-                let else_then = Self::node_expr_to_string(&value.else_then);
+                let condition = self.node_expr_to_string(&value.condition);
+                let then = self.node_expr_to_string(&value.then);
+                let else_then = self.node_expr_to_string(&value.else_then);
     
                 format!("({} ? {} : {})", condition, then, else_then)
             }
             NodeType::ArrayExpression(ref value) => {
                 let mut array = "".to_string();
                 for (index, param) in value.parameters.iter().enumerate() {
-                    array += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    array += format!("{}{}", self.node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("[{}]", array)
             }
             NodeType::Indexer(ref value) => {
-                let object = Self::node_expr_to_string(&value.object);
+                let object = self.node_expr_to_string(&value.object);
                 let mut index = "".to_string();
                 for (i, param) in value.index.iter().enumerate() {
-                    index += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.index.get(i + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    index += format!("{}{}", self.node_expr_to_string(param).as_str(), value.index.get(i + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("{}[{}]", object, index)
             }
@@ -1227,8 +1241,8 @@ impl ASTGenerator {
         }
     }
 
-    pub fn get_expression_node_parameters(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Vec<Box<ASTNode>> {
-        let all_tokens = Self::get_node_parameters_from_tokens(tokens, parser, i);
+    pub fn get_expression_node_parameters(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
+        let all_tokens = self.get_node_parameters_from_tokens(tokens, i);
         if all_tokens.len() == 1 && all_tokens[0].len() == 0 {
             return vec![];
         }
@@ -1236,23 +1250,23 @@ impl ASTGenerator {
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
             let mut __ = usize::MAX;
-            return_tokens.push(Self::set_node_with_children(parser, &tokens, &mut __));
+            return_tokens.push(self.set_node_with_children(&tokens, &mut __));
         }
 
         return_tokens
     }
 
-    pub fn get_type_from_tokens(tokens: &Vec<Box<Token>>, location: &Location, parser: &mut Parser) -> Box<ASTNode> {
-        let node = Self::ast_node_from_tokens_var_decl(tokens, parser);
+    pub fn get_type_from_tokens(&mut self, tokens: &Vec<Box<Token>>, location: &Location) -> Box<ASTNode> {
+        let node = self.get_type_idententifier_as_ast_node(tokens);
         if node.as_ref() != &ASTNode::none() {
             return node;
         }
 
-        parser.error("Variable declaration has no type", "Expected a type before the `:`, no type was provided", &location);
+        self.error("Variable declaration has no type", "Expected a type before the `:`, no type was provided", &location);
         Box::new(ASTNode::none()) 
     }
     
-    pub fn ast_node_from_tokens_var_decl(tokens: &Vec<Box<Token>>, parser: &mut Parser) -> Box<ASTNode> {
+    pub fn get_type_idententifier_as_ast_node(&mut self, tokens: &Vec<Box<Token>>) -> Box<ASTNode> {
         if let Some(first_token) = tokens.first() {
             let mut uneeded_index = 0_usize;
             if first_token.token_type == TokenType::Identifier {
@@ -1281,7 +1295,7 @@ impl ASTGenerator {
                 else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::LessThan) {
                     // Type<TYPE, TYPE>
                     // parser.message("Type<TYPE, TYPE>", "Type<TYPE, TYPE>", &first_token.location);
-                    let type_parameters = Self::get_type_parameters_from_tokens(tokens, parser, &mut uneeded_index);
+                    let type_parameters = self.get_type_parameters_from_tokens(tokens, &mut uneeded_index);
                     return Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
@@ -1294,7 +1308,7 @@ impl ASTGenerator {
                 else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot) {
                     // Scope::Type
                     // parser.message("Scope::Type", "Scope::Type", &first_token.location);
-                    let scope_and_types = Self::get_scope_from_tokens(tokens, parser, &mut uneeded_index);
+                    let scope_and_types = self.get_scope_from_tokens(tokens, &mut uneeded_index);
                     return Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
@@ -1305,18 +1319,18 @@ impl ASTGenerator {
                     });
                 }
                 else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::Comma) {
-                    parser.error("Incorrect type", "Multiple variables in one declaration is not supported, try instead using a tuple by putting parenthesis around types", &tokens.get(1).unwrap().location);
+                    self.error("Incorrect type", "Multiple variables in one declaration is not supported, try instead using a tuple by putting parenthesis around types", &tokens.get(1).unwrap().location);
                     return Box::new(ASTNode::none());
                 }
                 else {
-                    parser.error("Incorrect type", "Expected a tuple or type before the `::` or  `.`", &tokens.get(1).unwrap().location);
+                    self.error("Incorrect type", "Expected a tuple or type before the `::` or  `.`", &tokens.get(1).unwrap().location);
                     return Box::new(ASTNode::none());
                 }
             }
             else if first_token.token_type == TokenType::LParen {
                 // Tuple
                 // parser.message("Tuple", "Tuple", &first_token.location);
-                let tuple = Self::get_tuple_node_parameters(tokens, parser, &mut uneeded_index);
+                let tuple = self.get_tuple_node_parameters(tokens, &mut uneeded_index);
                 return Box::new(ASTNode {
                     token: first_token.clone(),
                     node: Box::new(NodeType::TupleDeclaration(NodeParameters {
@@ -1325,15 +1339,15 @@ impl ASTGenerator {
                 });
             }
             else if first_token.token_type == TokenType::LBrace {
-                parser.error("Incorrect type", "Incorrect type declaration `type: name`, objects `{}` are not supported as a type", &tokens.get(1).unwrap().location);
+                self.error("Incorrect type", "Incorrect type declaration `type: name`, objects `{}` are not supported as a type", &tokens.get(1).unwrap().location);
                 return Box::new(ASTNode::none());
             }
             else if first_token.token_type == TokenType::LBracket {
-                parser.error("Incorrect type", "Incorrect type declaration. If you were trying to create an array, do: `type[]`", &tokens.get(1).unwrap().location);
+                self.error("Incorrect type", "Incorrect type declaration. If you were trying to create an array, do: `type[]`", &tokens.get(1).unwrap().location);
                 return Box::new(ASTNode::none());
             }
             else {
-                parser.error("Variable declaration has incorrect type", format!("Expected tuple or type, found: `{}`", first_token.value).as_str(), &first_token.location);
+                self.error("Variable declaration has incorrect type", format!("Expected tuple or type, found: `{}`", first_token.value).as_str(), &first_token.location);
                 return Box::new(ASTNode::none());
             }
         }
@@ -1342,20 +1356,20 @@ impl ASTGenerator {
         }
     }
 
-    pub fn get_tuple_node_parameters(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Vec<Box<ASTNode>> {
+    pub fn get_tuple_node_parameters(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
         // (Tuple, Type) 
-        let all_tokens = Self::get_node_parameters_from_tokens(tokens, parser, i);
+        let all_tokens = self.get_node_parameters_from_tokens(tokens, i);
 
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
-            return_tokens.push(Self::ast_node_from_tokens_var_decl(&tokens, parser));
+            return_tokens.push(self.get_type_idententifier_as_ast_node(&tokens));
         }
 
         return_tokens
         
     }
 
-    pub fn get_node_parameters_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> Vec<Vec<Box<Token>>> {
+    pub fn get_node_parameters_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Vec<Vec<Box<Token>>> {
         let mut comma_count = 0;
         let mut angle_bracket_level = 0;
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
@@ -1365,7 +1379,7 @@ impl ASTGenerator {
 
         if let Some(token) = tokens.get(*i) {
             if token.token_type != TokenType::LParen {
-                parser.error("Error getting node parameters", "Expected to start with `(`", &token.location);
+                self.error("Error getting node parameters", "Expected to start with `(`", &token.location);
             }
         }
 
@@ -1428,7 +1442,7 @@ impl ASTGenerator {
         all_tokens
     }
 
-    pub fn get_type_parameters_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> (Box<Token>, Vec<Box<ASTNode>>, bool) { // returns (name, parameters, is_array)
+    pub fn get_type_parameters_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> (Box<Token>, Vec<Box<ASTNode>>, bool) { // returns (name, parameters, is_array)
         // Type<With, Parameters>
         let mut comma_count = 0;
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
@@ -1444,7 +1458,7 @@ impl ASTGenerator {
 
         if let Some(token) = tokens.get(*i + 1) {
             if token.token_type != TokenType::LessThan {
-                parser.error("Error getting type parameters", "Expected to start with `<`", &token.location);
+                self.error("Error getting type parameters", "Expected to start with `<`", &token.location);
             }
         }
 
@@ -1507,7 +1521,7 @@ impl ASTGenerator {
 
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
-            return_tokens.push(Self::ast_node_from_tokens_var_decl(&tokens, parser));
+            return_tokens.push(self.get_type_idententifier_as_ast_node(&tokens));
         }
 
         if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::LBracket) {
@@ -1516,7 +1530,7 @@ impl ASTGenerator {
                 return (name, return_tokens, true);
             }
             else {
-                parser.error("Error setting type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[*i].location);
+                self.error("Error setting type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[*i].location);
                 return (name, return_tokens, false);
             }
         }
@@ -1524,7 +1538,7 @@ impl ASTGenerator {
         (name, return_tokens, false)
     }
 
-    pub fn get_scope_from_tokens(tokens: &Vec<Box<Token>>, parser: &mut Parser, i: &mut usize) -> (ScopeToIdentifier, Option<Vec<Box<ASTNode>>>, bool) { // returns (scope, type parameters, is_array) 
+    pub fn get_scope_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> (ScopeToIdentifier, Option<Vec<Box<ASTNode>>>, bool) { // returns (scope, type parameters, is_array) 
         let mut iterate = tokens.iter().skip(*i).peekable();
         let mut root = ScopeToIdentifier { 
             identifier: tokens[*i].clone(), 
@@ -1542,7 +1556,7 @@ impl ASTGenerator {
                 TokenType::DoubleColon => {
                     *i += 1;
                     if last_punc.is_some() || first_token {
-                        parser.error("Scope has incorrect type", "Consecutive `::` found. Use `::` only between valid names, for example `A::B::C`", &token.location);
+                        self.error("Scope has incorrect type", "Consecutive `::` found. Use `::` only between valid names, for example `A::B::C`", &token.location);
                         return (root, None, false);
                     }
                     last_punc = Some(ScopeType::DoubleColon);
@@ -1550,7 +1564,7 @@ impl ASTGenerator {
                 TokenType::Dot => {
                     *i += 1;
                     if last_punc.is_some() || first_token {
-                        parser.error("Scope has incorrect type", "Consecutive `.` found. Use `.` only between valid names, for example `A.B.C`", &token.location);
+                        self.error("Scope has incorrect type", "Consecutive `.` found. Use `.` only between valid names, for example `A.B.C`", &token.location);
                         return (root, None, false);
                     }
                     last_punc = Some(ScopeType::Dot);
@@ -1562,7 +1576,7 @@ impl ASTGenerator {
                         continue;
                     }
                     if last_punc.is_none() {
-                        parser.error("Scope has incorrect type", "Expected `::` or `.` before identifier. Use `::` and `.` to separate scope levels.", &token.location);
+                        self.error("Scope has incorrect type", "Expected `::` or `.` before identifier. Use `::` and `.` to separate scope levels.", &token.location);
                         return (root, None, false);
                     }
     
@@ -1583,20 +1597,20 @@ impl ASTGenerator {
         }
     
         if last_punc.is_some() {
-            parser.error("Scope has incorrect type", "Trailing punctuation found. A valid identifier must follow `::` or `.`", &tokens.last().unwrap().location);
+            self.error("Scope has incorrect type", "Trailing punctuation found. A valid identifier must follow `::` or `.`", &tokens.last().unwrap().location);
             return (root, None, false);
         }
 
         if tokens.get(last_index + 1).is_some_and(|t| t.token_type == TokenType::LessThan) {
             let next_tokens: Vec<Box<Token>> = tokens.iter().skip(last_index).cloned().collect();
-            let node = Self::ast_node_from_tokens_var_decl(&next_tokens, parser);
+            let node = self.get_type_idententifier_as_ast_node(&next_tokens);
             if let NodeType::TypeIdentifier(ref value) = *node.node {
                 if let Some(types) = &value.type_parameters {
                     return (root.clone(), Some(types.parameters.clone()), value.is_array);
                 }
             }
 
-            parser.error("Error setting scope type parameters", "Type parameter for scoped type is giving errors", &tokens[last_index].location);
+            self.error("Error setting scope type parameters", "Type parameter for scoped type is giving errors", &tokens[last_index].location);
             return (root.clone(), None, false);
         }
 
@@ -1606,7 +1620,7 @@ impl ASTGenerator {
                 return (root, None, true);
             }
             else {
-                parser.error("Error setting scope type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[last_index].location);
+                self.error("Error setting scope type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[last_index].location);
                 return (root, None, false);
             }
         }
