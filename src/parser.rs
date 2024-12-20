@@ -21,8 +21,9 @@ impl Parser {
     pub fn new(file: Option<String>, full_code: String, tokens: Vec<Token>) -> Parser {
         Parser { output: ErrorHandling::new(file, full_code), ast: Vec::new(), input_tokens: tokens }
     }
+
     pub fn generate_ast(&mut self) {        
-        self.ast = self.generate();
+        self.ast = self.generate_from_tokens();
     }
 
     pub fn error(&mut self, message: &str, help: &str, location: &Location) {
@@ -35,7 +36,7 @@ impl Parser {
         self.output.message("parsing message", message, help, location);
     }
     
-    pub fn generate(&mut self) -> Vec<ASTNode> {
+    fn generate_from_tokens(&mut self) -> Vec<ASTNode> {
         let tokens = self.input_tokens.clone();
         let mut ast: Vec<ASTNode> = Vec::new();
         let lines = Self::split_tokens_into_lines(&tokens);
@@ -84,11 +85,10 @@ impl Parser {
                         }
                     }
 
-                    let mut __ = usize::MAX;
-                    let var_value: Box<ASTNode> = self.set_node_with_children(&rhs, &mut __);
+                    let var_value: Box<ASTNode> = self.get_entire_expression(&rhs);
 
                     let type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
-                    let var_type: Box<ASTNode> = self.get_type_from_tokens(&type_tokens, &lhs[lhs.len() - 2].location);
+                    let var_type: Box<ASTNode> = self.get_type_idententifier(&type_tokens);
 
                     let var_decl = VariableDeclaration {
                         access_modifier,
@@ -109,10 +109,8 @@ impl Parser {
                     let tokens_after_return = lhs[1..].to_vec();
 
                     if lhs.get(0).map_or(false, |t| t.token_type == TokenType::Return) {
-                        let mut __ = usize::MAX;
-                        let left = self.set_node_with_children(&tokens_after_return, &mut __);
-                        let mut __ = usize::MAX;
-                        let right = self.set_node_with_children(&rhs, &mut __);
+                        let left = self.get_entire_expression(&tokens_after_return);
+                        let right = self.get_entire_expression(&rhs);
                         
                         let assign = ASTNode {
                             token: lhs[0].clone(), 
@@ -124,10 +122,8 @@ impl Parser {
                         });
                     }
                     else {
-                        let mut __ = usize::MAX;
-                        let left = self.set_node_with_children(&lhs, &mut __);
-                        let mut __ = usize::MAX;
-                        let right = self.set_node_with_children(&rhs, &mut __);
+                        let left = self.get_entire_expression(&lhs);
+                        let right = self.get_entire_expression(&rhs);
                         
                         let assign = Assignment { left, right };
                         ast.push(ASTNode{
@@ -153,8 +149,7 @@ impl Parser {
                             self.error("Previously handled token", "Expected declaration to be found with patterns: `=`, `: IDENT <``, or `: IDENT (`", &tokens[0].location);
                         }
                         _ => {
-                            let mut __ = usize::MAX;
-                            ast.push(*self.set_node_with_children(&tokens, &mut __));
+                            ast.push(*self.get_entire_expression(&tokens));
                         }
                     }
                 }
@@ -172,8 +167,7 @@ impl Parser {
                 }
                 TokenType::Return => {
                     let tokens_after_return = tokens[1..].to_vec();
-                    let mut __ = usize::MAX;
-                    let return_node = self.set_node_with_children(&tokens_after_return, &mut __);
+                    let return_node = self.get_entire_expression(&tokens_after_return);
                     ast.push(ASTNode {
                         token: tokens[0].clone(),
                         node: Box::new(NodeType::ReturnExpression(return_node))
@@ -190,7 +184,7 @@ impl Parser {
         ast
     }
 
-    pub fn function_from_tokens(&mut self, tokens: &Vec<Box<Token>>, scope: Option<ScopeToIdentifier>, i: &mut usize) -> Box<NodeType> {
+    fn function_call(&mut self, tokens: &Vec<Box<Token>>, scope: Option<ScopeToIdentifier>, i: &mut usize) -> Box<NodeType> {
         *i -= 1;
 
         let mut node_parameters: Vec<Box<ASTNode>> = vec![];
@@ -199,7 +193,7 @@ impl Parser {
 
         if let Some(next_token) = tokens.get(*i + 1) {
             if next_token.token_type == TokenType::LessThan {
-                let type_parameters_from_tokens = self.get_type_parameters_from_tokens(&tokens, i);
+                let type_parameters_from_tokens = self.get_type_parameters(&tokens, i);
                 type_parameters = type_parameters_from_tokens.1;
                 name = type_parameters_from_tokens.0;
             }
@@ -252,7 +246,7 @@ impl Parser {
             */
             *i += 1;
             let chained_token = tokens[*i].clone();
-            let chained_expression = self.set_node_with_children(tokens, i);
+            let chained_expression = self.get_expression(tokens, i);
             
             match *chained_expression.node.clone() {
                 NodeType::FunctionCall(func) => {
@@ -287,20 +281,20 @@ impl Parser {
         }
     }
 
-    pub fn traverse_scope_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<NodeType> {
+    fn scope_call(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<NodeType> {
         *i -= 1;
 
-        let (scope, type_parameters, _is_array) = self.get_scope_from_tokens(&tokens, i);
+        let (scope, type_parameters, _is_array) = self.get_scope(&tokens, i);
         let identifier_node = Box::new(NodeType::Identifier(scope.clone()));
 
         if type_parameters.is_some() {
-            return self.function_from_tokens(&tokens, Some(scope), i);
+            return self.function_call(&tokens, Some(scope), i);
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LParen) {
-            return self.function_from_tokens(&tokens, Some(scope), i);
+            return self.function_call(&tokens, Some(scope), i);
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) { 
-            let index_array = self.get_array_expression_from_tokens(&tokens, i);
+            let index_array = self.get_array_expression(&tokens, i);
             match index_array.node.as_ref() {
                 NodeType::ArrayExpression(ref index) => {
                     let object = Box::new(ASTNode {
@@ -324,7 +318,8 @@ impl Parser {
             return identifier_node;
         }
     }
-    pub fn get_ternary_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> NodeType {
+    
+    fn get_ternary(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> NodeType {
         #[derive(PartialEq)]
         enum TernaryState {
             Condition,
@@ -491,12 +486,9 @@ impl Parser {
 
         *i -= 1;
     
-        let mut __ = usize::MAX;
-        let condition = self.set_node_with_children(&ternary_tokens.condition, &mut __);
-        let mut __ = usize::MAX;
-        let then = self.set_node_with_children(&ternary_tokens.then, &mut __);
-        let mut __ = usize::MAX;
-        let else_then = self.set_node_with_children(&ternary_tokens.else_then, &mut __);
+        let condition = self.get_entire_expression(&ternary_tokens.condition);
+        let then = self.get_entire_expression(&ternary_tokens.then);
+        let else_then = self.get_entire_expression(&ternary_tokens.else_then);
     
         let ternary = TernaryConditional {
             condition,
@@ -506,7 +498,7 @@ impl Parser {
         NodeType::TernaryOperator(ternary)
     }
 
-    pub fn get_array_expression_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
+    fn get_array_expression(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
         // I need to loop through until I find the matching end bracket. I need to keep track of parenthesis and braces.
         let original_token = tokens[*i].clone();
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
@@ -617,8 +609,7 @@ impl Parser {
 
         let mut array_nodes: Vec<Box<ASTNode>> = vec![];
         for token_vec in all_tokens {
-            let mut __ = usize::MAX;
-            let node = self.set_node_with_children(&token_vec, &mut __);
+            let node = self.get_entire_expression(&token_vec);
             array_nodes.push(node);
         }
 
@@ -630,15 +621,20 @@ impl Parser {
         });
     }
 
-    pub fn get_object_instantiation_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> ObjectInstantiation {
+    fn get_object_instantiation(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> ObjectInstantiation {
         todo!()
     }
 
-    pub fn get_code_block(&mut self, tokens: &Vec<Box<Token>>, token_index: &mut usize, line_index: &mut usize) -> BodyRegion {
+    fn get_code_block(&mut self, tokens: &Vec<Box<Token>>, token_index: &mut usize, line_index: &mut usize) -> BodyRegion {
         todo!()
     }
     
-    pub fn set_node_with_children(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
+    fn get_entire_expression(&mut self, tokens: &Vec<Box<Token>>) -> Box<ASTNode> {
+        let mut __ = 0;
+        self.get_expression(tokens, &mut __)
+    }
+
+    fn get_expression(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
         let mut expr_stack: Vec<(Box<ASTNode>, usize)> = Vec::new();
         let mut op_stack: Vec<(Box<Token>, usize)> = Vec::new();
         let mut tuple_vec: Vec<Box<ASTNode>> = Vec::new();
@@ -679,7 +675,7 @@ impl Parser {
                         }));
                     }
                 }
-                let ternary = self.get_ternary_from_tokens(&tokens, i);
+                let ternary = self.get_ternary(&tokens, i);
                 expr_stack.push((Box::new(ASTNode {
                     token: token.clone(),
                     node: Box::new(ternary),
@@ -692,7 +688,7 @@ impl Parser {
                     // part of function call: function<TYPE>()
                     expr_stack.push((Box::new(ASTNode { 
                         token: token.clone(),
-                        node: self.function_from_tokens(&tokens, None, i),
+                        node: self.function_call(&tokens, None, i),
                     }), *i));
                     handle_as_operator = false;
                     last_was_ident = false;
@@ -706,7 +702,7 @@ impl Parser {
                         last_was_unary_operator = false;
                         
                         *i += 1;
-                        let next_expression = self.set_node_with_children(&tokens.to_vec(), i);
+                        let next_expression = self.get_expression(&tokens.to_vec(), i);
                         *i -= 1;
                         
                         let unary = UnaryExpression {
@@ -723,7 +719,7 @@ impl Parser {
                         last_was_unary_operator = false;
 
                         *i += 1;
-                        let next_expression = self.set_node_with_children(&tokens.to_vec(), i);
+                        let next_expression = self.get_expression(&tokens.to_vec(), i);
                         *i -= 1;
                         
                         let unary = UnaryExpression {
@@ -780,7 +776,7 @@ impl Parser {
                     // scope traversal
                     expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
-                        node: self.traverse_scope_from_tokens(&tokens, i),
+                        node: self.scope_call(&tokens, i),
                     }), *i));
                 }
                 else {
@@ -794,7 +790,7 @@ impl Parser {
                     // scope traversal
                     expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
-                        node: self.traverse_scope_from_tokens(&tokens, i),
+                        node: self.scope_call(&tokens, i),
                     }), *i));
                 }
                 else {
@@ -809,7 +805,7 @@ impl Parser {
                     // part of function call
                     expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
-                        node: self.function_from_tokens(&tokens, None, i),
+                        node: self.function_call(&tokens, None, i),
                     }), *i));
                 }
                 else {
@@ -853,7 +849,7 @@ impl Parser {
             else if token.token_type == TokenType::LBracket {
                 if last_was_ident {
                     // indexing
-                    let indexing_index = self.get_array_expression_from_tokens(&tokens, i);
+                    let indexing_index = self.get_array_expression(&tokens, i);
                     match indexing_index.node.as_ref() {
                         NodeType::ArrayExpression(ref node_parameters) => {
                             let indexing_object = expr_stack.pop();
@@ -876,7 +872,7 @@ impl Parser {
                 }
                 else {
                     // array expression
-                    let array_expression = self.get_array_expression_from_tokens(&tokens, i);
+                    let array_expression = self.get_array_expression(&tokens, i);
                     expr_stack.push((array_expression, *i));
                 }
             }
@@ -886,7 +882,7 @@ impl Parser {
             else if token.token_type == TokenType::LBrace {
                 if last_was_ident {
                     // object instantiation
-                    let object_instantiation = self.get_object_instantiation_from_tokens(&tokens, i);
+                    let object_instantiation = self.get_object_instantiation(&tokens, i);
 
                     expr_stack.push((Box::new(ASTNode {
                         token: token.clone(),
@@ -908,7 +904,7 @@ impl Parser {
                     node: Box::new(NodeType::None),
                 });
 
-                if let Ok(constant_type) = Self::get_constant_type(&token) {
+                if let Ok(constant_type) = Self::constant_type(&token) {
                     node.node = Box::new(NodeType::Constant(ConstantNode {
                         value: token.clone(),
                         constant_type,
@@ -1054,7 +1050,7 @@ impl Parser {
         })
     }
 
-    pub fn expression_stacks_to_ast_node(&mut self, op_stack: &mut Vec<(Box<Token>, usize)>, expr_stack: &mut Vec<(Box<ASTNode>, usize)>) -> Option<Box<ASTNode>> {
+    fn expression_stacks_to_ast_node(&mut self, op_stack: &mut Vec<(Box<Token>, usize)>, expr_stack: &mut Vec<(Box<ASTNode>, usize)>) -> Option<Box<ASTNode>> {
         while let Some(operator) = op_stack.pop() {
             let right = expr_stack.pop();
             let left = expr_stack.pop();
@@ -1080,7 +1076,383 @@ impl Parser {
         return expr_stack.pop().map(|x| x.0);
     }
 
-    #[allow(dead_code)]
+    fn get_expression_node_parameters(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
+        let all_tokens = self.get_node_parameters(tokens, i);
+        if all_tokens.len() == 1 && all_tokens[0].len() == 0 {
+            return vec![];
+        }
+
+        let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
+        for tokens in all_tokens {
+            return_tokens.push(self.get_entire_expression(&tokens));
+        }
+
+        return_tokens
+    }
+    
+    fn get_type_idententifier(&mut self, tokens: &Vec<Box<Token>>) -> Box<ASTNode> {
+        if let Some(first_token) = tokens.first() {
+            let mut uneeded_index = 0_usize;
+            if first_token.token_type == TokenType::Identifier {
+                if tokens.len() == 1 {
+                    // TYPE
+                    // parser.message("TYPE", "TYPE", &first_token.location);
+                    return Box::new(ASTNode {
+                        token: first_token.clone(),
+                        node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
+                            scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None, as_expression: None },
+                            type_parameters: None,
+                            is_array: false
+                        }))
+                    });
+                }
+                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::LBracket) {
+                    return Box::new(ASTNode {
+                        token: first_token.clone(),
+                        node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
+                            scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None, as_expression: None },
+                            type_parameters: None,
+                            is_array: true
+                        }))
+                    });
+                }
+                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::LessThan) {
+                    // Type<TYPE, TYPE>
+                    // parser.message("Type<TYPE, TYPE>", "Type<TYPE, TYPE>", &first_token.location);
+                    let type_parameters = self.get_type_parameters(tokens, &mut uneeded_index);
+                    return Box::new(ASTNode {
+                        token: first_token.clone(),
+                        node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
+                            scope: ScopeToIdentifier { identifier: type_parameters.0, child: None, scope_type: None, as_expression: None },
+                            type_parameters: Some(NodeParameters { parameters: type_parameters.1 }),
+                            is_array: type_parameters.2
+                        }))
+                    });
+                }
+                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot) {
+                    // Scope::Type
+                    // parser.message("Scope::Type", "Scope::Type", &first_token.location);
+                    let scope_and_types = self.get_scope(tokens, &mut uneeded_index);
+                    return Box::new(ASTNode {
+                        token: first_token.clone(),
+                        node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
+                            scope: scope_and_types.0,
+                            type_parameters: scope_and_types.1.is_some().then(|| NodeParameters { parameters: scope_and_types.1.unwrap() }),
+                            is_array: scope_and_types.2
+                        }))
+                    });
+                }
+                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::Comma) {
+                    self.error("Incorrect type", "Multiple variables in one declaration is not supported, try instead using a tuple by putting parenthesis around types", &tokens.get(1).unwrap().location);
+                    return Box::new(ASTNode::none());
+                }
+                else {
+                    self.error("Incorrect type", "Expected a tuple or type before the `::` or  `.`", &tokens.get(1).unwrap().location);
+                    return Box::new(ASTNode::none());
+                }
+            }
+            else if first_token.token_type == TokenType::LParen {
+                // Tuple
+                // parser.message("Tuple", "Tuple", &first_token.location);
+                let tuple = self.get_tuple_node_parameters(tokens, &mut uneeded_index);
+                return Box::new(ASTNode {
+                    token: first_token.clone(),
+                    node: Box::new(NodeType::TupleDeclaration(NodeParameters {
+                        parameters: tuple
+                    }))
+                });
+            }
+            else if first_token.token_type == TokenType::LBrace {
+                self.error("Incorrect type", "Incorrect type declaration `type: name`, objects `{}` are not supported as a type", &tokens.get(1).unwrap().location);
+                return Box::new(ASTNode::none());
+            }
+            else if first_token.token_type == TokenType::LBracket {
+                self.error("Incorrect type", "Incorrect type declaration. If you were trying to create an array, do: `type[]`", &tokens.get(1).unwrap().location);
+                return Box::new(ASTNode::none());
+            }
+            else {
+                self.error("Variable declaration has incorrect type", format!("Expected tuple or type, found: `{}`", first_token.value).as_str(), &first_token.location);
+                return Box::new(ASTNode::none());
+            }
+        }
+        else {
+            self.error("Variable declaration has no type", "Expected a type before the `:`, no type was provided", &tokens.get(1).unwrap().location);
+            return Box::new(ASTNode::none());
+        }
+    }
+
+    fn get_tuple_node_parameters(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
+        // (Tuple, Type) 
+        let all_tokens = self.get_node_parameters(tokens, i);
+
+        let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
+        for tokens in all_tokens {
+            return_tokens.push(self.get_type_idententifier(&tokens));
+        }
+
+        return_tokens
+        
+    }
+
+    fn get_node_parameters(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Vec<Vec<Box<Token>>> {
+        let mut comma_count = 0;
+        let mut angle_bracket_level = 0;
+        let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
+        let mut paranthesis_level = 0;
+        let mut brace_level = 0;
+        let mut bracket_level = 0;
+
+        if let Some(token) = tokens.get(*i) {
+            if token.token_type != TokenType::LParen {
+                self.error("Error getting node parameters", "Expected to start with `(`", &token.location);
+            }
+        }
+
+        for token in tokens.iter().skip(*i) {
+            match token.token_type {
+                TokenType::LBrace => {
+                    brace_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RBrace => {
+                    brace_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LBracket => {
+                    bracket_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RBracket => {
+                    bracket_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LessThan => {
+                    angle_bracket_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::GreaterThan => {
+                    angle_bracket_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LParen => {
+                    paranthesis_level += 1;
+                    if paranthesis_level != 1 {
+                        all_tokens[comma_count].push(token.clone());
+                    }
+                }
+                TokenType::RParen => {
+                    paranthesis_level -= 1;
+                    if paranthesis_level != 0 {
+                        all_tokens[comma_count].push(token.clone());
+                    }
+                }
+                TokenType::Comma => {
+                    if paranthesis_level == 1 && angle_bracket_level == 0 && brace_level == 0 && bracket_level == 0 {
+                        comma_count += 1;
+                        all_tokens.push(Vec::new());
+                    }
+                    else {
+                        all_tokens[comma_count].push(token.clone());
+                    }
+                }
+                _ => {
+                    all_tokens[comma_count].push(token.clone());
+                }
+            }
+            *i += 1;
+            if paranthesis_level == 0 && angle_bracket_level == 0 && brace_level == 0 && bracket_level == 0 {
+                break;
+            }
+        }
+        all_tokens
+    }
+
+    fn get_type_parameters(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> (Box<Token>, Vec<Box<ASTNode>>, bool) { // returns (name, parameters, is_array)
+        // Type<With, Parameters>
+        let mut comma_count = 0;
+        let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
+        let mut angle_bracket_level = 0;
+        let mut parenthesis_level = 0;
+        let mut bracket_level = 0;
+        let mut brace_level = 0;
+        
+        let mut name = tokens[*i].clone();
+        if let Some(token) = tokens.get(*i) {
+            name = token.clone();
+        }
+
+        if let Some(token) = tokens.get(*i + 1) {
+            if token.token_type != TokenType::LessThan {
+                self.error("Error getting type parameters", "Expected to start with `<`", &token.location);
+            }
+        }
+
+        for token in tokens.iter().skip(*i + 1) {
+            match token.token_type {
+                TokenType::LBrace => {
+                    brace_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RBrace => {
+                    brace_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LBracket => {
+                    bracket_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RBracket => {
+                    bracket_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LParen => {
+                    parenthesis_level += 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::RParen => {
+                    parenthesis_level -= 1;
+                    all_tokens[comma_count].push(token.clone());
+                }
+                TokenType::LessThan => {
+                    angle_bracket_level += 1;
+                    if angle_bracket_level != 1 {
+                        all_tokens[comma_count].push(token.clone());
+                    }
+                }
+                TokenType::GreaterThan => {
+                    angle_bracket_level -= 1;
+                    if angle_bracket_level != 0 {
+                        all_tokens[comma_count].push(token.clone());
+                    }
+                }
+                TokenType::Comma => {
+                    if parenthesis_level == 0 && angle_bracket_level == 1 && brace_level == 0 && bracket_level == 0 {
+                        comma_count += 1;
+                        all_tokens.push(Vec::new());
+                    }
+                    else {
+                        all_tokens[comma_count].push(token.clone());
+                    }
+                }
+                _ => {
+                    all_tokens[comma_count].push(token.clone());
+                }
+            }
+            *i += 1;
+            if angle_bracket_level == 0 && parenthesis_level == 0 && brace_level == 0 && bracket_level == 0 {
+                break;
+            }
+        }
+
+        let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
+        for tokens in all_tokens {
+            return_tokens.push(self.get_type_idententifier(&tokens));
+        }
+
+        if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::LBracket) {
+            if tokens.get(*i + 2).is_some_and(|t| t.token_type == TokenType::RBracket) {
+                *i += 2;
+                return (name, return_tokens, true);
+            }
+            else {
+                self.error("Error setting type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[*i].location);
+                return (name, return_tokens, false);
+            }
+        }
+
+        (name, return_tokens, false)
+    }
+
+    fn get_scope(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> (ScopeToIdentifier, Option<Vec<Box<ASTNode>>>, bool) { // returns (scope, type parameters, is_array) 
+        let mut iterate = tokens.iter().skip(*i).peekable();
+        let mut root = ScopeToIdentifier { 
+            identifier: tokens[*i].clone(), 
+            child: None,
+            scope_type: None,
+            as_expression: None
+        };
+        let mut current_scope = &mut root;
+        let mut last_punc: Option<ScopeType> = None;
+        let mut first_token = true;
+        let mut last_index = *i;
+
+        while let Some(token) = iterate.next() {
+            match token.token_type {
+                TokenType::DoubleColon => {
+                    *i += 1;
+                    if last_punc.is_some() || first_token {
+                        self.error("Scope has incorrect type", "Consecutive `::` found. Use `::` only between valid names, for example `A::B::C`", &token.location);
+                        return (root, None, false);
+                    }
+                    last_punc = Some(ScopeType::DoubleColon);
+                }
+                TokenType::Dot => {
+                    *i += 1;
+                    if last_punc.is_some() || first_token {
+                        self.error("Scope has incorrect type", "Consecutive `.` found. Use `.` only between valid names, for example `A.B.C`", &token.location);
+                        return (root, None, false);
+                    }
+                    last_punc = Some(ScopeType::Dot);
+                }
+                TokenType::Identifier => {
+                    *i += 1;
+                    if first_token {
+                        first_token = false;
+                        continue;
+                    }
+                    if last_punc.is_none() {
+                        self.error("Scope has incorrect type", "Expected `::` or `.` before identifier. Use `::` and `.` to separate scope levels.", &token.location);
+                        return (root, None, false);
+                    }
+    
+                    current_scope.child = Some(Box::new(ScopeToIdentifier {
+                        identifier: token.clone(),
+                        child: None,
+                        scope_type: last_punc,
+                        as_expression: None
+                    }));
+                    current_scope = current_scope.child.as_mut().unwrap();
+                    last_punc = None;
+                }
+                _ => {
+                    break;
+                }
+            }
+            last_index += 1;
+        }
+    
+        if last_punc.is_some() {
+            self.error("Scope has incorrect type", "Trailing punctuation found. A valid identifier must follow `::` or `.`", &tokens.last().unwrap().location);
+            return (root, None, false);
+        }
+
+        if tokens.get(last_index + 1).is_some_and(|t| t.token_type == TokenType::LessThan) {
+            let next_tokens: Vec<Box<Token>> = tokens.iter().skip(last_index).cloned().collect();
+            let node = self.get_type_idententifier(&next_tokens);
+            if let NodeType::TypeIdentifier(ref value) = *node.node {
+                if let Some(types) = &value.type_parameters {
+                    return (root.clone(), Some(types.parameters.clone()), value.is_array);
+                }
+            }
+
+            self.error("Error setting scope type parameters", "Type parameter for scoped type is giving errors", &tokens[last_index].location);
+            return (root.clone(), None, false);
+        }
+
+        if tokens.get(last_index + 1).is_some_and(|t| t.token_type == TokenType::LBracket) {
+            if tokens.get(last_index + 2).is_some_and(|t| t.token_type == TokenType::RBracket) {
+                *i += 2;
+                return (root, None, true);
+            }
+            else {
+                self.error("Error setting scope type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[last_index].location);
+                return (root, None, false);
+            }
+        }
+        return (root.clone(), None, false);
+    }
+
+    #[allow(dead_code)] 
     fn node_expr_to_string(&mut self, node: &ASTNode) -> String {
         match *node.node {
             NodeType::VariableDeclaration(ref value) => {
@@ -1204,7 +1576,7 @@ impl Parser {
         }
     }
 
-    pub fn get_constant_type(token: &Token) -> Result<ConstantType, &str> {
+    fn constant_type(token: &Token) -> Result<ConstantType, &str> {
         match token.token_type {
             TokenType::BoolConstant => Ok(ConstantType::Bool),
             TokenType::StringConstant => Ok(ConstantType::String),
@@ -1241,393 +1613,7 @@ impl Parser {
         }
     }
 
-    pub fn get_expression_node_parameters(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
-        let all_tokens = self.get_node_parameters_from_tokens(tokens, i);
-        if all_tokens.len() == 1 && all_tokens[0].len() == 0 {
-            return vec![];
-        }
-
-        let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
-        for tokens in all_tokens {
-            let mut __ = usize::MAX;
-            return_tokens.push(self.set_node_with_children(&tokens, &mut __));
-        }
-
-        return_tokens
-    }
-
-    pub fn get_type_from_tokens(&mut self, tokens: &Vec<Box<Token>>, location: &Location) -> Box<ASTNode> {
-        let node = self.get_type_idententifier_as_ast_node(tokens);
-        if node.as_ref() != &ASTNode::none() {
-            return node;
-        }
-
-        self.error("Variable declaration has no type", "Expected a type before the `:`, no type was provided", &location);
-        Box::new(ASTNode::none()) 
-    }
-    
-    pub fn get_type_idententifier_as_ast_node(&mut self, tokens: &Vec<Box<Token>>) -> Box<ASTNode> {
-        if let Some(first_token) = tokens.first() {
-            let mut uneeded_index = 0_usize;
-            if first_token.token_type == TokenType::Identifier {
-                if tokens.len() == 1 {
-                    // TYPE
-                    // parser.message("TYPE", "TYPE", &first_token.location);
-                    return Box::new(ASTNode {
-                        token: first_token.clone(),
-                        node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
-                            scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None, as_expression: None },
-                            type_parameters: None,
-                            is_array: false
-                        }))
-                    });
-                }
-                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::LBracket) {
-                    return Box::new(ASTNode {
-                        token: first_token.clone(),
-                        node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
-                            scope: ScopeToIdentifier { identifier: first_token.clone(), child: None, scope_type: None, as_expression: None },
-                            type_parameters: None,
-                            is_array: true
-                        }))
-                    });
-                }
-                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::LessThan) {
-                    // Type<TYPE, TYPE>
-                    // parser.message("Type<TYPE, TYPE>", "Type<TYPE, TYPE>", &first_token.location);
-                    let type_parameters = self.get_type_parameters_from_tokens(tokens, &mut uneeded_index);
-                    return Box::new(ASTNode {
-                        token: first_token.clone(),
-                        node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
-                            scope: ScopeToIdentifier { identifier: type_parameters.0, child: None, scope_type: None, as_expression: None },
-                            type_parameters: Some(NodeParameters { parameters: type_parameters.1 }),
-                            is_array: type_parameters.2
-                        }))
-                    });
-                }
-                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot) {
-                    // Scope::Type
-                    // parser.message("Scope::Type", "Scope::Type", &first_token.location);
-                    let scope_and_types = self.get_scope_from_tokens(tokens, &mut uneeded_index);
-                    return Box::new(ASTNode {
-                        token: first_token.clone(),
-                        node: Box::new(NodeType::TypeIdentifier(TypeIdentifier {
-                            scope: scope_and_types.0,
-                            type_parameters: scope_and_types.1.is_some().then(|| NodeParameters { parameters: scope_and_types.1.unwrap() }),
-                            is_array: scope_and_types.2
-                        }))
-                    });
-                }
-                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::Comma) {
-                    self.error("Incorrect type", "Multiple variables in one declaration is not supported, try instead using a tuple by putting parenthesis around types", &tokens.get(1).unwrap().location);
-                    return Box::new(ASTNode::none());
-                }
-                else {
-                    self.error("Incorrect type", "Expected a tuple or type before the `::` or  `.`", &tokens.get(1).unwrap().location);
-                    return Box::new(ASTNode::none());
-                }
-            }
-            else if first_token.token_type == TokenType::LParen {
-                // Tuple
-                // parser.message("Tuple", "Tuple", &first_token.location);
-                let tuple = self.get_tuple_node_parameters(tokens, &mut uneeded_index);
-                return Box::new(ASTNode {
-                    token: first_token.clone(),
-                    node: Box::new(NodeType::TupleDeclaration(NodeParameters {
-                        parameters: tuple
-                    }))
-                });
-            }
-            else if first_token.token_type == TokenType::LBrace {
-                self.error("Incorrect type", "Incorrect type declaration `type: name`, objects `{}` are not supported as a type", &tokens.get(1).unwrap().location);
-                return Box::new(ASTNode::none());
-            }
-            else if first_token.token_type == TokenType::LBracket {
-                self.error("Incorrect type", "Incorrect type declaration. If you were trying to create an array, do: `type[]`", &tokens.get(1).unwrap().location);
-                return Box::new(ASTNode::none());
-            }
-            else {
-                self.error("Variable declaration has incorrect type", format!("Expected tuple or type, found: `{}`", first_token.value).as_str(), &first_token.location);
-                return Box::new(ASTNode::none());
-            }
-        }
-        else {
-            return Box::new(ASTNode::none());
-        }
-    }
-
-    pub fn get_tuple_node_parameters(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
-        // (Tuple, Type) 
-        let all_tokens = self.get_node_parameters_from_tokens(tokens, i);
-
-        let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
-        for tokens in all_tokens {
-            return_tokens.push(self.get_type_idententifier_as_ast_node(&tokens));
-        }
-
-        return_tokens
-        
-    }
-
-    pub fn get_node_parameters_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> Vec<Vec<Box<Token>>> {
-        let mut comma_count = 0;
-        let mut angle_bracket_level = 0;
-        let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
-        let mut paranthesis_level = 0;
-        let mut brace_level = 0;
-        let mut bracket_level = 0;
-
-        if let Some(token) = tokens.get(*i) {
-            if token.token_type != TokenType::LParen {
-                self.error("Error getting node parameters", "Expected to start with `(`", &token.location);
-            }
-        }
-
-        for token in tokens.iter().skip(*i) {
-            match token.token_type {
-                TokenType::LBrace => {
-                    brace_level += 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::RBrace => {
-                    brace_level -= 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::LBracket => {
-                    bracket_level += 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::RBracket => {
-                    bracket_level -= 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::LessThan => {
-                    angle_bracket_level += 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::GreaterThan => {
-                    angle_bracket_level -= 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::LParen => {
-                    paranthesis_level += 1;
-                    if paranthesis_level != 1 {
-                        all_tokens[comma_count].push(token.clone());
-                    }
-                }
-                TokenType::RParen => {
-                    paranthesis_level -= 1;
-                    if paranthesis_level != 0 {
-                        all_tokens[comma_count].push(token.clone());
-                    }
-                }
-                TokenType::Comma => {
-                    if paranthesis_level == 1 && angle_bracket_level == 0 && brace_level == 0 && bracket_level == 0 {
-                        comma_count += 1;
-                        all_tokens.push(Vec::new());
-                    }
-                    else {
-                        all_tokens[comma_count].push(token.clone());
-                    }
-                }
-                _ => {
-                    all_tokens[comma_count].push(token.clone());
-                }
-            }
-            *i += 1;
-            if paranthesis_level == 0 && angle_bracket_level == 0 && brace_level == 0 && bracket_level == 0 {
-                break;
-            }
-        }
-        all_tokens
-    }
-
-    pub fn get_type_parameters_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> (Box<Token>, Vec<Box<ASTNode>>, bool) { // returns (name, parameters, is_array)
-        // Type<With, Parameters>
-        let mut comma_count = 0;
-        let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
-        let mut angle_bracket_level = 0;
-        let mut parenthesis_level = 0;
-        let mut bracket_level = 0;
-        let mut brace_level = 0;
-        
-        let mut name = tokens[*i].clone();
-        if let Some(token) = tokens.get(*i) {
-            name = token.clone();
-        }
-
-        if let Some(token) = tokens.get(*i + 1) {
-            if token.token_type != TokenType::LessThan {
-                self.error("Error getting type parameters", "Expected to start with `<`", &token.location);
-            }
-        }
-
-        for token in tokens.iter().skip(*i + 1) {
-            match token.token_type {
-                TokenType::LBrace => {
-                    brace_level += 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::RBrace => {
-                    brace_level -= 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::LBracket => {
-                    bracket_level += 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::RBracket => {
-                    bracket_level -= 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::LParen => {
-                    parenthesis_level += 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::RParen => {
-                    parenthesis_level -= 1;
-                    all_tokens[comma_count].push(token.clone());
-                }
-                TokenType::LessThan => {
-                    angle_bracket_level += 1;
-                    if angle_bracket_level != 1 {
-                        all_tokens[comma_count].push(token.clone());
-                    }
-                }
-                TokenType::GreaterThan => {
-                    angle_bracket_level -= 1;
-                    if angle_bracket_level != 0 {
-                        all_tokens[comma_count].push(token.clone());
-                    }
-                }
-                TokenType::Comma => {
-                    if parenthesis_level == 0 && angle_bracket_level == 1 && brace_level == 0 && bracket_level == 0 {
-                        comma_count += 1;
-                        all_tokens.push(Vec::new());
-                    }
-                    else {
-                        all_tokens[comma_count].push(token.clone());
-                    }
-                }
-                _ => {
-                    all_tokens[comma_count].push(token.clone());
-                }
-            }
-            *i += 1;
-            if angle_bracket_level == 0 && parenthesis_level == 0 && brace_level == 0 && bracket_level == 0 {
-                break;
-            }
-        }
-
-        let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
-        for tokens in all_tokens {
-            return_tokens.push(self.get_type_idententifier_as_ast_node(&tokens));
-        }
-
-        if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::LBracket) {
-            if tokens.get(*i + 2).is_some_and(|t| t.token_type == TokenType::RBracket) {
-                *i += 2;
-                return (name, return_tokens, true);
-            }
-            else {
-                self.error("Error setting type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[*i].location);
-                return (name, return_tokens, false);
-            }
-        }
-
-        (name, return_tokens, false)
-    }
-
-    pub fn get_scope_from_tokens(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> (ScopeToIdentifier, Option<Vec<Box<ASTNode>>>, bool) { // returns (scope, type parameters, is_array) 
-        let mut iterate = tokens.iter().skip(*i).peekable();
-        let mut root = ScopeToIdentifier { 
-            identifier: tokens[*i].clone(), 
-            child: None,
-            scope_type: None,
-            as_expression: None
-        };
-        let mut current_scope = &mut root;
-        let mut last_punc: Option<ScopeType> = None;
-        let mut first_token = true;
-        let mut last_index = *i;
-
-        while let Some(token) = iterate.next() {
-            match token.token_type {
-                TokenType::DoubleColon => {
-                    *i += 1;
-                    if last_punc.is_some() || first_token {
-                        self.error("Scope has incorrect type", "Consecutive `::` found. Use `::` only between valid names, for example `A::B::C`", &token.location);
-                        return (root, None, false);
-                    }
-                    last_punc = Some(ScopeType::DoubleColon);
-                }
-                TokenType::Dot => {
-                    *i += 1;
-                    if last_punc.is_some() || first_token {
-                        self.error("Scope has incorrect type", "Consecutive `.` found. Use `.` only between valid names, for example `A.B.C`", &token.location);
-                        return (root, None, false);
-                    }
-                    last_punc = Some(ScopeType::Dot);
-                }
-                TokenType::Identifier => {
-                    *i += 1;
-                    if first_token {
-                        first_token = false;
-                        continue;
-                    }
-                    if last_punc.is_none() {
-                        self.error("Scope has incorrect type", "Expected `::` or `.` before identifier. Use `::` and `.` to separate scope levels.", &token.location);
-                        return (root, None, false);
-                    }
-    
-                    current_scope.child = Some(Box::new(ScopeToIdentifier {
-                        identifier: token.clone(),
-                        child: None,
-                        scope_type: last_punc,
-                        as_expression: None
-                    }));
-                    current_scope = current_scope.child.as_mut().unwrap();
-                    last_punc = None;
-                }
-                _ => {
-                    break;
-                }
-            }
-            last_index += 1;
-        }
-    
-        if last_punc.is_some() {
-            self.error("Scope has incorrect type", "Trailing punctuation found. A valid identifier must follow `::` or `.`", &tokens.last().unwrap().location);
-            return (root, None, false);
-        }
-
-        if tokens.get(last_index + 1).is_some_and(|t| t.token_type == TokenType::LessThan) {
-            let next_tokens: Vec<Box<Token>> = tokens.iter().skip(last_index).cloned().collect();
-            let node = self.get_type_idententifier_as_ast_node(&next_tokens);
-            if let NodeType::TypeIdentifier(ref value) = *node.node {
-                if let Some(types) = &value.type_parameters {
-                    return (root.clone(), Some(types.parameters.clone()), value.is_array);
-                }
-            }
-
-            self.error("Error setting scope type parameters", "Type parameter for scoped type is giving errors", &tokens[last_index].location);
-            return (root.clone(), None, false);
-        }
-
-        if tokens.get(last_index + 1).is_some_and(|t| t.token_type == TokenType::LBracket) {
-            if tokens.get(last_index + 2).is_some_and(|t| t.token_type == TokenType::RBracket) {
-                *i += 2;
-                return (root, None, true);
-            }
-            else {
-                self.error("Error setting scope type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[last_index].location);
-                return (root, None, false);
-            }
-        }
-        return (root.clone(), None, false);
-    }
-
-    pub fn split_tokens_into_lines(tokens: &Vec<Token>) -> Vec<Vec<Box<Token>>> {
+    fn split_tokens_into_lines(tokens: &Vec<Token>) -> Vec<Vec<Box<Token>>> {
         tokens.split(|t| t.token_type == TokenType::EndOfLine)
             .map(|l| l.iter().map(|t| Box::new(t.clone())).collect::<Vec<Box<Token>>>())
             .filter(|x| !x.is_empty())
