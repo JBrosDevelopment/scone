@@ -1,145 +1,100 @@
 [
   {
-    "token_type": "Identifier",
-    "value": "char",
+    "token_type": "LBrace",
+    "value": "{",
     "location": {
       "line": 1,
       "column": 1,
-      "length": 4
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "i32",
+    "location": {
+      "line": 2,
+      "column": 5,
+      "length": 3
     }
   },
   {
     "token_type": "Colon",
     "value": ":",
     "location": {
-      "line": 1,
-      "column": 5,
+      "line": 2,
+      "column": 8,
       "length": 1
     }
   },
   {
     "token_type": "Identifier",
-    "value": "c",
+    "value": "name",
     "location": {
-      "line": 1,
-      "column": 7,
-      "length": 1
+      "line": 2,
+      "column": 10,
+      "length": 4
     }
   },
   {
     "token_type": "Assign",
     "value": "=",
     "location": {
-      "line": 1,
-      "column": 9,
+      "line": 2,
+      "column": 15,
       "length": 1
     }
   },
   {
-    "token_type": "Identifier",
-    "value": "this",
+    "token_type": "NumberConstant",
+    "value": "100",
     "location": {
-      "line": 1,
-      "column": 11,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "DoubleColon",
-    "value": "::",
-    "location": {
-      "line": 1,
-      "column": 15,
-      "length": 2
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "thing",
-    "location": {
-      "line": 1,
+      "line": 2,
       "column": 17,
-      "length": 5
+      "length": 3
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": ";",
+    "location": {
+      "line": 2,
+      "column": 20,
+      "length": 1
     }
   },
   {
     "token_type": "LBrace",
     "value": "{",
     "location": {
-      "line": 1,
-      "column": 23,
+      "line": 3,
+      "column": 5,
       "length": 1
     }
   },
   {
     "token_type": "Identifier",
-    "value": "v",
+    "value": "print",
     "location": {
-      "line": 1,
-      "column": 25,
+      "line": 4,
+      "column": 9,
+      "length": 5
+    }
+  },
+  {
+    "token_type": "LParen",
+    "value": "(",
+    "location": {
+      "line": 4,
+      "column": 14,
       "length": 1
     }
   },
   {
-    "token_type": "Assign",
-    "value": "=",
+    "token_type": "RParen",
+    "value": ")",
     "location": {
-      "line": 1,
-      "column": 27,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "1",
-    "location": {
-      "line": 1,
-      "column": 29,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Comma",
-    "value": ",",
-    "location": {
-      "line": 1,
-      "column": 30,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "c",
-    "location": {
-      "line": 1,
-      "column": 32,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Assign",
-    "value": "=",
-    "location": {
-      "line": 1,
-      "column": 34,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "2",
-    "location": {
-      "line": 1,
-      "column": 36,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 1,
-      "column": 38,
+      "line": 4,
+      "column": 15,
       "length": 1
     }
   },
@@ -147,8 +102,143 @@
     "token_type": "EndOfLine",
     "value": ";",
     "location": {
-      "line": 1,
-      "column": 39,
+      "line": 4,
+      "column": 16,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RBrace",
+    "value": "}",
+    "location": {
+      "line": 5,
+      "column": 5,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "vec",
+    "location": {
+      "line": 6,
+      "column": 5,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "Colon",
+    "value": ":",
+    "location": {
+      "line": 6,
+      "column": 8,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "v",
+    "location": {
+      "line": 6,
+      "column": 9,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Assign",
+    "value": "=",
+    "location": {
+      "line": 6,
+      "column": 10,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "vec",
+    "location": {
+      "line": 6,
+      "column": 11,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "LBrace",
+    "value": "{",
+    "location": {
+      "line": 6,
+      "column": 14,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "a",
+    "location": {
+      "line": 7,
+      "column": 9,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Assign",
+    "value": "=",
+    "location": {
+      "line": 7,
+      "column": 11,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "a",
+    "location": {
+      "line": 7,
+      "column": 13,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LBrace",
+    "value": "{",
+    "location": {
+      "line": 7,
+      "column": 15,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RBrace",
+    "value": "}",
+    "location": {
+      "line": 7,
+      "column": 16,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RBrace",
+    "value": "}",
+    "location": {
+      "line": 8,
+      "column": 5,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": ";",
+    "location": {
+      "line": 8,
+      "column": 6,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RBrace",
+    "value": "}",
+    "location": {
+      "line": 9,
+      "column": 1,
       "length": 1
     }
   }

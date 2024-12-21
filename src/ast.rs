@@ -44,6 +44,7 @@ pub enum NodeType {
     LoadLib(LoadLib),
     AsCast(Expression),
     IsCheck(Expression),
+    CodeBlock(BodyRegion),
     
     // declare
     TupleDeclaration(NodeParameters),

@@ -1,4 +1,12 @@
-char: c = this::thing { v = 1, c = 2 };
+{
+    i32: name = 100;
+    {
+        print();
+    }
+    vec:v=vec{
+        a = a {}
+    };
+}
 // TODO:
 // Fn<i32, i32>: add_factor = (i32: x) => i32 { x + factor }; // Explicit type and block
 // Fn<i32, i32>: square = (i32: x) => x * x; // Type inferred

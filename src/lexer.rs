@@ -230,12 +230,18 @@ impl Lexer {
         let mut tokens: Vec<Token> = Vec::new();
         let chars: Vec<char> = self.output.full_code.chars().collect::<Vec<char>>();
         let mut current_location: Location = Location::new(1, 1, 0);
+
+        // if the last token was `(`  `{`  `[`  `,`  `..`  `OPERATORS`, `END_OF_LINE`6
+        // set to 3 if true, so that it can go down every time it finds a new token
+        // finds it at `3`, finds negative at `2` moves to `-1` if found, and number at `1`
+        let mut last_was_negatable_ability = 2; // is at 2 now because already found ability
     
         let mut i = 0;
         while i < chars.len() {
             let c = chars[i];
             if c == ' ' {
                 current_location.advance(1);
+                last_was_negatable_ability += 1;
             }
             else if c == '\t' {
                 current_location.advance('\t'.to_string().len() as i32);
@@ -244,17 +250,13 @@ impl Lexer {
                 // nothing
             }
             else if c == '\n' {
-                current_location.advance('\n'.to_string().len() as i32);
-                if let Some(t) = tokens.last().clone() {
-                    if t.token_type != TokenType::EndOfLine {
-                        tokens.push(Token::new(TokenType::EndOfLine, "\n".to_string(), current_location.clone()));
-                    }
-                }
                 current_location.advance_line();
+                last_was_negatable_ability = 3;
             }
             else if c == ';' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::EndOfLine, ";".to_string(), current_location.clone()));
+                last_was_negatable_ability = 3;
             }
             else if char::is_alphabetic(c.clone()) || c == '_' {
                 let mut name = String::new();
@@ -314,6 +316,12 @@ impl Lexer {
             }
             else if char::is_numeric(c.clone()) {
                 let mut number = String::new();
+
+                if last_was_negatable_ability == -2 {
+                    number.push('-'); // add `-` to number
+                    tokens.pop(); // remove `-` from tokens
+                    current_location.column -= 1; // remove `-` from location
+                }
         
                 while i < chars.len() {
                     if char::is_numeric(chars[i]) {
@@ -335,10 +343,12 @@ impl Lexer {
             else if c == ',' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::Comma, ",".to_string(), current_location.clone()));
+                last_was_negatable_ability = 3;
             }
             else if c == '{' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::LBrace, "{".to_string(), current_location.clone()));
+                last_was_negatable_ability = 3;
             }
             else if c == '}' {
                 current_location.advance(1);
@@ -347,6 +357,7 @@ impl Lexer {
             else if c == '(' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::LParen, "(".to_string(), current_location.clone()));
+                last_was_negatable_ability = 3;
             }
             else if c == ')' {
                 current_location.advance(1);
@@ -355,6 +366,7 @@ impl Lexer {
             else if c == '[' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::LBracket, "[".to_string(), current_location.clone()));
+                last_was_negatable_ability = 3;
             }
             else if c == ']' {
                 current_location.advance(1);
@@ -363,10 +375,6 @@ impl Lexer {
             else if c == '$' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::DollarSign, "$".to_string(), current_location.clone()));
-            }
-            else if c == '~' {
-                current_location.advance(1);
-                tokens.push(Token::new(TokenType::Tilda, "~".to_string(), current_location.clone()));
             }
             else if c == '?' {
                 current_location.advance(1);
@@ -387,6 +395,7 @@ impl Lexer {
                 if chars.get(i + 1) == Some(&'.') {
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::RangeOperator, "..".to_string(), current_location.clone()));
+                    last_was_negatable_ability = 3;
                     i += 1;
                 }
                 else {
@@ -394,7 +403,20 @@ impl Lexer {
                     tokens.push(Token::new(TokenType::Dot, ".".to_string(), current_location.clone()));
                 }
             }
+            else if c == '~' {
+                last_was_negatable_ability = 3;
+                if chars.get(i + 1) == Some(&'=') {
+                    current_location.advance(2);
+                    tokens.push(Token::new(TokenType::Tilda, "~=".to_string(), current_location.clone()));
+                    i += 1;
+                }
+                else {
+                    current_location.advance(1);
+                    tokens.push(Token::new(TokenType::Tilda, "~".to_string(), current_location.clone()));
+                }
+            }
             else if c == '^' {
+                last_was_negatable_ability = 3;
                 if chars.get(i + 1) == Some(&'=') {
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::Carrot, "^=".to_string(), current_location.clone()));
@@ -406,6 +428,7 @@ impl Lexer {
                 }
             }
             else if c == '*' {
+                last_was_negatable_ability = 3;
                 if chars.get(i + 1) == Some(&'=') {
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::Star, "*=".to_string(), current_location.clone()));
@@ -422,6 +445,7 @@ impl Lexer {
                 }
             }
             else if c == '%' {
+                last_was_negatable_ability = 3;
                 if chars.get(i + 1) == Some(&'=') {
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::Modulas, "%=".to_string(), current_location.clone()));
@@ -434,6 +458,7 @@ impl Lexer {
             }
             else if c == '/' {
                 if chars.get(i + 1) == Some(&'/') {
+                    last_was_negatable_ability = 3;
                     i += 1;
                     
                     while i < chars.len() {
@@ -477,11 +502,13 @@ impl Lexer {
                 }
                 else {
                     current_location.advance(1);
+                    last_was_negatable_ability = 3;
                     tokens.push(Token::new(TokenType::Slash, "/".to_string(), current_location.clone()));
                 }
             }
             else if c == '=' {
                 if chars.get(i + 1) == Some(&'=') {
+                    last_was_negatable_ability = 3;
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::Equal, "==".to_string(), current_location.clone()));
                     i += 1;
@@ -492,6 +519,7 @@ impl Lexer {
                     i += 1;
                 }
                 else {
+                    last_was_negatable_ability = 3;
                     current_location.advance(1);
                     tokens.push(Token::new(TokenType::Assign, "=".to_string(), current_location.clone()));
                 }
@@ -503,11 +531,13 @@ impl Lexer {
                     i += 1;
                 }
                 else if chars.get(i + 1) == Some(&'=') {
+                    last_was_negatable_ability = 3;
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::Plus, "+=".to_string(), current_location.clone()));
                     i += 1;
                 }
                 else {
+                    last_was_negatable_ability = 3;
                     current_location.advance(1);
                     tokens.push(Token::new(TokenType::Plus, "+".to_string(), current_location.clone()));
                 }
@@ -524,16 +554,23 @@ impl Lexer {
                     i += 1;
                 }
                 else if chars.get(i + 1) == Some(&'=') {
+                    last_was_negatable_ability = 3;
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::Dash, "-=".to_string(), current_location.clone()));
                     i += 1;
                 }
                 else {
+                    if last_was_negatable_ability == 2 {
+                        last_was_negatable_ability = -1;
+                    } else {
+                        last_was_negatable_ability = 0;
+                    }
                     current_location.advance(1);
                     tokens.push(Token::new(TokenType::Dash, "-".to_string(), current_location.clone()));
                 }
             }
             else if c == '>' {
+                last_was_negatable_ability = 3;
                 if chars.get(i + 1) == Some(&'=') {
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::GreaterThanOrEqual, ">=".to_string(), current_location.clone()));
@@ -546,6 +583,7 @@ impl Lexer {
             }
             else if c == '<' {
                 if chars.get(i + 1) == Some(&'=') {
+                    last_was_negatable_ability = 3;
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::LessThanOrEqual, "<=".to_string(), current_location.clone()));
                     i += 1;
@@ -556,11 +594,13 @@ impl Lexer {
                     i += 1;
                 }
                 else {
+                    last_was_negatable_ability = 3;
                     current_location.advance(1);
                     tokens.push(Token::new(TokenType::LessThan, "<".to_string(), current_location.clone()));
                 }
             }
             else if c == '!' {
+                last_was_negatable_ability = 3;
                 if chars.get(i + 1) == Some(&'=') {
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::NotEqual, "!=".to_string(), current_location.clone()));
@@ -572,6 +612,7 @@ impl Lexer {
                 }
             }
             else if c == '&' {
+                last_was_negatable_ability = 3;
                 if chars.get(i + 1) == Some(&'&') {
                     i += 1;
                     if chars.get(i + 1) == Some(&'=') {
@@ -595,6 +636,7 @@ impl Lexer {
                 }
             }
             else if c == '|' {
+                last_was_negatable_ability = 3;
                 if chars.get(i + 1) == Some(&'|') {
                     i += 1;
                     if chars.get(i + 1) == Some(&'=') {
@@ -716,6 +758,7 @@ impl Lexer {
                 continue;
             }
             i += 1;
+            last_was_negatable_ability -= 1;
         }
     
         // Fix assignment operators, `+=` to `= NAME +`

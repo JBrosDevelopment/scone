@@ -1,70 +1,305 @@
 [
   {
     "token": {
-      "token_type": "Identifier",
-      "value": "c",
+      "token_type": "LBrace",
+      "value": "{",
       "location": {
         "line": 1,
-        "column": 7,
+        "column": 1,
         "length": 1
       }
     },
     "node": {
-      "VariableDeclaration": {
-        "var_type": {
-          "token": {
-            "token_type": "Identifier",
-            "value": "char",
-            "location": {
-              "line": 1,
-              "column": 1,
-              "length": 4
-            }
-          },
-          "node": {
-            "TypeIdentifier": {
-              "scope": {
-                "child": null,
-                "identifier": {
+      "CodeBlock": {
+        "body": [
+          {
+            "token": {
+              "token_type": "Identifier",
+              "value": "name",
+              "location": {
+                "line": 2,
+                "column": 10,
+                "length": 4
+              }
+            },
+            "node": {
+              "VariableDeclaration": {
+                "var_type": {
+                  "token": {
+                    "token_type": "Identifier",
+                    "value": "i32",
+                    "location": {
+                      "line": 2,
+                      "column": 5,
+                      "length": 3
+                    }
+                  },
+                  "node": {
+                    "TypeIdentifier": {
+                      "scope": {
+                        "child": null,
+                        "identifier": {
+                          "token_type": "Identifier",
+                          "value": "i32",
+                          "location": {
+                            "line": 2,
+                            "column": 5,
+                            "length": 3
+                          }
+                        },
+                        "scope_type": null,
+                        "as_expression": null
+                      },
+                      "type_parameters": null,
+                      "is_array": false
+                    }
+                  }
+                },
+                "var_name": {
                   "token_type": "Identifier",
-                  "value": "char",
+                  "value": "name",
                   "location": {
-                    "line": 1,
-                    "column": 1,
+                    "line": 2,
+                    "column": 10,
                     "length": 4
                   }
                 },
-                "scope_type": null,
-                "as_expression": null
-              },
-              "type_parameters": null,
-              "is_array": false
-            }
-          }
-        },
-        "var_name": {
-          "token_type": "Identifier",
-          "value": "c",
-          "location": {
-            "line": 1,
-            "column": 7,
-            "length": 1
-          }
-        },
-        "var_value": {
-          "token": {
-            "token_type": "None",
-            "value": "",
-            "location": {
-              "line": 0,
-              "column": 0,
-              "length": 0
+                "var_value": {
+                  "token": {
+                    "token_type": "NumberConstant",
+                    "value": "100",
+                    "location": {
+                      "line": 2,
+                      "column": 17,
+                      "length": 3
+                    }
+                  },
+                  "node": {
+                    "Constant": {
+                      "value": {
+                        "token_type": "NumberConstant",
+                        "value": "100",
+                        "location": {
+                          "line": 2,
+                          "column": 17,
+                          "length": 3
+                        }
+                      },
+                      "constant_type": "U8"
+                    }
+                  }
+                },
+                "description": null,
+                "access_modifier": []
+              }
             }
           },
-          "node": "None"
-        },
-        "description": null,
-        "access_modifier": []
+          {
+            "token": {
+              "token_type": "RBrace",
+              "value": "}",
+              "location": {
+                "line": 5,
+                "column": 5,
+                "length": 1
+              }
+            },
+            "node": {
+              "CodeBlock": {
+                "body": [
+                  {
+                    "token": {
+                      "token_type": "Identifier",
+                      "value": "print",
+                      "location": {
+                        "line": 4,
+                        "column": 9,
+                        "length": 5
+                      }
+                    },
+                    "node": {
+                      "FunctionCall": {
+                        "parameters": {
+                          "parameters": []
+                        },
+                        "type_parameters": null,
+                        "scope": {
+                          "child": null,
+                          "identifier": {
+                            "token_type": "Identifier",
+                            "value": "print",
+                            "location": {
+                              "line": 4,
+                              "column": 9,
+                              "length": 5
+                            }
+                          },
+                          "scope_type": null,
+                          "as_expression": null
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "token": {
+              "token_type": "Identifier",
+              "value": "v",
+              "location": {
+                "line": 6,
+                "column": 9,
+                "length": 1
+              }
+            },
+            "node": {
+              "VariableDeclaration": {
+                "var_type": {
+                  "token": {
+                    "token_type": "Identifier",
+                    "value": "vec",
+                    "location": {
+                      "line": 6,
+                      "column": 5,
+                      "length": 3
+                    }
+                  },
+                  "node": {
+                    "TypeIdentifier": {
+                      "scope": {
+                        "child": null,
+                        "identifier": {
+                          "token_type": "Identifier",
+                          "value": "vec",
+                          "location": {
+                            "line": 6,
+                            "column": 5,
+                            "length": 3
+                          }
+                        },
+                        "scope_type": null,
+                        "as_expression": null
+                      },
+                      "type_parameters": null,
+                      "is_array": false
+                    }
+                  }
+                },
+                "var_name": {
+                  "token_type": "Identifier",
+                  "value": "v",
+                  "location": {
+                    "line": 6,
+                    "column": 9,
+                    "length": 1
+                  }
+                },
+                "var_value": {
+                  "token": {
+                    "token_type": "LBrace",
+                    "value": "{",
+                    "location": {
+                      "line": 6,
+                      "column": 14,
+                      "length": 1
+                    }
+                  },
+                  "node": {
+                    "ObjectInstantiation": {
+                      "object_type": {
+                        "token": {
+                          "token_type": "Identifier",
+                          "value": "vec",
+                          "location": {
+                            "line": 6,
+                            "column": 11,
+                            "length": 3
+                          }
+                        },
+                        "node": {
+                          "Identifier": {
+                            "child": null,
+                            "identifier": {
+                              "token_type": "Identifier",
+                              "value": "vec",
+                              "location": {
+                                "line": 6,
+                                "column": 11,
+                                "length": 3
+                              }
+                            },
+                            "scope_type": null,
+                            "as_expression": null
+                          }
+                        }
+                      },
+                      "properties": [
+                        {
+                          "name": {
+                            "token_type": "Identifier",
+                            "value": "a",
+                            "location": {
+                              "line": 7,
+                              "column": 9,
+                              "length": 1
+                            }
+                          },
+                          "value": {
+                            "token": {
+                              "token_type": "LBrace",
+                              "value": "{",
+                              "location": {
+                                "line": 7,
+                                "column": 15,
+                                "length": 1
+                              }
+                            },
+                            "node": {
+                              "ObjectInstantiation": {
+                                "object_type": {
+                                  "token": {
+                                    "token_type": "Identifier",
+                                    "value": "a",
+                                    "location": {
+                                      "line": 7,
+                                      "column": 13,
+                                      "length": 1
+                                    }
+                                  },
+                                  "node": {
+                                    "Identifier": {
+                                      "child": null,
+                                      "identifier": {
+                                        "token_type": "Identifier",
+                                        "value": "a",
+                                        "location": {
+                                          "line": 7,
+                                          "column": 13,
+                                          "length": 1
+                                        }
+                                      },
+                                      "scope_type": null,
+                                      "as_expression": null
+                                    }
+                                  }
+                                },
+                                "properties": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "description": null,
+                "access_modifier": []
+              }
+            }
+          }
+        ]
       }
     }
   }
