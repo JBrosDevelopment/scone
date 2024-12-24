@@ -2,6 +2,8 @@
 // remove all unwrapping and replace with error handling
 // go over and make sure no unneciary cloning is happening
 
+use std::vec;
+
 use crate::lexer::{Token, TokenType, Location};
 use crate::ast::*;
 use crate::error_handling::ErrorHandling;
@@ -774,7 +776,7 @@ impl Parser {
         return properties
     }
 
-    fn get_code_block(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> BodyRegion {
+    fn get_code_block(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, last_is_return: bool) -> BodyRegion {
         let mut brace_level = 0;
         let mut body = vec![];
         let mut semicolon_count = 0;
@@ -791,7 +793,7 @@ impl Parser {
                                 current_tokens[semicolon_count].push(tokens[*i].clone());
                             }
                             else {
-                                let nested_region = self.get_code_block(tokens, i);
+                                let nested_region = self.get_code_block(tokens, i, last_is_return);
                                 body.push(Box::new(ASTNode{
                                     token: tokens[*i].clone(),
                                     node: Box::new(NodeType::CodeBlock(nested_region)),
@@ -807,6 +809,18 @@ impl Parser {
                             if let Ok(node) = self.get_ast_node(&mut current_tokens[semicolon_count]) {
                                 body.push(Box::new(node));
                             }
+                            if last_is_return {
+                                if let Some(last) = body.last_mut() {
+                                    if let NodeType::ReturnExpression(_) = last.node.as_ref() {
+                                        // nothing
+                                    } else {
+                                        last.node = Box::new(NodeType::ReturnExpression(Box::new(ASTNode {
+                                            token: tokens[*i].clone(),
+                                            node: last.as_ref().node.clone(),
+                                        })));
+                                    }
+                                }
+                            }                            
                             return BodyRegion { body };
                         }
                         else {
@@ -1113,7 +1127,7 @@ impl Parser {
                 }
                 else {
                     // code block
-                    let code_block = self.get_code_block(tokens, i);
+                    let code_block = self.get_code_block(tokens, i, false);
                     expr_stack.push((Box::new(ASTNode {
                         token: token.clone(),
                         node: Box::new(NodeType::CodeBlock(code_block)),
@@ -1245,6 +1259,99 @@ impl Parser {
                     return Box::new(ASTNode::none());
                 }
             }
+            else if token.token_type == TokenType::DoubleArrow {
+                if expr_stack.is_empty() {
+                    self.error("Couldn't parse lamda", "No parameters for lambda were found: `x => x + 1`", &token.location);
+                    return Box::new(ASTNode::none());
+                }
+                let parameters_node = expr_stack.pop().unwrap_or_else(|| {
+                    self.error("Couldn't parse lamda", "No parameters for lambda were found: `x => x + 1`", &token.location);
+                    return (Box::new(ASTNode::none()), 0);
+                }).0;
+
+                let parameters = NodeParameters { 
+                    parameters: {
+                        let mut tuple_vector_clone = tuple_vec.clone();
+                        tuple_vec.clear();
+                        tuple_vector_clone.append(&mut vec![parameters_node]);
+                        tuple_vector_clone
+                    }
+                };
+
+                // check if body is code block or expression: `x => x + 1` or `x => { x + 1 }`
+                let body = if tokens.get(*i + 1).is_some().then(|| tokens[*i + 1].token_type == TokenType::LBrace).unwrap_or(false) {
+                    // code block
+                    *i += 1;
+                    self.get_code_block(tokens, i, true)
+                } else {
+                    // expression
+                    let mut lambda_tokens = vec![];
+                    *i += 1;
+                    let mut parenthesis_level = 0;
+                    let mut brace_level = 0;
+                    let mut bracket_level = 0;
+
+                    while let Some(token) = tokens.get(*i) {
+                        match token.token_type {
+                            TokenType::LParen => {
+                                parenthesis_level += 1;
+                                lambda_tokens.push(token.clone());
+                            }
+                            TokenType::RParen => {
+                                parenthesis_level -= 1;
+                                lambda_tokens.push(token.clone());
+                                if parenthesis_level <= 0 {
+                                    break;
+                                }
+                            }
+                            TokenType::LBrace => {
+                                brace_level += 1;
+                                lambda_tokens.push(token.clone());
+                            }
+                            TokenType::RBrace => {
+                                brace_level -= 1;
+                                lambda_tokens.push(token.clone());
+                                if brace_level <= 0 {
+                                    break;
+                                }
+                            }
+                            TokenType::LBracket => {
+                                bracket_level += 1;
+                                lambda_tokens.push(token.clone());
+                            }
+                            TokenType::RBracket => {
+                                bracket_level -= 1;
+                                lambda_tokens.push(token.clone());
+                                if bracket_level <= 0 {
+                                    break;
+                                }
+                            }
+                            _ => {
+                                lambda_tokens.push(token.clone());
+                            }
+                        }
+                        *i += 1;
+                    }
+
+                    let expression = self.get_entire_expression(&mut lambda_tokens);
+                    BodyRegion {
+                        body: vec![Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::ReturnExpression(expression)),
+                        })]
+                    }
+                };
+
+                let lambda = LambdaExpression {
+                    parameters,
+                    body,
+                };
+
+                expr_stack.push((Box::new(ASTNode {
+                    token: token.clone(),
+                    node: Box::new(NodeType::LambdaExpression(lambda)),
+                }), *i));
+            }
             else {
                 self.error("Unexpected token in expression", "Didn't expect this token in expression", &token.location);
                 return Box::new(ASTNode::none());
@@ -1263,7 +1370,7 @@ impl Parser {
         } else {
             return Box::new(ASTNode::none());
         }
-
+        
         if tuple_vec.len() == 1 {
             return tuple_vec[0].clone();
         }
@@ -1824,6 +1931,20 @@ impl Parser {
                     body += format!("{}{}", Self::node_expr_to_string(&param).as_str(), "; ").as_str();
                 }
                 format!("{{ {}}}", body)
+            }
+            NodeType::ReturnExpression(ref value) => {
+                format!("return {}", Self::node_expr_to_string(&value))
+            }
+            NodeType::LambdaExpression(ref value) => {
+                let mut parameters = "".to_string();
+                for (index, param) in value.parameters.parameters.iter().enumerate() {
+                    parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                }
+                let mut body = "".to_string();
+                for param in value.body.body.iter() {
+                    body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                }
+                format!("({}) => {{ {}}}", parameters, body)
             }
             _ => {
                 node.token.value.clone()

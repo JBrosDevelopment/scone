@@ -1,13 +1,15 @@
-{
-    i32: name = 100;
-    {
-        print();
-    }
-    vec:v=vec{
-        a = a {}
-    };
-}
+array.select(x => x.this.that(y => y + 1));
+
 // TODO:
-// Fn<i32, i32>: add_factor = (i32: x) => i32 { x + factor }; // Explicit type and block
-// Fn<i32, i32>: square = (i32: x) => x * x; // Type inferred
-// array.select(x => x * 2); // Fully inferred for functional call
+// a++; a-- // increment and decrement 
+// break; continue // keywords
+// string: s = obj as string // as cast
+// bool: b = obj is string // is check
+// _ = 0 // use of discard
+// loadlib "file.dll" // load dll
+// use LIB::This // include library
+// use LIB::* // library with astrix includes
+// use LIB::{a, b} // includes specific members
+// #! alias // for compiler: shorthand for instantiation of class
+// #! def NAME = VALUE // for compiler: define compile time constants
+// #! defc NAME // for compiler if not defined, then define. For files

@@ -35,9 +35,8 @@ pub enum TokenType {
     Or,
     Not,
     RangeOperator,
-    Underscore,
-    AtSymbol,
     Hashtag,
+    AtSymbol,
     
     // brackets
     LParen,
@@ -56,7 +55,7 @@ pub enum TokenType {
     RightArrow,
     LeftArrow,
     DoubleArrow,
-    AtBang,
+    Shabang,
     QuestionMark,
 
     // keywords
@@ -87,9 +86,6 @@ pub enum TokenType {
     Extern,
     Match,
     LoadLib,
-    TypeOf,
-    NameOf,
-    SizeOf,
     Unsafe,
     Safe,
     Auto,
@@ -101,6 +97,7 @@ pub enum TokenType {
     NumberConstant,
 
     // other
+    Underscore,
     Identifier,
     EndOfLine,
     None
@@ -300,9 +297,6 @@ impl Lexer {
                     "match" => Token::new(TokenType::Match, name.clone(), current_location.clone()),
                     "extern" => Token::new(TokenType::Extern, name.clone(), current_location.clone()),
                     "loadlib" => Token::new(TokenType::LoadLib, name.clone(), current_location.clone()),
-                    "nameof" => Token::new(TokenType::NameOf, name.clone(), current_location.clone()),
-                    "typeof" => Token::new(TokenType::TypeOf, name.clone(), current_location.clone()),
-                    "sizeof" => Token::new(TokenType::SizeOf, name.clone(), current_location.clone()),
                     "abstract" => Token::new(TokenType::Abstract, name.clone(), current_location.clone()),
                     "unsafe" => Token::new(TokenType::Unsafe, name.clone(), current_location.clone()),
                     "safe" => Token::new(TokenType::Safe, name.clone(), current_location.clone()),
@@ -337,8 +331,15 @@ impl Lexer {
                 i -= 1;
             }
             else if c == '#' {
-                current_location.advance(1);
-                tokens.push(Token::new(TokenType::Hashtag, "#".to_string(), current_location.clone()));
+                if chars.get(i + 1) == Some(&'!') {
+                    current_location.advance(1);
+                    tokens.push(Token::new(TokenType::Shabang, "#!".to_string(), current_location.clone()));
+                    i += 1;
+                }
+                else {
+                    current_location.advance(1);
+                    tokens.push(Token::new(TokenType::Hashtag, "#".to_string(), current_location.clone()));
+                }
             }
             else if c == ',' {
                 current_location.advance(1);
@@ -381,15 +382,8 @@ impl Lexer {
                 tokens.push(Token::new(TokenType::QuestionMark, "?".to_string(), current_location.clone()));
             }
             else if c == '@' {
-                if chars.get(i + 1) == Some(&'!') {
-                    current_location.advance(2);
-                    tokens.push(Token::new(TokenType::AtBang, "@!".to_string(), current_location.clone()));
-                    i += 1;
-                }
-                else {
-                    current_location.advance(1);
-                    tokens.push(Token::new(TokenType::AtSymbol, "@".to_string(), current_location.clone()));
-                }
+                current_location.advance(1);
+                tokens.push(Token::new(TokenType::AtSymbol, "@".to_string(), current_location.clone()));
             }
             else if c == '.' {
                 if chars.get(i + 1) == Some(&'.') {

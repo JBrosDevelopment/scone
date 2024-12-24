@@ -1,305 +1,367 @@
 [
   {
     "token": {
-      "token_type": "LBrace",
-      "value": "{",
+      "token_type": "Identifier",
+      "value": "a",
       "location": {
         "line": 1,
-        "column": 1,
+        "column": 7,
         "length": 1
       }
     },
     "node": {
-      "CodeBlock": {
-        "body": [
-          {
-            "token": {
-              "token_type": "Identifier",
-              "value": "name",
-              "location": {
-                "line": 2,
-                "column": 10,
-                "length": 4
-              }
-            },
-            "node": {
-              "VariableDeclaration": {
-                "var_type": {
-                  "token": {
-                    "token_type": "Identifier",
-                    "value": "i32",
-                    "location": {
-                      "line": 2,
-                      "column": 5,
-                      "length": 3
-                    }
-                  },
-                  "node": {
-                    "TypeIdentifier": {
-                      "scope": {
-                        "child": null,
-                        "identifier": {
-                          "token_type": "Identifier",
-                          "value": "i32",
-                          "location": {
-                            "line": 2,
-                            "column": 5,
-                            "length": 3
-                          }
-                        },
-                        "scope_type": null,
-                        "as_expression": null
-                      },
-                      "type_parameters": null,
-                      "is_array": false
-                    }
-                  }
-                },
-                "var_name": {
-                  "token_type": "Identifier",
-                  "value": "name",
+      "VariableDeclaration": {
+        "var_type": {
+          "token": {
+            "token_type": "Auto",
+            "value": "auto",
+            "location": {
+              "line": 1,
+              "column": 1,
+              "length": 4
+            }
+          },
+          "node": {
+            "TypeIdentifier": {
+              "scope": {
+                "child": null,
+                "identifier": {
+                  "token_type": "Auto",
+                  "value": "auto",
                   "location": {
-                    "line": 2,
-                    "column": 10,
+                    "line": 1,
+                    "column": 1,
                     "length": 4
                   }
                 },
-                "var_value": {
-                  "token": {
-                    "token_type": "NumberConstant",
-                    "value": "100",
-                    "location": {
-                      "line": 2,
-                      "column": 17,
-                      "length": 3
-                    }
-                  },
-                  "node": {
-                    "Constant": {
-                      "value": {
-                        "token_type": "NumberConstant",
-                        "value": "100",
-                        "location": {
-                          "line": 2,
-                          "column": 17,
-                          "length": 3
-                        }
-                      },
-                      "constant_type": "U8"
-                    }
-                  }
-                },
-                "description": null,
-                "access_modifier": []
-              }
+                "scope_type": null,
+                "as_expression": null
+              },
+              "type_parameters": null,
+              "is_array": false
+            }
+          }
+        },
+        "var_name": {
+          "token_type": "Identifier",
+          "value": "a",
+          "location": {
+            "line": 1,
+            "column": 7,
+            "length": 1
+          }
+        },
+        "var_value": {
+          "token": {
+            "token_type": "Identifier",
+            "value": "array",
+            "location": {
+              "line": 1,
+              "column": 10,
+              "length": 5
             }
           },
-          {
-            "token": {
-              "token_type": "RBrace",
-              "value": "}",
-              "location": {
-                "line": 5,
-                "column": 5,
-                "length": 1
-              }
-            },
-            "node": {
-              "CodeBlock": {
-                "body": [
+          "node": {
+            "FunctionCall": {
+              "parameters": {
+                "parameters": [
                   {
                     "token": {
-                      "token_type": "Identifier",
-                      "value": "print",
+                      "token_type": "DoubleArrow",
+                      "value": "=>",
                       "location": {
-                        "line": 4,
-                        "column": 9,
-                        "length": 5
+                        "line": 1,
+                        "column": 25,
+                        "length": 2
                       }
                     },
                     "node": {
-                      "FunctionCall": {
+                      "LambdaExpression": {
                         "parameters": {
-                          "parameters": []
-                        },
-                        "type_parameters": null,
-                        "scope": {
-                          "child": null,
-                          "identifier": {
-                            "token_type": "Identifier",
-                            "value": "print",
-                            "location": {
-                              "line": 4,
-                              "column": 9,
-                              "length": 5
+                          "parameters": [
+                            {
+                              "token": {
+                                "token_type": "Identifier",
+                                "value": "x",
+                                "location": {
+                                  "line": 1,
+                                  "column": 23,
+                                  "length": 1
+                                }
+                              },
+                              "node": {
+                                "Identifier": {
+                                  "child": null,
+                                  "identifier": {
+                                    "token_type": "Identifier",
+                                    "value": "x",
+                                    "location": {
+                                      "line": 1,
+                                      "column": 23,
+                                      "length": 1
+                                    }
+                                  },
+                                  "scope_type": null,
+                                  "as_expression": null
+                                }
+                              }
                             }
-                          },
-                          "scope_type": null,
-                          "as_expression": null
+                          ]
+                        },
+                        "body": {
+                          "body": [
+                            {
+                              "token": {
+                                "token_type": "DoubleArrow",
+                                "value": "=>",
+                                "location": {
+                                  "line": 1,
+                                  "column": 25,
+                                  "length": 2
+                                }
+                              },
+                              "node": {
+                                "ReturnExpression": {
+                                  "token": {
+                                    "token_type": "Identifier",
+                                    "value": "x",
+                                    "location": {
+                                      "line": 1,
+                                      "column": 28,
+                                      "length": 1
+                                    }
+                                  },
+                                  "node": {
+                                    "FunctionCall": {
+                                      "parameters": {
+                                        "parameters": [
+                                          {
+                                            "token": {
+                                              "token_type": "DoubleArrow",
+                                              "value": "=>",
+                                              "location": {
+                                                "line": 1,
+                                                "column": 42,
+                                                "length": 2
+                                              }
+                                            },
+                                            "node": {
+                                              "LambdaExpression": {
+                                                "parameters": {
+                                                  "parameters": [
+                                                    {
+                                                      "token": {
+                                                        "token_type": "Identifier",
+                                                        "value": "y",
+                                                        "location": {
+                                                          "line": 1,
+                                                          "column": 40,
+                                                          "length": 1
+                                                        }
+                                                      },
+                                                      "node": {
+                                                        "Identifier": {
+                                                          "child": null,
+                                                          "identifier": {
+                                                            "token_type": "Identifier",
+                                                            "value": "y",
+                                                            "location": {
+                                                              "line": 1,
+                                                              "column": 40,
+                                                              "length": 1
+                                                            }
+                                                          },
+                                                          "scope_type": null,
+                                                          "as_expression": null
+                                                        }
+                                                      }
+                                                    }
+                                                  ]
+                                                },
+                                                "body": {
+                                                  "body": [
+                                                    {
+                                                      "token": {
+                                                        "token_type": "DoubleArrow",
+                                                        "value": "=>",
+                                                        "location": {
+                                                          "line": 1,
+                                                          "column": 42,
+                                                          "length": 2
+                                                        }
+                                                      },
+                                                      "node": {
+                                                        "ReturnExpression": {
+                                                          "token": {
+                                                            "token_type": "Plus",
+                                                            "value": "+",
+                                                            "location": {
+                                                              "line": 1,
+                                                              "column": 47,
+                                                              "length": 1
+                                                            }
+                                                          },
+                                                          "node": {
+                                                            "Operator": {
+                                                              "left": {
+                                                                "token": {
+                                                                  "token_type": "Identifier",
+                                                                  "value": "y",
+                                                                  "location": {
+                                                                    "line": 1,
+                                                                    "column": 45,
+                                                                    "length": 1
+                                                                  }
+                                                                },
+                                                                "node": {
+                                                                  "Identifier": {
+                                                                    "child": null,
+                                                                    "identifier": {
+                                                                      "token_type": "Identifier",
+                                                                      "value": "y",
+                                                                      "location": {
+                                                                        "line": 1,
+                                                                        "column": 45,
+                                                                        "length": 1
+                                                                      }
+                                                                    },
+                                                                    "scope_type": null,
+                                                                    "as_expression": null
+                                                                  }
+                                                                }
+                                                              },
+                                                              "right": {
+                                                                "token": {
+                                                                  "token_type": "NumberConstant",
+                                                                  "value": "1",
+                                                                  "location": {
+                                                                    "line": 1,
+                                                                    "column": 49,
+                                                                    "length": 1
+                                                                  }
+                                                                },
+                                                                "node": {
+                                                                  "Constant": {
+                                                                    "value": {
+                                                                      "token_type": "NumberConstant",
+                                                                      "value": "1",
+                                                                      "location": {
+                                                                        "line": 1,
+                                                                        "column": 49,
+                                                                        "length": 1
+                                                                      }
+                                                                    },
+                                                                    "constant_type": "U8"
+                                                                  }
+                                                                }
+                                                              },
+                                                              "operator": {
+                                                                "token_type": "Plus",
+                                                                "value": "+",
+                                                                "location": {
+                                                                  "line": 1,
+                                                                  "column": 47,
+                                                                  "length": 1
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "type_parameters": null,
+                                      "scope": {
+                                        "child": {
+                                          "child": {
+                                            "child": null,
+                                            "identifier": {
+                                              "token_type": "Identifier",
+                                              "value": "that",
+                                              "location": {
+                                                "line": 1,
+                                                "column": 35,
+                                                "length": 4
+                                              }
+                                            },
+                                            "scope_type": "Dot",
+                                            "as_expression": null
+                                          },
+                                          "identifier": {
+                                            "token_type": "Identifier",
+                                            "value": "this",
+                                            "location": {
+                                              "line": 1,
+                                              "column": 30,
+                                              "length": 4
+                                            }
+                                          },
+                                          "scope_type": "Dot",
+                                          "as_expression": null
+                                        },
+                                        "identifier": {
+                                          "token_type": "Identifier",
+                                          "value": "x",
+                                          "location": {
+                                            "line": 1,
+                                            "column": 28,
+                                            "length": 1
+                                          }
+                                        },
+                                        "scope_type": null,
+                                        "as_expression": null
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
                         }
                       }
                     }
                   }
                 ]
-              }
-            }
-          },
-          {
-            "token": {
-              "token_type": "Identifier",
-              "value": "v",
-              "location": {
-                "line": 6,
-                "column": 9,
-                "length": 1
-              }
-            },
-            "node": {
-              "VariableDeclaration": {
-                "var_type": {
-                  "token": {
+              },
+              "type_parameters": null,
+              "scope": {
+                "child": {
+                  "child": null,
+                  "identifier": {
                     "token_type": "Identifier",
-                    "value": "vec",
+                    "value": "select",
                     "location": {
-                      "line": 6,
-                      "column": 5,
-                      "length": 3
+                      "line": 1,
+                      "column": 16,
+                      "length": 6
                     }
                   },
-                  "node": {
-                    "TypeIdentifier": {
-                      "scope": {
-                        "child": null,
-                        "identifier": {
-                          "token_type": "Identifier",
-                          "value": "vec",
-                          "location": {
-                            "line": 6,
-                            "column": 5,
-                            "length": 3
-                          }
-                        },
-                        "scope_type": null,
-                        "as_expression": null
-                      },
-                      "type_parameters": null,
-                      "is_array": false
-                    }
-                  }
+                  "scope_type": "Dot",
+                  "as_expression": null
                 },
-                "var_name": {
+                "identifier": {
                   "token_type": "Identifier",
-                  "value": "v",
+                  "value": "array",
                   "location": {
-                    "line": 6,
-                    "column": 9,
-                    "length": 1
+                    "line": 1,
+                    "column": 10,
+                    "length": 5
                   }
                 },
-                "var_value": {
-                  "token": {
-                    "token_type": "LBrace",
-                    "value": "{",
-                    "location": {
-                      "line": 6,
-                      "column": 14,
-                      "length": 1
-                    }
-                  },
-                  "node": {
-                    "ObjectInstantiation": {
-                      "object_type": {
-                        "token": {
-                          "token_type": "Identifier",
-                          "value": "vec",
-                          "location": {
-                            "line": 6,
-                            "column": 11,
-                            "length": 3
-                          }
-                        },
-                        "node": {
-                          "Identifier": {
-                            "child": null,
-                            "identifier": {
-                              "token_type": "Identifier",
-                              "value": "vec",
-                              "location": {
-                                "line": 6,
-                                "column": 11,
-                                "length": 3
-                              }
-                            },
-                            "scope_type": null,
-                            "as_expression": null
-                          }
-                        }
-                      },
-                      "properties": [
-                        {
-                          "name": {
-                            "token_type": "Identifier",
-                            "value": "a",
-                            "location": {
-                              "line": 7,
-                              "column": 9,
-                              "length": 1
-                            }
-                          },
-                          "value": {
-                            "token": {
-                              "token_type": "LBrace",
-                              "value": "{",
-                              "location": {
-                                "line": 7,
-                                "column": 15,
-                                "length": 1
-                              }
-                            },
-                            "node": {
-                              "ObjectInstantiation": {
-                                "object_type": {
-                                  "token": {
-                                    "token_type": "Identifier",
-                                    "value": "a",
-                                    "location": {
-                                      "line": 7,
-                                      "column": 13,
-                                      "length": 1
-                                    }
-                                  },
-                                  "node": {
-                                    "Identifier": {
-                                      "child": null,
-                                      "identifier": {
-                                        "token_type": "Identifier",
-                                        "value": "a",
-                                        "location": {
-                                          "line": 7,
-                                          "column": 13,
-                                          "length": 1
-                                        }
-                                      },
-                                      "scope_type": null,
-                                      "as_expression": null
-                                    }
-                                  }
-                                },
-                                "properties": []
-                              }
-                            }
-                          }
-                        }
-                      ]
-                    }
-                  }
-                },
-                "description": null,
-                "access_modifier": []
+                "scope_type": null,
+                "as_expression": null
               }
             }
           }
-        ]
+        },
+        "description": null,
+        "access_modifier": []
       }
     }
   }

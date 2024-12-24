@@ -26,6 +26,7 @@ pub enum NodeType {
     ArrayExpression(NodeParameters),
     Indexer(IndexingExpression),
     ObjectInstantiation(ObjectInstantiation),
+    LambdaExpression(LambdaExpression),
 
     // flow
     If(ConditionalRegion),
@@ -323,4 +324,10 @@ pub struct TernaryConditional {
 pub struct IndexingExpression {
     pub object: Box<ASTNode>,
     pub index: Vec<Box<ASTNode>>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct LambdaExpression {
+    pub parameters: NodeParameters,
+    pub body: BodyRegion,
 }
