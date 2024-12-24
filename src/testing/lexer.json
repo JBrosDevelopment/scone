@@ -1,181 +1,28 @@
 [
   {
-    "token_type": "Auto",
-    "value": "auto",
+    "token_type": "LBracket",
+    "value": "[",
     "location": {
       "line": 1,
       "column": 1,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "Colon",
-    "value": ":",
-    "location": {
-      "line": 1,
-      "column": 5,
       "length": 1
     }
   },
   {
-    "token_type": "Identifier",
-    "value": "a",
+    "token_type": "NumberConstant",
+    "value": "0",
     "location": {
       "line": 1,
-      "column": 7,
+      "column": 2,
       "length": 1
     }
   },
   {
-    "token_type": "Assign",
-    "value": "=",
+    "token_type": "Comma",
+    "value": ",",
     "location": {
       "line": 1,
-      "column": 9,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "array",
-    "location": {
-      "line": 1,
-      "column": 10,
-      "length": 5
-    }
-  },
-  {
-    "token_type": "Dot",
-    "value": ".",
-    "location": {
-      "line": 1,
-      "column": 15,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "select",
-    "location": {
-      "line": 1,
-      "column": 16,
-      "length": 6
-    }
-  },
-  {
-    "token_type": "LParen",
-    "value": "(",
-    "location": {
-      "line": 1,
-      "column": 22,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "x",
-    "location": {
-      "line": 1,
-      "column": 23,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "DoubleArrow",
-    "value": "=>",
-    "location": {
-      "line": 1,
-      "column": 25,
-      "length": 2
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "x",
-    "location": {
-      "line": 1,
-      "column": 28,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Dot",
-    "value": ".",
-    "location": {
-      "line": 1,
-      "column": 29,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "this",
-    "location": {
-      "line": 1,
-      "column": 30,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "Dot",
-    "value": ".",
-    "location": {
-      "line": 1,
-      "column": 34,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "that",
-    "location": {
-      "line": 1,
-      "column": 35,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "LParen",
-    "value": "(",
-    "location": {
-      "line": 1,
-      "column": 39,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "y",
-    "location": {
-      "line": 1,
-      "column": 40,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "DoubleArrow",
-    "value": "=>",
-    "location": {
-      "line": 1,
-      "column": 42,
-      "length": 2
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "y",
-    "location": {
-      "line": 1,
-      "column": 45,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Plus",
-    "value": "+",
-    "location": {
-      "line": 1,
-      "column": 47,
+      "column": 3,
       "length": 1
     }
   },
@@ -184,7 +31,43 @@
     "value": "1",
     "location": {
       "line": 1,
-      "column": 49,
+      "column": 5,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RBracket",
+    "value": "]",
+    "location": {
+      "line": 1,
+      "column": 6,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Dot",
+    "value": ".",
+    "location": {
+      "line": 1,
+      "column": 7,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "first",
+    "location": {
+      "line": 1,
+      "column": 8,
+      "length": 5
+    }
+  },
+  {
+    "token_type": "LParen",
+    "value": "(",
+    "location": {
+      "line": 1,
+      "column": 13,
       "length": 1
     }
   },
@@ -193,25 +76,7 @@
     "value": ")",
     "location": {
       "line": 1,
-      "column": 50,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RParen",
-    "value": ")",
-    "location": {
-      "line": 1,
-      "column": 51,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": ";",
-    "location": {
-      "line": 1,
-      "column": 52,
+      "column": 14,
       "length": 1
     }
   }
