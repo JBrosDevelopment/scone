@@ -1,14 +1,13 @@
-[0, 1].first()
+pub type<T, a>::yes[]: please = a.b("o").c;
+
 
 // TODO:
+// [0, 1].first();
 // a: bracket_then_dot = arr[0].value
 // b: brace_then_dot = obj {}.value
 // c: tuple_then_dot = (1, 2, 3).a
-// a++; a-- // increment and decrement 
-// break; continue // keywords
 // string: s = obj as string // as cast
 // bool: b = obj is string // is check
-// _ = 0 // use of discard
 // loadlib "file.dll" // load dll
 // use LIB::This // include library
 // use LIB::* // library with astrix includes

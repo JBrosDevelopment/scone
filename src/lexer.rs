@@ -57,6 +57,7 @@ pub enum TokenType {
     DoubleArrow,
     Shabang,
     QuestionMark,
+    DotDotDot,
 
     // keywords
     Return,
@@ -387,10 +388,17 @@ impl Lexer {
             }
             else if c == '.' {
                 if chars.get(i + 1) == Some(&'.') {
-                    current_location.advance(2);
-                    tokens.push(Token::new(TokenType::RangeOperator, "..".to_string(), current_location.clone()));
-                    last_was_negatable_ability = 3;
-                    i += 1;
+                    if chars.get(i + 2) == Some(&'.') {
+                        current_location.advance(3);
+                        tokens.push(Token::new(TokenType::DotDotDot, "...".to_string(), current_location.clone()));
+                        i += 2;
+                    }
+                    else {
+                        current_location.advance(2);
+                        tokens.push(Token::new(TokenType::DotDotDot, "..".to_string(), current_location.clone()));
+                        i += 1;
+                        last_was_negatable_ability = 3;
+                    }
                 }
                 else {
                     current_location.advance(1);
@@ -457,6 +465,7 @@ impl Lexer {
                     
                     while i < chars.len() {
                         if chars[i] == '\n' {
+                            i -= 1;
                             break;
                         }
                         i += 1;
@@ -520,9 +529,12 @@ impl Lexer {
             }
             else if c == '+' {
                 if chars.get(i + 1) == Some(&'+') {
+                    // INCREMENT is not allowed in scone
                     current_location.advance(2);
-                    tokens.push(Token::new(TokenType::Increment, "++".to_string(), current_location.clone()));
                     i += 1;
+                    self.error("Scone has no increment operator", "not a valid operator, use `+=` instead", &current_location);
+
+                    // tokens.push(Token::new(TokenType::Increment, "++".to_string(), current_location.clone()));
                 }
                 else if chars.get(i + 1) == Some(&'=') {
                     last_was_negatable_ability = 3;
@@ -538,9 +550,11 @@ impl Lexer {
             }
             else if c == '-' {
                 if chars.get(i + 1) == Some(&'-') {
+                    // INCREMENT is not allowed in scone
                     current_location.advance(2);
-                    tokens.push(Token::new(TokenType::Decrement, "--".to_string(), current_location.clone()));
                     i += 1;
+                    self.error("Scone has no decrement operator", "not a valid operator, use `-=` instead", &current_location);
+                    //tokens.push(Token::new(TokenType::Decrement, "--".to_string(), current_location.clone()));
                 }
                 else if chars.get(i + 1) == Some(&'>') {
                     current_location.advance(2);

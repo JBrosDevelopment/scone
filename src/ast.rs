@@ -10,14 +10,15 @@ pub enum NodeType {
     Operator(Expression),
 
     // identifiers
-    Identifier(ScopeToIdentifier),
-    TypeIdentifier(TypeIdentifier),
+    Identifier(Box<Token>),
+    TypeIdentifier(ScopedType),
     AnonymousType(AnonymousType),
 
     // assignment
     Assignment(Assignment),
 
     // expression
+    ScopedExpression(ScopedIdentifier),
     FunctionCall(FunctionCall),
     TupleExpression(NodeParameters),
     ReturnExpression(Box<ASTNode>),
@@ -41,7 +42,7 @@ pub enum NodeType {
     Continue(Box<Token>),
 
     // other
-    Use(ScopeToIdentifier),
+    Use(ScopedIdentifier),
     LoadLib(LoadLib),
     AsCast(Expression),
     IsCheck(Expression),
@@ -144,7 +145,7 @@ pub struct NodeProperty {
 pub struct FunctionCall {
     pub parameters: NodeParameters,
     pub type_parameters: Option<Vec<Box<ASTNode>>>,
-    pub scope: ScopeToIdentifier,
+    pub name: Box<Token>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -155,11 +156,11 @@ pub struct ConstantNode {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct VariableDeclaration {
+    pub access_modifier: Vec<AccessModifier>,
     pub var_type: Box<ASTNode>,
     pub var_name: Box<Token>,
     pub var_value: Box<ASTNode>,
     pub description: Option<Box<Token>>,
-    pub access_modifier: Vec<AccessModifier>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -225,7 +226,7 @@ pub struct Assignment {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub enum ScopeType { Dot, DoubleColon }
+pub enum ScopeType { Dot, DoubleColon }  // scope for type before, meaning: Scope::Into.dot -> Scope has none, Into has DoubleColon, dot has Dot
 impl ScopeType {
     pub fn to_string(&self) -> String {
         match self {
@@ -235,17 +236,16 @@ impl ScopeType {
     }
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct ScopeToIdentifier {
-    pub child: Option<Box<ScopeToIdentifier>>,
-    pub identifier: Box<Token>,
-    pub scope_type: Option<ScopeType>, // scope for type before, meaning: Scope::Into.dot -> Scope has none, Into has DoubleColon, dot has Dot
-    pub as_expression: Option<Box<ASTNode>>, // This is for function/member chaining: Scope::function().other_func() -> Scope has None, function has None, other_func has function's ASTNode
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)] 
+pub struct ScopedIdentifier { 
+    pub scope: Vec<Identifier>, // index 0 is root, index n is in chain or scoped
 }
-impl ScopeToIdentifier {
-    pub fn is_chained(&self) -> bool {
-        self.as_expression.is_some()
-    }
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct Identifier {
+    pub name: Box<Token>,
+    pub expression: Option<Box<ASTNode>>,
+    pub scope_type: Option<ScopeType>, 
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -296,8 +296,14 @@ pub struct Expression {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct TypeIdentifier {
-    pub scope: ScopeToIdentifier,
+    pub name: Box<Token>,
+    pub scope_type: Option<ScopeType>,
     pub type_parameters: Option<NodeParameters>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct ScopedType {
+    pub scope: Vec<TypeIdentifier>,
     pub is_array: bool,
 }
 

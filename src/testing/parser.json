@@ -2,33 +2,215 @@
   {
     "token": {
       "token_type": "Identifier",
-      "value": "first",
+      "value": "please",
       "location": {
         "line": 1,
-        "column": 8,
-        "length": 5
+        "column": 24,
+        "length": 6
       }
     },
     "node": {
-      "FunctionCall": {
-        "parameters": {
-          "parameters": []
-        },
-        "type_parameters": null,
-        "scope": {
-          "child": null,
-          "identifier": {
+      "VariableDeclaration": {
+        "access_modifier": [
+          "Public"
+        ],
+        "var_type": {
+          "token": {
             "token_type": "Identifier",
-            "value": "first",
+            "value": "type",
             "location": {
               "line": 1,
-              "column": 8,
-              "length": 5
+              "column": 5,
+              "length": 4
             }
           },
-          "scope_type": null,
-          "as_expression": null
-        }
+          "node": {
+            "TypeIdentifier": {
+              "scope": [
+                {
+                  "name": {
+                    "token_type": "DoubleColon",
+                    "value": "::",
+                    "location": {
+                      "line": 1,
+                      "column": 15,
+                      "length": 2
+                    }
+                  },
+                  "scope_type": null,
+                  "type_parameters": null
+                },
+                {
+                  "name": {
+                    "token_type": "Identifier",
+                    "value": "yes",
+                    "location": {
+                      "line": 1,
+                      "column": 17,
+                      "length": 3
+                    }
+                  },
+                  "scope_type": "DoubleColon",
+                  "type_parameters": null
+                }
+              ],
+              "is_array": true
+            }
+          }
+        },
+        "var_name": {
+          "token_type": "Identifier",
+          "value": "please",
+          "location": {
+            "line": 1,
+            "column": 24,
+            "length": 6
+          }
+        },
+        "var_value": {
+          "token": {
+            "token_type": "Identifier",
+            "value": "a",
+            "location": {
+              "line": 1,
+              "column": 33,
+              "length": 1
+            }
+          },
+          "node": {
+            "ScopedExpression": {
+              "scope": [
+                {
+                  "name": {
+                    "token_type": "Identifier",
+                    "value": "a",
+                    "location": {
+                      "line": 1,
+                      "column": 33,
+                      "length": 1
+                    }
+                  },
+                  "expression": null,
+                  "scope_type": null
+                },
+                {
+                  "name": {
+                    "token_type": "Identifier",
+                    "value": "b",
+                    "location": {
+                      "line": 1,
+                      "column": 35,
+                      "length": 1
+                    }
+                  },
+                  "expression": null,
+                  "scope_type": "Dot"
+                },
+                {
+                  "name": {
+                    "token_type": "Identifier",
+                    "value": "b",
+                    "location": {
+                      "line": 1,
+                      "column": 35,
+                      "length": 1
+                    }
+                  },
+                  "expression": {
+                    "token": {
+                      "token_type": "Identifier",
+                      "value": "b",
+                      "location": {
+                        "line": 1,
+                        "column": 35,
+                        "length": 1
+                      }
+                    },
+                    "node": {
+                      "FunctionCall": {
+                        "parameters": {
+                          "parameters": [
+                            {
+                              "token": {
+                                "token_type": "StringConstant",
+                                "value": "o",
+                                "location": {
+                                  "line": 1,
+                                  "column": 37,
+                                  "length": 3
+                                }
+                              },
+                              "node": {
+                                "Constant": {
+                                  "value": {
+                                    "token_type": "StringConstant",
+                                    "value": "o",
+                                    "location": {
+                                      "line": 1,
+                                      "column": 37,
+                                      "length": 3
+                                    }
+                                  },
+                                  "constant_type": "String"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "type_parameters": null,
+                        "name": {
+                          "token_type": "Identifier",
+                          "value": "b",
+                          "location": {
+                            "line": 1,
+                            "column": 35,
+                            "length": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "scope_type": null
+                },
+                {
+                  "name": {
+                    "token_type": "Identifier",
+                    "value": "c",
+                    "location": {
+                      "line": 1,
+                      "column": 42,
+                      "length": 1
+                    }
+                  },
+                  "expression": {
+                    "token": {
+                      "token_type": "Identifier",
+                      "value": "c",
+                      "location": {
+                        "line": 1,
+                        "column": 42,
+                        "length": 1
+                      }
+                    },
+                    "node": {
+                      "Identifier": {
+                        "token_type": "Identifier",
+                        "value": "c",
+                        "location": {
+                          "line": 1,
+                          "column": 42,
+                          "length": 1
+                        }
+                      }
+                    }
+                  },
+                  "scope_type": "Dot"
+                }
+              ]
+            }
+          }
+        },
+        "description": null
       }
     }
   }
