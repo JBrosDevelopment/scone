@@ -243,8 +243,7 @@ pub struct ScopedIdentifier {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Identifier {
-    pub name: Box<Token>,
-    pub expression: Option<Box<ASTNode>>,
+    pub expression: Box<ASTNode>,
     pub scope_type: Option<ScopeType>, 
 }
 

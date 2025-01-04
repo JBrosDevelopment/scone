@@ -1,4 +1,4 @@
-pub type<T, a>::yes[]: please = a.b("o").c;
+Array::new<string>()
 
 
 // TODO:
