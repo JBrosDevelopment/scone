@@ -1,7 +1,7 @@
 [
   {
     "token_type": "Identifier",
-    "value": "a",
+    "value": "b",
     "location": {
       "line": 1,
       "column": 1,
@@ -19,11 +19,11 @@
   },
   {
     "token_type": "Identifier",
-    "value": "bracket_then_dot",
+    "value": "brace_then_dot",
     "location": {
       "line": 1,
       "column": 4,
-      "length": 16
+      "length": 14
     }
   },
   {
@@ -31,31 +31,40 @@
     "value": "=",
     "location": {
       "line": 1,
-      "column": 21,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "LBracket",
-    "value": "[",
-    "location": {
-      "line": 1,
-      "column": 23,
+      "column": 19,
       "length": 1
     }
   },
   {
     "token_type": "Identifier",
-    "value": "arr",
+    "value": "obj",
     "location": {
       "line": 1,
-      "column": 24,
+      "column": 21,
       "length": 3
     }
   },
   {
-    "token_type": "LBracket",
-    "value": "[",
+    "token_type": "LBrace",
+    "value": "{",
+    "location": {
+      "line": 1,
+      "column": 25,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RBrace",
+    "value": "}",
+    "location": {
+      "line": 1,
+      "column": 26,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Dot",
+    "value": ".",
     "location": {
       "line": 1,
       "column": 27,
@@ -63,8 +72,8 @@
     }
   },
   {
-    "token_type": "NumberConstant",
-    "value": "0",
+    "token_type": "Identifier",
+    "value": "v",
     "location": {
       "line": 1,
       "column": 28,
@@ -72,8 +81,8 @@
     }
   },
   {
-    "token_type": "RBracket",
-    "value": "]",
+    "token_type": "Dot",
+    "value": ".",
     "location": {
       "line": 1,
       "column": 29,
@@ -81,8 +90,8 @@
     }
   },
   {
-    "token_type": "Dot",
-    "value": ".",
+    "token_type": "Identifier",
+    "value": "x",
     "location": {
       "line": 1,
       "column": 30,
@@ -90,47 +99,11 @@
     }
   },
   {
-    "token_type": "Identifier",
-    "value": "value",
-    "location": {
-      "line": 1,
-      "column": 31,
-      "length": 5
-    }
-  },
-  {
-    "token_type": "RBracket",
-    "value": "]",
-    "location": {
-      "line": 1,
-      "column": 36,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Dot",
-    "value": ".",
-    "location": {
-      "line": 1,
-      "column": 37,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "first",
-    "location": {
-      "line": 1,
-      "column": 38,
-      "length": 5
-    }
-  },
-  {
     "token_type": "LParen",
     "value": "(",
     "location": {
       "line": 1,
-      "column": 43,
+      "column": 31,
       "length": 1
     }
   },
@@ -139,7 +112,7 @@
     "value": ")",
     "location": {
       "line": 1,
-      "column": 44,
+      "column": 32,
       "length": 1
     }
   }

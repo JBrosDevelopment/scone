@@ -285,7 +285,7 @@ impl Parser {
             scope = self.function_call(tokens, Some(scope), i, last_punc)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
-            scope = self.get_object_instantiation(tokens, Some(scope), i)
+            scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc)
         }
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
@@ -684,16 +684,13 @@ impl Parser {
         array_nodes
     }
 
-    fn get_object_instantiation(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize) -> ScopedIdentifier {
-        if scope.is_none() {
-            self.error("No scope for object instantiation", "Expected a type for object instantiation: `type { properties... }`", &tokens[*i].location);
-        }
-        let mut scope = scope.unwrap();
+    fn get_object_instantiation(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize, last_punc: Option<ScopeType>) -> ScopedIdentifier {
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
         let mut comma_vec_index = 0;
         let mut parenthesis_level = 0;
         let mut brace_level = 0;
         let mut bracket_level = 0;
+        let name_token = tokens[*i - 1].clone();
 
         let mut last_was_comma = 0;
         let mut angle_bracket_level_count = 0; 
@@ -817,16 +814,26 @@ impl Parser {
 
         let object_instantiation = ObjectInstantiation {
             properties,
-            object_type: scope.scope.last().unwrap().expression.clone(),
+            object_type: Box::new(ASTNode {
+                token: name_token.clone(),
+                node: Box::new(NodeType::Identifier(name_token.clone()))
+            }),
         };
-
-        scope.scope.last_mut().unwrap().expression = Box::new(ASTNode {
-            token: tokens[*i].clone(),
-            node: Box::new(NodeType::ObjectInstantiation(object_instantiation)),
+        
+        let mut scope = scope.unwrap_or(ScopedIdentifier {
+            scope: vec![]
         });
 
-        if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Dot) {
-            *i += 1;
+        scope.scope.push(Identifier {
+            expression: Box::new(ASTNode {
+                token: name_token,
+                node: Box::new(NodeType::ObjectInstantiation(object_instantiation))
+            }),
+            scope_type: last_punc
+        });
+
+        if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
+            *i += 2;
             let chained_expression = self.get_expression(tokens, i);
             scope.scope.push(Identifier {
                 expression: chained_expression,
@@ -836,7 +843,7 @@ impl Parser {
             *i -= 1; 
             scope
         } else {
-            *i -= 1;
+            *i += 1;
             scope
         }
     }
@@ -1174,17 +1181,7 @@ impl Parser {
             }
             else if token.token_type == TokenType::LBrace {
                 if last_was_ident {
-                    let temp_scope = ScopedIdentifier {
-                        scope: vec![Identifier {
-                            expression: expr_stack.pop().map(|x| x.0).unwrap_or(
-                                Box::new(ASTNode {
-                                    token: tokens[*i - 1].clone(),
-                                    node: Box::new(NodeType::Identifier(tokens[*i - 1].clone())),
-                                })),
-                            scope_type: None,
-                        }]
-                    };
-                    let obj_instantiation = self.get_object_instantiation(tokens, Some(temp_scope), i);
+                    let obj_instantiation = self.get_object_instantiation(tokens, None, i, None);
 
                     expr_stack.push((Box::new(ASTNode {
                         token: tokens[*i - 1].clone(),

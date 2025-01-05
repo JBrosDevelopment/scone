@@ -1,0 +1,17 @@
+... Idea for SCASM
+... "Scone Assembly"
+
+local 4 x 4 0
+add 4 $x 4 1
+
+push 4 $x
+push 4 99
+goto addition
+pop 4 result
+
+mark addition
+pop 4 left
+pop 4 right
+add 4 $left 4 $right
+push 4 $left
+return

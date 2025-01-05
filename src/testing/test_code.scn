@@ -1,24 +1,29 @@
-a: bracket_then_dot = [arr[0].value].first()
 
 
 // TODO:
-// b: brace_then_dot = obj {}.value
 // c: tuple_then_dot = (1, 2, 3).a
 // string: s = obj as string // as cast
 // bool: b = obj is string // is check
-// loadlib "file.dll" // load dll
-// use LIB::This // include library
-// use LIB::* // library with astrix includes
-// use LIB::{a, b} // includes specific members
-// #! alias // for compiler: shorthand for instantiation of class
-// #! def NAME = VALUE // for compiler: define compile time constants
-// #! defc NAME // for compiler if not defined, then define. For files
 // if 0 == 0 || false { }
 // else if true { }
 // else { }
 // while true { }
 // for x in array.skip(1) { }
 // match name { "john" => {}, "doe" => {}, _ => {} }
+// loadlib "file.dll" // load dll
+// use LIB::This // include library
+// use LIB::* // library with astrix includes
+// use LIB::{a, b} // includes specific members
+// #! alias // for compiler: shorthand for instantiation of class
+// #! def NAME = VALUE // for compiler: define compile time constants
+// #! def ADD(x, y) x + y // define function
+// #! once NAME // for compiler if not defined, then define. For files
+// #! ifndef NAME // spceific compile time if
+// #! if ARGUMENT // if statement for compilers
+// #! deprecated 
+// #! allow WARNING_OR_ERROR
+// #! warn WARNING_OR_ERROR
+// #! error WARNING_OR_ERROR
 // void: add(u8: a, u8: b) -> "example" { }
 // enum Files { File1 = 0 -> "1", File2 }
 // class Color { }
