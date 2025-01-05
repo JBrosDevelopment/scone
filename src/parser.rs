@@ -2,11 +2,11 @@
 // remove all unwrapping and replace with error handling
 // go over and make sure no unneciary cloning is happening
 
-use std::vec;
-
 use crate::lexer::{Token, TokenType, Location};
-use crate::ast::*;
-use crate::error_handling::ErrorHandling;
+use crate::{ast::*, error_handling::ErrorHandling};
+
+#[allow(unused_imports)]
+use crate::debug;
 
 pub fn parse(tokens: Vec<Token>, file: &String, code: &String) -> Vec<ASTNode> {
     let mut parser = Parser::new(Some(file.clone()), code.clone(), tokens);
@@ -275,25 +275,25 @@ impl Parser {
         *i -= 1;
 
         let mut last_punc = None;
-        let scope: ScopedIdentifier = self.get_ident_scope(tokens, i, &mut last_punc);
+        let mut scope = self.get_ident_scope(tokens, i, &mut last_punc);
         *i += 1;
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LParen) {
-            self.function_call(tokens, Some(scope), i, last_punc)
+            scope = self.function_call(tokens, Some(scope), i, last_punc)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LessThan) {
-            self.function_call(tokens, Some(scope), i, last_punc)
-        }
-        else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) { 
-            self.get_array_expression(tokens, Some(scope), Some(tokens[*i - 1].clone()), i)
+            scope = self.function_call(tokens, Some(scope), i, last_punc)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
-            self.get_object_instantiation(tokens, Some(scope), i)
+            scope = self.get_object_instantiation(tokens, Some(scope), i)
         }
-        else {
-            *i -= 1;
-            scope
+
+        if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
+            scope = self.get_indexer_expression(tokens, Some(scope), i)
         }
+
+        *i -= 1;
+        return scope
     }
     
     fn get_ternary(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> NodeType {
@@ -475,10 +475,99 @@ impl Parser {
         NodeType::TernaryOperator(ternary)
     }
 
-    fn get_array_expression(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, original_token: Option<Box<Token>>, i: &mut usize) -> ScopedIdentifier {
-        let mut scope = scope;
+    fn get_indexer_expression(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize) -> ScopedIdentifier {
+        let array_nodes = self.array_nodes(tokens, i);
+
+        if scope.is_none() {
+            self.error("Couldn't parse indexing", "Expected an indexer, but no object was provided for the index", &tokens[*i].location);
+        }
+        
+        let mut scope = scope.unwrap();
+        let pop_wrapped = scope.scope.pop();
+        
+        if pop_wrapped.is_none() {
+            self.error("Couldn't parse indexing", "Expected an indexer, but no object was provided for the index", &tokens[*i].location);
+        }
+        let pop = pop_wrapped.unwrap();
+        let expression = pop.expression.clone();
+
+        let indexing = IndexingExpression {
+            object: expression,
+            index: array_nodes,
+        };
+
+        let expression = Box::new(ASTNode {
+            token: pop.expression.token,
+            node: Box::new(NodeType::Indexer(indexing))
+        });
+
+        let scope_type = pop.scope_type;
+
+        let identifier = Identifier { expression, scope_type };
+
+        scope.scope.push(identifier);
+        *i += 1;
+
+        if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
+            scope = self.get_indexer_expression(tokens, Some(scope), i)
+        }
+        if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Dot) {
+            *i += 2;
+            let call = self.scope_call(tokens, i);
+            let mut push = vec![];
+            for (i, c) in call.scope.iter().enumerate() {
+                if i == 0 {
+                    push.push(Identifier {
+                        expression: c.expression.clone(),
+                        scope_type: Some(ScopeType::Dot)
+                    });
+                } else {
+                    push.push(Identifier {
+                        expression: c.expression.clone(),
+                        scope_type: c.scope_type.clone()
+                    });
+                }
+            }
+            for p in push {
+                scope.scope.push(p);
+            }
+        }
+
+        ScopedIdentifier {
+            scope: scope.scope
+        }
+    }
+
+    fn get_array_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ScopedIdentifier {
         let first_token = tokens[*i].clone();
-        // I need to loop through until I find the matching end bracket. I need to keep track of parenthesis and braces.
+        let array_nodes = self.array_nodes(tokens, i);
+
+        // Update the last identifier's expression if possible
+        let mut scope = ScopedIdentifier {
+            scope: vec![Identifier {
+                expression: Box::new(ASTNode {
+                    token: first_token.clone(),
+                    node: Box::new(NodeType::ArrayExpression(NodeParameters { parameters: array_nodes.clone() })),
+                }),
+                scope_type: None,
+            }],
+        };
+    
+        // Handle chaining if the next token is a dot
+        if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
+            *i += 2;
+            let chained_expression = self.get_expression(tokens, i);
+            scope.scope.push(Identifier {
+                expression: chained_expression,
+                scope_type: Some(ScopeType::Dot),
+            });
+            *i -= 1; 
+        }
+
+        scope        
+    }
+
+    fn array_nodes(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
         let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
         let mut comma_vec_index = 0;
         let mut parenthesis_level = 0;
@@ -585,51 +674,14 @@ impl Parser {
             *i += 1;
         }
 
-        let mut array_nodes: Vec<Box<ASTNode>> = vec![];
+        let mut array_nodes = vec![];
         for token_vec in all_tokens {
             let mut token_vec= token_vec.clone();
             let node = self.get_entire_expression(&mut token_vec);
             array_nodes.push(node);
         }
-    
-        // Update the last identifier's expression if possible
-        if let Some(s) = scope.as_mut() {
-            if let Some(last) = s.clone().scope.last_mut() {
-                let last_token = original_token.unwrap_or(last.expression.token.clone());    
-                last.expression = Box::new(ASTNode {
-                    token: last_token.clone(),
-                    node: Box::new(NodeType::Indexer(IndexingExpression {
-                        object: last.expression.clone(),
-                        index: array_nodes.clone(),
-                    })),
-                });
-            }
-        }
 
-        let mut scope = scope.take().unwrap_or(ScopedIdentifier {
-            scope: vec![Identifier {
-                expression: Box::new(ASTNode {
-                    token: first_token.clone(),
-                    node: Box::new(NodeType::ArrayExpression(NodeParameters { parameters: array_nodes.clone() })),
-                }),
-                scope_type: None,
-            }],
-        });
-    
-        // Handle chaining if the next token is a dot
-        if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Dot) {
-            *i += 1;
-            let chained_expression = self.get_expression(tokens, i);
-            scope.scope.push(Identifier {
-                expression: chained_expression,
-                scope_type: Some(ScopeType::Dot),
-            });
-            *i -= 1; 
-        } else {
-            *i -= 1;
-        }
-    
-        scope        
+        array_nodes
     }
 
     fn get_object_instantiation(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize) -> ScopedIdentifier {
@@ -1048,7 +1100,7 @@ impl Parser {
                     // part of function call
                     expr_stack.push((Box::new(ASTNode { 
                         token: tokens[*i - 1].clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.function_call(tokens, None, i, None))),
+                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i))),
                     }), *i));
                 }
                 else {
@@ -1102,7 +1154,7 @@ impl Parser {
                             scope_type: None,
                         }]
                     };
-                    let indexing_expresion = self.get_array_expression(tokens, Some(temp_scope), Some(tokens[*i - 1].clone()), i);
+                    let indexing_expresion = self.get_indexer_expression(tokens, Some(temp_scope), i);
                     expr_stack.push((Box::new(ASTNode {
                         token: token.clone(),
                         node: Box::new(NodeType::ScopedExpression(indexing_expresion)),
@@ -1110,7 +1162,7 @@ impl Parser {
                 }
                 else {
                     // array expression
-                    let array_expression = self.get_array_expression(tokens, None, None, i);
+                    let array_expression = self.get_array_expression(tokens, i);
                     expr_stack.push((Box::new(ASTNode {
                         token: token.clone(),
                         node: Box::new(NodeType::ScopedExpression(array_expression)),
@@ -1716,7 +1768,7 @@ impl Parser {
         }
     }
 
-    fn get_ident_scope(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, last_punc: &mut Option<ScopeType>) -> ScopedIdentifier { 
+    fn get_ident_scope(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, last_punc: &mut Option<ScopeType>) -> ScopedIdentifier {
         let mut iterate = tokens.iter().skip(*i).peekable();
         let mut scope = ScopedIdentifier { 
             scope: vec![Identifier { 
@@ -1770,6 +1822,11 @@ impl Parser {
                     });
                     *last_punc = None;
                 }
+                TokenType::LBracket => {
+                    *i -= 1;
+                    *last_punc = keep_last_punc;
+                    return scope;
+                }
                 _ => {
                     *i -= 1;
                     *last_punc = keep_last_punc;
@@ -1784,7 +1841,7 @@ impl Parser {
             return scope;
         }
 
-        return scope
+        return scope;
     }
 
     fn get_type_scope(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, scope: Vec<TypeIdentifier>) -> Vec<TypeIdentifier> { 

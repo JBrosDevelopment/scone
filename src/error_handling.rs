@@ -123,3 +123,10 @@ pub enum MessageType {
     Warning,
     Message
 }
+
+#[macro_export]
+macro_rules! debug {
+    ($obj:expr) => {
+        println!("DEBUG: {:#?}", $obj);
+    };
+}

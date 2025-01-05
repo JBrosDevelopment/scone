@@ -1,9 +1,7 @@
-Array::new<string>()
+a: bracket_then_dot = [arr[0].value].first()
 
 
 // TODO:
-// [0, 1].first();
-// a: bracket_then_dot = arr[0].value
 // b: brace_then_dot = obj {}.value
 // c: tuple_then_dot = (1, 2, 3).a
 // string: s = obj as string // as cast
