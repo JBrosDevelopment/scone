@@ -1,9 +1,5 @@
-
-
 // TODO:
 // c: tuple_then_dot = (1, 2, 3).a
-// string: s = obj as string // as cast
-// bool: b = obj is string // is check
 // if 0 == 0 || false { }
 // else if true { }
 // else { }

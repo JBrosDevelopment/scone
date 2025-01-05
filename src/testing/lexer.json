@@ -1,11 +1,11 @@
 [
   {
     "token_type": "Identifier",
-    "value": "b",
+    "value": "string",
     "location": {
       "line": 1,
       "column": 1,
-      "length": 1
+      "length": 6
     }
   },
   {
@@ -13,17 +13,17 @@
     "value": ":",
     "location": {
       "line": 1,
-      "column": 2,
+      "column": 7,
       "length": 1
     }
   },
   {
     "token_type": "Identifier",
-    "value": "brace_then_dot",
+    "value": "s",
     "location": {
       "line": 1,
-      "column": 4,
-      "length": 14
+      "column": 9,
+      "length": 1
     }
   },
   {
@@ -31,7 +31,7 @@
     "value": "=",
     "location": {
       "line": 1,
-      "column": 19,
+      "column": 11,
       "length": 1
     }
   },
@@ -40,22 +40,31 @@
     "value": "obj",
     "location": {
       "line": 1,
-      "column": 21,
+      "column": 13,
       "length": 3
     }
   },
   {
-    "token_type": "LBrace",
-    "value": "{",
+    "token_type": "As",
+    "value": "as",
     "location": {
       "line": 1,
-      "column": 25,
-      "length": 1
+      "column": 17,
+      "length": 2
     }
   },
   {
-    "token_type": "RBrace",
-    "value": "}",
+    "token_type": "Identifier",
+    "value": "string",
+    "location": {
+      "line": 1,
+      "column": 20,
+      "length": 6
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": ";",
     "location": {
       "line": 1,
       "column": 26,
@@ -63,57 +72,66 @@
     }
   },
   {
-    "token_type": "Dot",
-    "value": ".",
+    "token_type": "Identifier",
+    "value": "bool",
     "location": {
-      "line": 1,
-      "column": 27,
+      "line": 2,
+      "column": 1,
+      "length": 4
+    }
+  },
+  {
+    "token_type": "Colon",
+    "value": ":",
+    "location": {
+      "line": 2,
+      "column": 5,
       "length": 1
     }
   },
   {
     "token_type": "Identifier",
-    "value": "v",
+    "value": "b",
     "location": {
-      "line": 1,
-      "column": 28,
+      "line": 2,
+      "column": 7,
       "length": 1
     }
   },
   {
-    "token_type": "Dot",
-    "value": ".",
+    "token_type": "Assign",
+    "value": "=",
     "location": {
-      "line": 1,
-      "column": 29,
+      "line": 2,
+      "column": 9,
       "length": 1
     }
   },
   {
     "token_type": "Identifier",
-    "value": "x",
+    "value": "obj",
     "location": {
-      "line": 1,
-      "column": 30,
-      "length": 1
+      "line": 2,
+      "column": 11,
+      "length": 3
     }
   },
   {
-    "token_type": "LParen",
-    "value": "(",
+    "token_type": "Is",
+    "value": "is",
     "location": {
-      "line": 1,
-      "column": 31,
-      "length": 1
+      "line": 2,
+      "column": 15,
+      "length": 2
     }
   },
   {
-    "token_type": "RParen",
-    "value": ")",
+    "token_type": "Identifier",
+    "value": "string",
     "location": {
-      "line": 1,
-      "column": 32,
-      "length": 1
+      "line": 2,
+      "column": 18,
+      "length": 6
     }
   }
 ]

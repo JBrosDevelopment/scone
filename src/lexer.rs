@@ -128,7 +128,9 @@ impl TokenType {
             TokenType::Or |
             TokenType::RangeOperator |
             TokenType::PowerOf |
-            TokenType::Not
+            TokenType::Not |
+            TokenType::Is |
+            TokenType::As
         )
     }
     pub fn operator_assignable(&self) -> bool {
@@ -145,6 +147,7 @@ impl TokenType {
             TokenType::Plus | TokenType::Dash => 4,
             TokenType::Star | TokenType::Slash | TokenType::Modulas => 5, 
             TokenType::PowerOf => 6,
+            TokenType::Is | TokenType::As => 7,
             TokenType::LParen | TokenType::RParen => 0, 
             _ => -1, 
         }
