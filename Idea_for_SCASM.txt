@@ -1,17 +1,59 @@
-... Idea for SCASM
-... "Scone Assembly"
+; Idea for SCASM
+; "Scone Assembly"
 
-local 4 x 4 0
-add 4 $x 4 1
+; i for int, u for unsigned, f for float, b for binary, wrap in ' for char, and wrap in " for string
+; i-1, u2, f0.1, b00000000, 'a', "Hello World!"
 
-push 4 $x
-push 4 99
+; % to get interpreter variables
+; $ to get variable
+; & to get address
+; # to get length of variable
+; @ to get type of variable
+
+; value is formatted as:
+; LENGTH   TYPE   VALUE
+;   4      byte    i0 
+; if length is prefixed with :, then it is length of bits not bytes
+; :1 bit b0
+
+var 4 byte x 4 byte i0
+add 4 byte $x 4 byte i1
+
+push 4 byte $x
+push 4 byte i99
 goto addition
-pop 4 result
+pop 4 byte result
 
 mark addition
-pop 4 left
-pop 4 right
-add 4 $left 4 $right
-push 4 $left
+pop 4 byte left
+pop 4 byte right
+add 4 byte $left 4 byte $right
+push 4 byte $left
 return
+
+var 1 byte example_byte 1 byte b01010101
+var 4 float example_float 4 float f3.14
+var 8 byte example_long 8 byte i999999999999
+var 2 byte example_unsigned 2 byte u257
+var :1 bit example_boolean :1 bit b0
+var 1 byte example_char 1 byte 'H'
+var 11 byte example_string 11 string "Hello World!"
+
+push 11 byte $example_string
+sys print 11 ; print 11 bytes off of stack and pops stack
+
+var 1 byte address 1 byte &x            ; get address
+load #x @x &address y                   ; load from address
+
+
+; what the var keyword does
+; example: var 4 byte name 4 byte 100
+var_stack_push :2 bit b01 ; code for byte type
+var_stack_push :6 bit i4 ; id of variable
+;???? unfinished
+
+; data types
+; example: struct vector {i32: x, i32: y}
+; when getting instance, compiles to: (i32, i32): name = (0, 100)
+var 4 byte name_t1 4 byte i0
+var 4 byte name_t2 4 byte i100

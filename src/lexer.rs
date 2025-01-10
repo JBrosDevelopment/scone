@@ -671,6 +671,7 @@ impl Lexer {
                 }
             }
             else if c == ':' {
+                last_was_negatable_ability = 3;
                 if chars.get(i + 1) == Some(&':') {
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::DoubleColon, "::".to_string(), current_location.clone()));

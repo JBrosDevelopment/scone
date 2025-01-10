@@ -1,5 +1,10 @@
+x = -((5 + array[0][2]) * ~(tuple[1].b));
+//result = func(array[1][2], (nested { x = 1 }).x, true);
+//auto: expr = (2 * (3 + 5)).a + array[3][4];
+//matrix[1][0] = (10 + nested[0][0]).a;
+//str: complex = (nested::call<type1, type2>(arg1, arg2)[0]).a + "suffix";
+
 // TODO:
-// c: tuple_then_dot = (1, 2, 3).a
 // if 0 == 0 || false { }
 // else if true { }
 // else { }
