@@ -1,4 +1,14 @@
-x = -((5 + array[0][2]) * ~(tuple[1].b));
+i23: x = (5 + 3) * -(-2);
+value = (1, "test", true).b;
+auto: result = array[0][1] + matrix[2][3];
+point: vec = vec { x = 10, y = array[1][2] };
+str: message = func<type>("arg1", (nested[1][0], "test").a);
+bool: check = (x > 0 ? 1 : 2) == (tuple[0].c);
+i32: value = { x: i32 = 10; y = -x * 3; return y; };
+tuple: data = (3, 4, vec { a = 1, b = 2 }).c;
+x = -((5 + array) * ~(tuple[1].b));
+
+
 //result = func(array[1][2], (nested { x = 1 }).x, true);
 //auto: expr = (2 * (3 + 5)).a + array[3][4];
 //matrix[1][0] = (10 + nested[0][0]).a;

@@ -1,4 +1,4 @@
-x: i32 = (5 + 3) * -(-2);
+i32: x = (5 + 3) * -(-2);
 value = (1, "test", true).b;
 auto: result = array[0][1] + matrix[2][3];
 point: vec = vec { x = 10, y = array[1][2] };

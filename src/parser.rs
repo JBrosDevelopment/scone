@@ -38,8 +38,8 @@ impl Parser {
         self.ast = self.generate_from_tokens();
 
         // for testing
-        for node in self.ast.iter() {
-            Self::print_node(node);
+        for _node in self.ast.iter() {
+            //Self::print_node(node);
         }
     }
 
@@ -57,9 +57,12 @@ impl Parser {
         let mut ast: Vec<ASTNode> = Vec::new();
         
         while self.__curent_line < self.lines.len() {
+            println!("> {}", self.output.full_code.split(";").map(|x|x.trim()).collect::<Vec<&str>>()[self.__curent_line]);
             let mut tokens = self.lines[self.__curent_line].clone();
             if let Ok(node) = self.get_ast_node(&mut tokens) {
+                println!("  {}", Self::node_expr_to_string(&node));
                 ast.push(node);
+                println!();
             }
             self.__curent_line += 1;
         }
@@ -285,6 +288,15 @@ impl Parser {
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
             scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc)
+        }
+        else if tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Identifier) && !tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
+            scope.scope.push(Identifier {
+                scope_type: last_punc,
+                expression: Box::new(ASTNode {
+                    token: tokens[*i - 1].clone(),
+                    node: Box::new(NodeType::Identifier(tokens[*i - 1].clone())),
+                })
+            });
         }
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
@@ -543,12 +555,14 @@ impl Parser {
         let scope_type = pop.scope_type;
 
         let identifier = Identifier { expression, scope_type };
+        let mut went_through_lbracket = false;
 
         scope.scope.push(identifier);
         *i += 1;
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
-            scope = self.get_indexer_expression(tokens, Some(scope), i)
+            scope = self.get_indexer_expression(tokens, Some(scope), i);
+            went_through_lbracket = true;
         }
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Dot) {
             *i += 2;
@@ -570,6 +584,9 @@ impl Parser {
             for p in push {
                 scope.scope.push(p);
             }
+        }
+        else if !went_through_lbracket {
+            *i -= 1;
         }
 
         ScopedIdentifier {
@@ -982,6 +999,7 @@ impl Parser {
         let mut last_was_unary_operator = false;
         let mut paran_index = 0;
         let mut is_1_expression = true;
+        let start_index = *i;
         
         if *i == usize::MAX {
             is_1_expression = false;
@@ -1037,7 +1055,7 @@ impl Parser {
                 }
                 else if token.token_type.is_unary_operator() && tokens.get(*i + 1).is_some().then(|| !tokens[*i + 1].token_type.is_operator()).unwrap_or(false) {
                     handle_as_operator = false;
-                    if *i == 0 || is_1_expression {
+                    if *i == 0 || (is_1_expression && *i == start_index) {
                         last_was_unary_operator = false;
                         
                         *i += 1;
@@ -1507,6 +1525,10 @@ impl Parser {
 
     fn expression_stacks_to_ast_node(&mut self, op_stack: &mut Vec<(Box<Token>, usize)>, expr_stack: &mut Vec<(Box<ASTNode>, usize)>) -> Option<Box<ASTNode>> {
         while let Some(operator) = op_stack.pop() {
+            if operator.0.token_type == TokenType::LParen && expr_stack.len() < 2 {
+                break;
+            }
+
             let right = expr_stack.pop();
             let left = expr_stack.pop();
     
