@@ -13,6 +13,8 @@ obj: init = vec { a = (x, y, z).c, b = array[2][1] };
 tuple: t = (5, nested::func(x, y).z, "test");
 matrix[1][0] = (10 + nested[0][0]).a;
 str: complex = (nested::call<type1, type2>(arg1, arg2)[0]).a + "suffix";
+
+
 value = (nested::func().a + (5 * 3)).b;
 array[1][2] = (10, 20, 30).c + matrix[2][3];
 result = { x = 5; y = -x + 2; return y * 3; };
@@ -24,6 +26,8 @@ tuple = (vec { x = 1, y = 2 }.x, matrix[1][0]).b;
 str: output = func<type>("test").a + nested::call().b;
 array[0][2] = ((5 * 2) - tuple[1].b).c;
 matrix[2][3] = array[(5 + 3)].a * vec { x = 1 }.x;
+
+
 result = (nested::func<type>(arg1, arg2).a + array[0][1]).b;
 value = -(-(tuple[1].a) * (nested[2][3]).b);
 bool: check = vec { x = 10, y = 20 }.x == (5, true).a;
@@ -36,6 +40,8 @@ array[1][2] = vec { a = 10, b = (2, 4).a }.b - matrix[3][0];
 nested::func()[1][2] = (5 + array[0][1].a).c;
 value = (10, vec { x = 1, y = 2 }).b + nested[1][2];
 bool: flag = (tuple[1].b > (array[1][2]).c) && nested[2][3];
+
+
 auto: expr = func<type>("test").a * (matrix[0][0]).b;
 array[(5 + 3)].b = nested::func<type>().a + (10, "text").c;
 tuple = (nested[0][1].a, vec { x = 1, y = 2 }.y).b;
@@ -48,3 +54,42 @@ str: message = nested::call<type>("arg").b + array[0][0];
 nested[0][1] = (10 + vec { x = 1, y = 2 }.y).a;
 i32: result = func<type>(array[1][2]).b * nested[3][4];
 matrix[0][1] = (vec { a = (3, 4).b, b = 10 }.a + array[0][1]).c;
+
+
+func((a, b) => x - 1);
+x = array.map((val) => val * 2);
+nested::call((arg1, arg2) => arg1 > arg2);
+auto: multiply = a => { return a * 2; };
+tuple: result = (x, y) => (x - y, x + y);
+array[0][1] = func(val => val.a + 2).b;
+auto: filter = (array) => { return array.filter((x) => x > 10); };
+func<type>((a, b) => a * b, (c) => { return c + 1; });
+obj: result = vec { a = (x, y) => x - y, b = (z) => z * 2 };
+matrix[1][0] = (a, b) => a + b - matrix[0][1];
+array.map((item) => { return item * 2; });
+auto: sum = (x, y, z) => x + y + z;
+max = (x, y) => x > y > x : y;
+
+
+x = a > b ? a : b;
+auto: result = array[0] < 10 ? "low" : "high";
+bool: check = flag ? nested::call() : (5, 10).a;
+i32: value = matrix[0][1] > 0 ? matrix[0][1] : -1;
+str: message = array[0][0] == 1 ? "one" : "other";
+tuple = (5 > 3 ? "yes" : "no", array[1][2] < 0 ? -1 : 1);
+array[2][3] = flag ? (10, "value").a : vec { x = 5 }.x;
+result = nested::func() ? func<type>("arg").a : matrix[1][2];
+bool: flag = (5 + 3) > 10 ? true : false;
+auto: status = isValid ? "valid" : (nested[0][1]).b;
+matrix[0][1] = x > 0 ? array[1][1] : nested[2][3];
+obj: init = vec { a = array[0][0] ? "yes" : "no", b = flag ? 1 : 0 };
+str: response = nested::call() ? (tuple[1].b + 3).a : "default";
+tuple: result = (x == y ? 0 : 1, flag ? true : false);
+array[(5 > 3 ? 1 : 0)] = matrix[1][1] > 0 ? 10 : -10;
+
+
+auto: result = (nested::func<type1, type2>(arg1, array[0][1] * (5 + 3)).a / vec { x = 1, y = (10, 20).b }.y) > (matrix[2][3] ? 15 : -5) ? "valid" : "invalid";
+str: response = (tuple[1].b == (nested::call(array[0][1] > 0 ? (5, 10).a : vec { x = 2 }.x) + func<type>("arg").a).c) ? "success" : "failure";
+array[1][2] = (matrix[0][1] + nested::func<type>(5, vec { x = 1 }.x).b * (10 ? (array[2][3].c / (x > y ? x : y)) : -1)).a;
+tuple: complex = ((vec { a = (nested::call(x => x + 1)).a, b = matrix[1][0] }).b + (5 > 3 ? func((x, y) => x - y, 10).b : nested[0][1].a)).c;
+result = nested::func<type>(array[1][2], vec { x = 1, y = (5, "text").a }.b).a > (tuple[2].c + (flag ? (matrix[1][1] - array[2][3]).a : "default")).b ? "pass" : "fail";
