@@ -68,7 +68,7 @@ obj: result = vec { a = (x, y) => x - y, b = (z) => z * 2 };
 matrix[1][0] = (a, b) => a + b - matrix[0][1];
 array.map((item) => { return item * 2; });
 auto: sum = (x, y, z) => x + y + z;
-max = (x, y) => x > y > x : y;
+max = (x, y) => x > y ? x : y;
 
 
 x = a > b ? a : b;

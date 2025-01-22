@@ -382,6 +382,7 @@ impl Lexer {
                 tokens.push(Token::new(TokenType::DollarSign, "$".to_string(), current_location.clone()));
             }
             else if c == '?' {
+                last_was_negatable_ability = 3;
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::QuestionMark, "?".to_string(), current_location.clone()));
             }

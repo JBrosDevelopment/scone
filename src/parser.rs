@@ -453,16 +453,39 @@ impl Parser {
                                 }
                                 TokenType::QuestionMark => {
                                     if tracking_parenthesis_level == 1 {
-                                        // found non nested `?`, so the entire ternary operation was wrapped in parenthesis
-                                        parenthesis_level -= 1;
+                                        let mut entire_expression_wrapped_in_parenthesis = true;
 
-                                        if parenthesis_wrapped == -99 {
-                                            parenthesis_wrapped = 1;
-                                        } else {
-                                            parenthesis_wrapped += 1;
+                                        let mut temp_tracking_parenthesis_level = tracking_parenthesis_level;
+                                        let mut k = j.clone() + 1;
+                                        while k < tokens.len() {
+                                            match tokens[k].token_type {
+                                                TokenType::LBrace => temp_tracking_parenthesis_level += 1,
+                                                TokenType::RParen => {
+                                                    temp_tracking_parenthesis_level -= 1;
+                                                }
+                                                TokenType::QuestionMark => {
+                                                    if temp_tracking_parenthesis_level <= 0 {
+                                                        entire_expression_wrapped_in_parenthesis = false;
+                                                    }
+                                                }
+                                                _ => {},
+                                            }
+                                            k += 1;
                                         }
-                                        current_tokens.pop();
-                                        break;
+
+                                        if entire_expression_wrapped_in_parenthesis {
+                                            // found non nested `?`, so the entire ternary operation was wrapped in parenthesis
+                                            parenthesis_level -= 1;
+    
+                                            if parenthesis_wrapped == -99 {
+                                                parenthesis_wrapped = 1;
+                                            } else {
+                                                parenthesis_wrapped += 1;
+                                            }
+                                            current_tokens.pop();
+                                            break;
+                                        }
+                                        // else condition is wrapped in parenthesis
                                     }
                                 }
                                 _ => {}
@@ -518,7 +541,7 @@ impl Parser {
         }
 
         *i -= 1;
-    
+
         let condition = self.get_entire_expression(&mut ternary_tokens.condition);
         let then = self.get_entire_expression(&mut ternary_tokens.then);
         let else_then = self.get_entire_expression(&mut ternary_tokens.else_then);
@@ -650,7 +673,7 @@ impl Parser {
                 }
                 TokenType::RBracket => {
                     bracket_level -= 1;
-                    if bracket_level == 0 && brace_level == 0 && parenthesis_level == 0 && angle_bracket_level_count == 0 {
+                    if bracket_level == 0 && brace_level == 0 && parenthesis_level == 0 && angle_bracket_level_count <= 0 {
                         if last_was_comma > 0 {
                             all_tokens.pop();
                         }
@@ -661,7 +684,7 @@ impl Parser {
                     }
                 }
                 TokenType::Comma => {
-                    if bracket_level == 1 && parenthesis_level == 0 && brace_level == 0 && angle_bracket_level_count == 0 {
+                    if bracket_level == 1 && parenthesis_level == 0 && brace_level == 0 && angle_bracket_level_count <= 0 {
                         last_was_comma = 2;
                         all_tokens.push(vec![]);
                         comma_vec_index += 1;
@@ -671,7 +694,7 @@ impl Parser {
                     }
                 }
                 TokenType::LessThan => {
-                    if angle_bracket_level_count == 0 {
+                    if angle_bracket_level_count <= 0 {
                         let mut j = *i;
                         let mut temp_angle_bracket_level = 0;
                         let mut highest = 0;
@@ -783,7 +806,7 @@ impl Parser {
                 }
                 TokenType::RBrace => {
                     brace_level -= 1;
-                    if bracket_level == 0 && brace_level == 0 && parenthesis_level == 0 && angle_bracket_level_count == 0 {
+                    if bracket_level == 0 && brace_level == 0 && parenthesis_level == 0 && angle_bracket_level_count <= 0 {
                         if last_was_comma > 0 {
                             all_tokens.pop();
                         }
@@ -804,7 +827,7 @@ impl Parser {
                     }
                 }
                 TokenType::LessThan => {
-                    if angle_bracket_level_count == 0 {
+                    if angle_bracket_level_count <= 0 {
                         let mut j = *i;
                         let mut temp_angle_bracket_level = 0;
                         let mut highest = 0;
@@ -1045,7 +1068,7 @@ impl Parser {
             else if token.token_type.is_operator() {
                 // To check for unary operators, the operator must be the first token in the expression, or the previous token must be an operator: `-0` or `0+-1`
                 let mut handle_as_operator = true;
-                if last_was_ident && token.token_type == TokenType::LessThan {
+                if last_was_ident && token.token_type == TokenType::LessThan && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Identifier) {
                     // part of function call: function<TYPE>()
                     expr_stack.push((Box::new(ASTNode { 
                         token: token.clone(),
@@ -1622,7 +1645,7 @@ impl Parser {
                     TokenType::RParen => {
                         parenthesis_level -= 1;
                         lambda_tokens.push(token.clone());
-                        if parenthesis_level <= 0 {
+                        if parenthesis_level <= 0 && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace){
                             break;
                         }
                     }
@@ -1633,7 +1656,7 @@ impl Parser {
                     TokenType::RBrace => {
                         brace_level -= 1;
                         lambda_tokens.push(token.clone());
-                        if brace_level <= 0 {
+                        if brace_level <= 0  && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) {
                             break;
                         }
                     }
@@ -1644,7 +1667,7 @@ impl Parser {
                     TokenType::RBracket => {
                         bracket_level -= 1;
                         lambda_tokens.push(token.clone());
-                        if bracket_level <= 0 {
+                        if bracket_level <= 0 && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) {
                             break;
                         }
                     }
@@ -1801,7 +1824,8 @@ impl Parser {
             }
         }
 
-        for token in tokens.iter().skip(*i) {
+        while *i < tokens.len() {
+            let token = tokens[*i].clone();
             match token.token_type {
                 TokenType::LBrace => {
                     brace_level += 1;
@@ -1853,8 +1877,27 @@ impl Parser {
                 }
             }
             *i += 1;
-            if paranthesis_level == 0 && angle_bracket_level == 0 && brace_level == 0 && bracket_level == 0 {
+            
+            if paranthesis_level <= 0 && angle_bracket_level <= 0 && brace_level <= 0 && bracket_level <= 0 {
                 break;
+            }
+
+            // continues to next line
+            if *i >= tokens.len() {
+                *i = 0;
+                self.__curent_line += 1;
+                let mut err = false;
+                let v = Vec::new();
+                
+                *tokens = self.lines.get(self.__curent_line).unwrap_or_else(|| {
+                    err = true;
+                    &v
+                }).clone();
+
+                if err {
+                    self.error("Error getting node parameters", "Could not find next line", &token.location);
+                    break;
+                }
             }
         }
         all_tokens

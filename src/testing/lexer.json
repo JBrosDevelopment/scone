@@ -1,7 +1,7 @@
 [
   {
-    "token_type": "Identifier",
-    "value": "f",
+    "token_type": "LParen",
+    "value": "(",
     "location": {
       "line": 1,
       "column": 1,
@@ -27,65 +27,38 @@
     }
   },
   {
-    "token_type": "DoubleArrow",
-    "value": "=>",
+    "token_type": "QuestionMark",
+    "value": "?",
     "location": {
       "line": 1,
       "column": 5,
-      "length": 2
-    }
-  },
-  {
-    "token_type": "LBrace",
-    "value": "{",
-    "location": {
-      "line": 1,
-      "column": 8,
       "length": 1
-    }
-  },
-  {
-    "token_type": "Return",
-    "value": "return",
-    "location": {
-      "line": 1,
-      "column": 9,
-      "length": 6
     }
   },
   {
     "token_type": "Identifier",
-    "value": "a",
+    "value": "b",
     "location": {
       "line": 1,
-      "column": 16,
+      "column": 7,
       "length": 1
     }
   },
   {
-    "token_type": "Plus",
-    "value": "+",
+    "token_type": "Colon",
+    "value": ":",
     "location": {
       "line": 1,
-      "column": 18,
+      "column": 9,
       "length": 1
     }
   },
   {
-    "token_type": "NumberConstant",
-    "value": "1",
+    "token_type": "Identifier",
+    "value": "c",
     "location": {
       "line": 1,
-      "column": 20,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 1,
-      "column": 21,
+      "column": 11,
       "length": 1
     }
   },
@@ -94,7 +67,70 @@
     "value": ")",
     "location": {
       "line": 1,
-      "column": 22,
+      "column": 12,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Plus",
+    "value": "+",
+    "location": {
+      "line": 1,
+      "column": 14,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "NumberConstant",
+    "value": "1",
+    "location": {
+      "line": 1,
+      "column": 16,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RParen",
+    "value": ")",
+    "location": {
+      "line": 1,
+      "column": 17,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "QuestionMark",
+    "value": "?",
+    "location": {
+      "line": 1,
+      "column": 19,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "d",
+    "location": {
+      "line": 1,
+      "column": 21,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Colon",
+    "value": ":",
+    "location": {
+      "line": 1,
+      "column": 23,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "e",
+    "location": {
+      "line": 1,
+      "column": 25,
       "length": 1
     }
   },
@@ -102,7 +138,16 @@
     "token_type": "EndOfLine",
     "value": ";",
     "location": {
-      "line": 9,
+      "line": 1,
+      "column": 26,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": ";",
+    "location": {
+      "line": 12,
       "column": 1,
       "length": 1
     }
