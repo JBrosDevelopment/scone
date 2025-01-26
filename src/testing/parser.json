@@ -1,23 +1,148 @@
 [
   {
     "token": {
-      "token_type": "QuestionMark",
-      "value": "?",
+      "token_type": "Identifier",
+      "value": "e",
       "location": {
         "line": 1,
-        "column": 4,
+        "column": 13,
         "length": 1
       }
     },
     "node": {
-      "TernaryOperator": {
-        "condition": {
+      "VariableDeclaration": {
+        "access_modifier": [],
+        "var_type": {
           "token": {
-            "token_type": "Plus",
-            "value": "+",
+            "token_type": "Identifier",
+            "value": "a",
             "location": {
               "line": 1,
-              "column": 13,
+              "column": 1,
+              "length": 1
+            }
+          },
+          "node": {
+            "TypeIdentifier": {
+              "scope": [
+                {
+                  "name": {
+                    "token_type": "Identifier",
+                    "value": "a",
+                    "location": {
+                      "line": 1,
+                      "column": 1,
+                      "length": 1
+                    }
+                  },
+                  "scope_type": null,
+                  "type_parameters": {
+                    "parameters": [
+                      {
+                        "token": {
+                          "token_type": "Identifier",
+                          "value": "b",
+                          "location": {
+                            "line": 1,
+                            "column": 3,
+                            "length": 1
+                          }
+                        },
+                        "node": {
+                          "TypeIdentifier": {
+                            "scope": [
+                              {
+                                "name": {
+                                  "token_type": "Identifier",
+                                  "value": "b",
+                                  "location": {
+                                    "line": 1,
+                                    "column": 3,
+                                    "length": 1
+                                  }
+                                },
+                                "scope_type": null,
+                                "type_parameters": null
+                              }
+                            ],
+                            "is_array": false,
+                            "is_pointer": false
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": {
+                    "token_type": "Identifier",
+                    "value": "c",
+                    "location": {
+                      "line": 1,
+                      "column": 7,
+                      "length": 1
+                    }
+                  },
+                  "scope_type": "DoubleColon",
+                  "type_parameters": {
+                    "parameters": [
+                      {
+                        "token": {
+                          "token_type": "Identifier",
+                          "value": "d",
+                          "location": {
+                            "line": 1,
+                            "column": 9,
+                            "length": 1
+                          }
+                        },
+                        "node": {
+                          "TypeIdentifier": {
+                            "scope": [
+                              {
+                                "name": {
+                                  "token_type": "Identifier",
+                                  "value": "d",
+                                  "location": {
+                                    "line": 1,
+                                    "column": 9,
+                                    "length": 1
+                                  }
+                                },
+                                "scope_type": null,
+                                "type_parameters": null
+                              }
+                            ],
+                            "is_array": false,
+                            "is_pointer": false
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "is_array": false,
+              "is_pointer": false
+            }
+          }
+        },
+        "var_name": {
+          "token_type": "Identifier",
+          "value": "e",
+          "location": {
+            "line": 1,
+            "column": 13,
+            "length": 1
+          }
+        },
+        "var_value": {
+          "token": {
+            "token_type": "GreaterThan",
+            "value": ">",
+            "location": {
+              "line": 1,
+              "column": 26,
               "length": 1
             }
           },
@@ -25,166 +150,143 @@
             "Operator": {
               "left": {
                 "token": {
-                  "token_type": "QuestionMark",
-                  "value": "?",
+                  "token_type": "Identifier",
+                  "value": "v1",
                   "location": {
                     "line": 1,
-                    "column": 4,
-                    "length": 1
+                    "column": 24,
+                    "length": 2
                   }
                 },
                 "node": {
-                  "TernaryOperator": {
-                    "condition": {
-                      "token": {
-                        "token_type": "Identifier",
-                        "value": "a",
-                        "location": {
-                          "line": 1,
-                          "column": 2,
-                          "length": 1
-                        }
-                      },
-                      "node": {
-                        "Identifier": {
-                          "token_type": "Identifier",
-                          "value": "a",
-                          "location": {
-                            "line": 1,
-                            "column": 2,
-                            "length": 1
-                          }
-                        }
-                      }
-                    },
-                    "then": {
-                      "token": {
-                        "token_type": "Identifier",
-                        "value": "b",
-                        "location": {
-                          "line": 1,
-                          "column": 6,
-                          "length": 1
-                        }
-                      },
-                      "node": {
-                        "Identifier": {
-                          "token_type": "Identifier",
-                          "value": "b",
-                          "location": {
-                            "line": 1,
-                            "column": 6,
-                            "length": 1
-                          }
-                        }
-                      }
-                    },
-                    "else_then": {
-                      "token": {
-                        "token_type": "Identifier",
-                        "value": "c",
-                        "location": {
-                          "line": 1,
-                          "column": 10,
-                          "length": 1
-                        }
-                      },
-                      "node": {
-                        "Identifier": {
-                          "token_type": "Identifier",
-                          "value": "c",
-                          "location": {
-                            "line": 1,
-                            "column": 10,
-                            "length": 1
-                          }
-                        }
-                      }
+                  "Identifier": {
+                    "token_type": "Identifier",
+                    "value": "v1",
+                    "location": {
+                      "line": 1,
+                      "column": 24,
+                      "length": 2
                     }
                   }
                 }
               },
               "right": {
                 "token": {
-                  "token_type": "NumberConstant",
-                  "value": "1",
+                  "token_type": "LessThan",
+                  "value": "<",
                   "location": {
                     "line": 1,
-                    "column": 15,
+                    "column": 39,
                     "length": 1
                   }
                 },
                 "node": {
-                  "Constant": {
-                    "value": {
-                      "token_type": "NumberConstant",
-                      "value": "1",
-                      "location": {
-                        "line": 1,
-                        "column": 15,
-                        "length": 1
+                  "ScopedExpression": {
+                    "scope": [
+                      {
+                        "expression": {
+                          "token": {
+                            "token_type": "Identifier",
+                            "value": "expression",
+                            "location": {
+                              "line": 1,
+                              "column": 29,
+                              "length": 10
+                            }
+                          },
+                          "node": {
+                            "FunctionCall": {
+                              "parameters": {
+                                "parameters": [
+                                  {
+                                    "token": {
+                                      "token_type": "Identifier",
+                                      "value": "args",
+                                      "location": {
+                                        "line": 1,
+                                        "column": 44,
+                                        "length": 4
+                                      }
+                                    },
+                                    "node": {
+                                      "Identifier": {
+                                        "token_type": "Identifier",
+                                        "value": "args",
+                                        "location": {
+                                          "line": 1,
+                                          "column": 44,
+                                          "length": 4
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "type_parameters": [
+                                {
+                                  "token": {
+                                    "token_type": "Identifier",
+                                    "value": "v2",
+                                    "location": {
+                                      "line": 1,
+                                      "column": 40,
+                                      "length": 2
+                                    }
+                                  },
+                                  "node": {
+                                    "TypeIdentifier": {
+                                      "scope": [
+                                        {
+                                          "name": {
+                                            "token_type": "Identifier",
+                                            "value": "v2",
+                                            "location": {
+                                              "line": 1,
+                                              "column": 40,
+                                              "length": 2
+                                            }
+                                          },
+                                          "scope_type": null,
+                                          "type_parameters": null
+                                        }
+                                      ],
+                                      "is_array": false,
+                                      "is_pointer": false
+                                    }
+                                  }
+                                }
+                              ],
+                              "name": {
+                                "token_type": "Identifier",
+                                "value": "expression",
+                                "location": {
+                                  "line": 1,
+                                  "column": 29,
+                                  "length": 10
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "scope_type": null
                       }
-                    },
-                    "constant_type": "U8"
+                    ]
                   }
                 }
               },
               "operator": {
-                "token_type": "Plus",
-                "value": "+",
+                "token_type": "GreaterThan",
+                "value": ">",
                 "location": {
                   "line": 1,
-                  "column": 13,
+                  "column": 26,
                   "length": 1
                 }
               }
             }
           }
         },
-        "then": {
-          "token": {
-            "token_type": "Identifier",
-            "value": "d",
-            "location": {
-              "line": 1,
-              "column": 19,
-              "length": 1
-            }
-          },
-          "node": {
-            "Identifier": {
-              "token_type": "Identifier",
-              "value": "d",
-              "location": {
-                "line": 1,
-                "column": 19,
-                "length": 1
-              }
-            }
-          }
-        },
-        "else_then": {
-          "token": {
-            "token_type": "Identifier",
-            "value": "e",
-            "location": {
-              "line": 1,
-              "column": 23,
-              "length": 1
-            }
-          },
-          "node": {
-            "Identifier": {
-              "token_type": "Identifier",
-              "value": "e",
-              "location": {
-                "line": 1,
-                "column": 23,
-                "length": 1
-              }
-            }
-          }
-        }
+        "description": null
       }
     }
   }

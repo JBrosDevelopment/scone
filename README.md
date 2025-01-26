@@ -12,7 +12,7 @@ pub class Color <- ToString -> "Example for a color class" {
     u8: B = 0 -> "Blue color code value 0 - 255";
 
     #! alias
-    static Color: new(u8: r, u8: g, u8: b) -> "Creates a color object with given RGB values" {
+    Color::new(u8: r, u8: g, u8: b) -> "Creates a color object with given RGB values" {
         Color {
             R = r,
             G = g,
@@ -20,7 +20,7 @@ pub class Color <- ToString -> "Example for a color class" {
         }
     }
 
-    static Color: white() -> "Creates a white color object" {
+    Color::white() -> "Creates a white color object" {
         Color {
             R = 255,
             G = 255,
@@ -28,7 +28,7 @@ pub class Color <- ToString -> "Example for a color class" {
         }
     }
 
-    static Color: op_add(Color: color1, Color: color2) -> "Operator overload for adding two colors" {
+    Color::op_add(Color: color1, Color: color2) -> "Operator overload for adding two colors" {
         Color {
             R = color1.R + color2.R,
             G = color1.G + color2.G,

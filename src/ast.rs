@@ -245,6 +245,7 @@ pub struct ScopedIdentifier {
 pub struct Identifier {
     pub expression: Box<ASTNode>,
     pub scope_type: Option<ScopeType>, 
+    pub type_parameters: Option<NodeParameters>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -304,6 +305,7 @@ pub struct TypeIdentifier {
 pub struct ScopedType {
     pub scope: Vec<TypeIdentifier>,
     pub is_array: bool,
+    pub is_pointer: bool,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

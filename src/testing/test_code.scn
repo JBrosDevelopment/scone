@@ -1,13 +1,6 @@
-((a ? b : c) + 1) ? d : e;
+a<b>::c<d>: e = scoped<v1>::expression<v2>(args);
 
 
-
-
-//(a ? b : c ? d : e);
-
-//result = nested::func<type>(array[1][2], vec { x = 1, y = (5, "text").a }.b).a > (tuple[2].c + (flag ? (matrix[1][1] - array[2][3]).a : "default")).b ? "pass" : "fail";
-//auto: result = (nested::func<type1, type2>(arg1, array[0][1] * (5 + 3)).a / vec { x = 1, y = (10, 20).b }.y) > (matrix[2][3] ? 15 : -5) ? "valid" : "invalid";
-//str: response = (tuple[1].b == (nested::call(array[0][1] > 0 ? (5, 10).a : vec { x = 2 }.x) + func<type>("arg").a).c) ? "success" : "failure";
 
 ;// TODO:
 // if 0 == 0 || false { }
@@ -35,3 +28,46 @@
 // enum Files { File1 = 0 -> "1", File2 }
 // class Color { }
 // struct Pixel { }
+
+
+/*
+
+struct Array<T> {
+    u64: size;
+    T*: data; // Pointer to allocated memory for type T
+
+    // Constructor
+    Array<T>::new(const u64: size) {
+        Array<T> {
+            size: size,
+            data: malloc(size * sizeof(T)) as T* // Cast malloc result to T*
+        }
+    }
+
+    // Indexer for getting an element
+    T: op_indexer_get(u64: index) {
+        assert(index < self.size, "Index out of bounds");
+        return self.data[index]; // Access the indexed element
+    }
+
+    // Indexer for setting an element
+    void: op_indexer_set(u64: index, T: val) {
+        assert(index < self.size, "Index out of bounds");
+        self.data[index] = val; // Set the value at the indexed position
+    }
+
+    // Resize the array
+    void: resize(u64: newSize) {
+        self.data = realloc(self.data, newSize * sizeof(T)) as T*; // Reallocate memory
+        self.size = newSize;
+    }
+
+    // Destructor to free memory
+    ~Array<T>() {
+        if self.data != nullptr {
+            free(self.data); // Free the allocated memory
+        }
+    }
+}
+
+*/
