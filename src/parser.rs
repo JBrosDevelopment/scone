@@ -1851,6 +1851,9 @@ impl Parser {
         if let Some(token) = tokens.get(*i) {
             if token.token_type != TokenType::LessThan {
                 self.error("Error getting type parameters", "Expected to start with `<`", &token.location);
+                return NodeParameters {
+                    parameters: vec![]
+                };
             }
         }
 
@@ -1923,21 +1926,13 @@ impl Parser {
     }
 
     fn get_ident_scope(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, last_punc: &mut Option<ScopeType>) -> ScopedIdentifier {
-        let mut iterate = tokens.iter().skip(*i).peekable();
-        let mut scope = ScopedIdentifier {
-            scope: vec![Identifier {
-                expression: Box::new(ASTNode {
-                    token: tokens[*i].clone(),
-                    node: Box::new(NodeType::Identifier(tokens[*i].clone())),
-                }),
-                scope_type: None,
-                type_parameters: None
-            }
-        ]};
+        let mut scope = ScopedIdentifier { scope: vec![] };
         let mut first_token = true;
         let mut keep_last_punc = None;
+        let mut last_identifier_index = *i;
 
-        while let Some(token) = iterate.next() {
+        while *i < tokens.len() {
+            let token = tokens[*i].clone();
             match token.token_type {
                 TokenType::DoubleColon => {
                     *i += 1;
@@ -1958,15 +1953,36 @@ impl Parser {
                     keep_last_punc = Some(ScopeType::Dot);
                 }
                 TokenType::Identifier => {
+                    last_identifier_index = *i;
                     *i += 1;
-                    if first_token {
-                        first_token = false;
-                        continue;
+                    let mut type_parameters = Some(NodeParameters { parameters: vec![] });
+
+                    if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LessThan) {
+                        let mut j = *i;
+                        let mut angle_bracket_level = 0;
+                        while j < tokens.len() {
+                            if tokens[j].token_type == TokenType::LessThan {
+                                angle_bracket_level += 1;
+                            }
+                            else if tokens[j].token_type == TokenType::GreaterThan {
+                                angle_bracket_level -= 1;
+                                if angle_bracket_level == 0 {
+                                    if tokens.get(j + 1).map_or(false, |t| t.token_type == TokenType::LParen || tokens[j + 1].token_type == TokenType::DoubleColon || tokens[j + 1].token_type == TokenType::Dot) {
+                                        let tp = self.get_type_parameters(tokens, i);
+                                        type_parameters = Some(tp);
+                                    }
+                                    break;
+                                }
+                            }
+                            j += 1;
+                        }
                     }
-                    if last_punc.is_none() {
+                    
+                    if last_punc.is_none() && !first_token {
                         self.error("Scope has incorrect type", "Expected `::` or `.` before identifier. Use `::` and `.` to separate scope levels.", &token.location);
                         return scope;
                     }
+                    first_token = false;
 
                     scope.scope.push(Identifier {
                         expression: Box::new(ASTNode {
@@ -1974,17 +1990,17 @@ impl Parser {
                             node: Box::new(NodeType::Identifier(token.clone())),
                         }),
                         scope_type: last_punc.clone(),
-                        type_parameters: None
+                        type_parameters
                     });
                     *last_punc = None;
                 }
                 TokenType::LBracket => {
-                    *i -= 1;
+                    *i = last_identifier_index;
                     *last_punc = keep_last_punc;
                     return scope;
                 }
                 _ => {
-                    *i -= 1;
+                    *i = last_identifier_index;
                     *last_punc = keep_last_punc;
                     scope.scope.pop();
                     return scope;
@@ -2158,7 +2174,16 @@ impl Parser {
                 let mut scope = "".to_string();
                 for ident in value.scope.iter() {
                     let scope_type = ident.scope_type.clone().is_some().then(|| ident.scope_type.clone().unwrap().to_string()).unwrap_or("".to_string());
-                    scope += format!("{}{}", scope_type, Self::node_expr_to_string(ident.expression.as_ref())).as_str();
+                    
+                    let mut type_parameters = "".to_string();
+                    if ident.type_parameters.is_some() && ident.type_parameters.clone().unwrap().parameters.len() > 0 {
+                        type_parameters += "<";
+                        for (index, param) in ident.type_parameters.clone().unwrap().parameters.iter().enumerate() {
+                            type_parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), ident.type_parameters.clone().unwrap().parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                        }
+                        type_parameters += ">";
+                    }
+                    scope += format!("{}{}{}", scope_type, Self::node_expr_to_string(ident.expression.as_ref()), type_parameters).as_str();
                 }
                 scope
             }
