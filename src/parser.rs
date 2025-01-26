@@ -1667,11 +1667,11 @@ impl Parser {
                                 scope_type: None,
                             }],
                             is_array: false,
-                            is_pointer: false,
+                            is_ptr_or_ref: vec![],
                         }))
                     });
                 }
-                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot || t.token_type == TokenType::LessThan || t.token_type == TokenType::LBracket || t.token_type == TokenType::Star) {
+                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot || t.token_type == TokenType::LessThan || t.token_type == TokenType::LBracket || t.token_type == TokenType::Star || t.token_type == TokenType::Ampersand) {
                     let scope_and_types = self.get_scoped_typed(tokens, &mut uneeded_index);
                     return Box::new(ASTNode {
                         token: first_token.clone(),
@@ -1827,15 +1827,23 @@ impl Parser {
     fn get_scoped_typed(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ScopedType {
         let scope = self.get_type_scope(tokens, i);
         let is_array = self.next_is_array_for_type(tokens, i);
-        let is_pointer = tokens.get(*i).is_some_and(|t| t.token_type == TokenType::Star);
-        if is_pointer {
+        let mut is_ptr_or_ref = vec![];
+
+        while *i < tokens.len() {
+            if tokens[*i].token_type == TokenType::Star {
+                is_ptr_or_ref.push(TypeSuffix::Ptr);
+            } else if tokens[*i].token_type == TokenType::Ampersand {
+                is_ptr_or_ref.push(TypeSuffix::Ref);
+            } else {
+                break;
+            }
             *i += 1;
         }
 
         ScopedType {
             is_array,
             scope,
-            is_pointer,
+            is_ptr_or_ref,
         }
     }
 
@@ -2116,7 +2124,13 @@ impl Parser {
             }
             NodeType::TypeIdentifier(ref value) => {
                 let array = value.is_array.then(|| "[]").unwrap_or("");
-                let pointer = value.is_pointer.then(|| "*").unwrap_or("");
+                let mut pointer = "".to_string();
+                for suffix in value.is_ptr_or_ref.iter() {
+                    pointer += match suffix {
+                        TypeSuffix::Ptr => "*",
+                        TypeSuffix::Ref => "&",
+                    };
+                }
                 let mut scope = "".to_string();
                 for ident in value.scope.iter() {
                     let scope_type = ident.scope_type.clone().is_some().then(|| ident.scope_type.clone().unwrap().to_string()).unwrap_or("".to_string());

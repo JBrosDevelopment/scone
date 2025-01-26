@@ -1,6 +1,63 @@
-// checks out on ALL test cases!
+u8**: ptr = null;
 
-
+//i32*: ptr = &x;
+//i32: value = *ptr;
+//auto*: genericPtr = &array[0][1];
+//auto: dereferenced = *genericPtr;
+//i32*: ptr = &array[0][0];
+//ptr = ptr + 1;
+//i32: nextValue = *ptr;
+//ptr = ptr - 1;
+//i32: previousValue = *ptr;
+//i32*: ptr = null;
+//bool: isNull = (ptr == null);
+//ptr = &x;
+//bool: isNotNull = (ptr != null);
+//i32*: dynamicValue = alloc<i32>();
+//*dynamicValue = 42;
+//dealloc(dynamicValue);
+//i32[]: array = [1, 2, 3, 4];
+//i32*: arrayPtr = &array[0];
+//i32: firstValue = *arrayPtr;
+//i32: secondValue = *(arrayPtr + 1);
+//Point*: pointPtr = alloc<Point>();
+//pointPtr.x = 10;
+//pointPtr.y = 20;
+//i32: xValue = pointPtr.x;
+//i32: yValue = pointPtr.y;
+//dealloc(pointPtr);
+//i32: value = 10;
+//i32*: ptr = &value;
+//i32**: doublePtr = &ptr;
+//i32: dereferencedValue = **doublePtr;
+//*ptr = 20;
+//i32: updatedValue = **doublePtr;
+//i32: a = 10;
+//i32&: refA = a;
+//i32*: ptrA = &refA;
+//i32: valueFromPtr = *ptrA;
+//refA = 20;
+//i32: updatedFromRef = *ptrA;
+//i32: a = 10;
+//i32&: refA = a;
+//i32*: ptrA = &refA;
+//i32: valueFromPtr = *ptrA;
+//refA = 20;
+//i32: updatedFromRef = *ptrA;
+//i32*: intPtr = alloc<i32>();
+//*intPtr = 42;
+//void*: voidPtr = intPtr;
+//i32*: castedBack = (i32*)voidPtr;
+//i32: valueAfterCast = *castedBack;
+//dealloc(intPtr);
+//i32*: ptr1 = &array[0];
+//i32*: ptr2 = &array[1];
+//bool: areEqual = (ptr1 == ptr2);
+//bool: isLessThan = (ptr1 < ptr2);
+//i32*: ptr1 = &array[0];
+//i32*: ptr2 = &array[1];
+//bool: areEqual = (ptr1 == ptr2);
+//bool: isLessThan = (ptr1 < ptr2);
 
 ;// TODO:
 // if 0 == 0 || false { }

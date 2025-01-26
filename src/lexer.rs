@@ -17,7 +17,6 @@ pub enum TokenType {
     Star,
     Slash,
     Pipe,
-    PowerOf,
     Carrot,
     Ampersand,
     Tilda,
@@ -127,7 +126,6 @@ impl TokenType {
             TokenType::And |
             TokenType::Or |
             TokenType::RangeOperator |
-            TokenType::PowerOf |
             TokenType::Not |
             TokenType::Is |
             TokenType::As
@@ -146,8 +144,7 @@ impl TokenType {
             TokenType::Equal | TokenType::NotEqual | TokenType::GreaterThan | TokenType::GreaterThanOrEqual | TokenType::LessThan | TokenType::LessThanOrEqual => 3,
             TokenType::Plus | TokenType::Dash => 4,
             TokenType::Star | TokenType::Slash | TokenType::Modulas => 5, 
-            TokenType::PowerOf => 6,
-            TokenType::Is | TokenType::As => 7,
+            TokenType::Is | TokenType::As => 6,
             TokenType::LParen | TokenType::RParen => 0, 
             _ => -1, 
         }
@@ -438,11 +435,6 @@ impl Lexer {
                 if chars.get(i + 1) == Some(&'=') {
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::Star, "*=".to_string(), current_location.clone()));
-                    i += 1;
-                }
-                if chars.get(i + 1) == Some(&'*') {
-                    current_location.advance(2);
-                    tokens.push(Token::new(TokenType::PowerOf, "**".to_string(), current_location.clone()));
                     i += 1;
                 }
                 else {

@@ -304,8 +304,14 @@ pub struct TypeIdentifier {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ScopedType {
     pub scope: Vec<TypeIdentifier>,
+    pub is_ptr_or_ref: Vec<TypeSuffix>,
     pub is_array: bool,
-    pub is_pointer: bool,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub enum TypeSuffix {
+    Ptr,
+    Ref
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
