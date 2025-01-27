@@ -192,3 +192,15 @@ tuple<type>::index<val>: output = scoped<method>::op<args>(nested::call());
 scoped<a>::nested<b>: result = func<c>::call<d>(vec { x = 10, y = 20 });
 value<x>::type<y>: result = obj<a>::method<b>(nested[0][1].args);
 scoped<type>::key<val>: output = func<x>::call<y>(nested::op(array[2]));
+
+i32[]: array = [10, 20, 30];
+i32*: arrayPtr = &array[0];
+i32**: doubleArrayPtr = &arrayPtr;
+bool: isDoubleArrayPtr = doubleArrayPtr is i32**;
+auto: genericArray = array;
+i32[]?: maybeArray = genericArray as i32[];
+i32: value = 99;
+i32*: ptr = &value;
+i32**: doublePtr = &ptr;
+i32***: triplePtr = &doublePtr;
+i32: dereferencedValue = *(*(*triplePtr));

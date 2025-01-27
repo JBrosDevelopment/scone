@@ -126,8 +126,9 @@ impl Parser {
                     }
                 }
 
+                let mut __ = 0;
                 let mut type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
-                let var_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens);
+                let var_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens, &mut __);
 
                 let var_value: Box<ASTNode> = self.get_entire_expression(&mut rhs);
 
@@ -1030,7 +1031,13 @@ impl Parser {
                     else {
                         handle_as_operator = true;
                     }
-                }
+                } 
+                else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::As || t.token_type == TokenType::Is) {
+                    *i += 1;
+                    let ty = self.get_type_idententifier(tokens, i);
+                    *i -= 1;
+                    expr_stack.push((ty, *i));
+                } 
 
                 last_was_ident = false;
                 if handle_as_operator {
@@ -1050,7 +1057,7 @@ impl Parser {
                                 return (Box::new(ASTNode::none()), 0);
                             }).0;
 
-                            let node = Box::new(ASTNode {
+                            let node: Box<ASTNode> = Box::new(ASTNode {
                                 token: operator.clone(),
                                 node: Box::new(NodeType::Operator(Expression{
                                     left,
@@ -1653,11 +1660,10 @@ impl Parser {
         return_tokens
     }
 
-    fn get_type_idententifier(&mut self, tokens: &mut Vec<Box<Token>>) -> Box<ASTNode> {
-        if let Some(first_token) = tokens.clone().first() {
-            let mut uneeded_index = 0_usize;
+    fn get_type_idententifier(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
+        if let Some(first_token) = tokens.iter().skip(*i).map(|t| t.clone()).collect::<Vec<_>>().first() {
             if first_token.token_type == TokenType::Identifier || first_token.token_type == TokenType::Auto {
-                if tokens.len() == 1 {
+                if tokens.iter().skip(*i).len() == 1 {
                     return Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(ScopedType {
@@ -1671,24 +1677,24 @@ impl Parser {
                         }))
                     });
                 }
-                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot || t.token_type == TokenType::LessThan || t.token_type == TokenType::LBracket || t.token_type == TokenType::Star || t.token_type == TokenType::Ampersand) {
-                    let scope_and_types = self.get_scoped_typed(tokens, &mut uneeded_index);
+                else if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot || t.token_type == TokenType::LessThan || t.token_type == TokenType::LBracket || t.token_type == TokenType::Star || t.token_type == TokenType::Ampersand) {
+                    let scope_and_types = self.get_scoped_typed(tokens, i);
                     return Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(scope_and_types)),
                     });
                 }
-                else if tokens.get(1).is_some_and(|t| t.token_type == TokenType::Comma) {
-                    self.error("Incorrect type", "Multiple variables in one declaration is not supported, try instead using a tuple by putting parenthesis around types", &tokens.get(1).unwrap().location);
+                else if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::Comma) {
+                    self.error("Incorrect type", "Multiple variables in one declaration is not supported, try instead using a tuple by putting parenthesis around types", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
                     return Box::new(ASTNode::none());
                 }
                 else {
-                    self.error("Incorrect type", "Expected a tuple or type before the `::` or  `.`", &tokens.get(1).unwrap().location);
+                    self.error("Incorrect type", "Expected a tuple or type before the `::` or  `.`", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
                     return Box::new(ASTNode::none());
                 }
             }
             else if first_token.token_type == TokenType::LParen {
-                let tuple = self.get_tuple_node_parameters(tokens, &mut uneeded_index);
+                let tuple = self.get_tuple_node_parameters(tokens, i);
                 return Box::new(ASTNode {
                     token: first_token.clone(),
                     node: Box::new(NodeType::TupleDeclaration(NodeParameters {
@@ -1697,11 +1703,11 @@ impl Parser {
                 });
             }
             else if first_token.token_type == TokenType::LBrace {
-                self.error("Incorrect type", "Incorrect type declaration `type: name`, objects `{}` are not supported as a type", &tokens.get(1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
+                self.error("Incorrect type", "Incorrect type declaration `type: name`, objects `{}` are not supported as a type", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
                 return Box::new(ASTNode::none());
             }
             else if first_token.token_type == TokenType::LBracket {
-                self.error("Incorrect type", "Incorrect type declaration. If you were trying to create an array, do: `type[]`", &tokens.get(1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
+                self.error("Incorrect type", "Incorrect type declaration. If you were trying to create an array, do: `type[]`", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
                 return Box::new(ASTNode::none());
             }
             else {
@@ -1709,8 +1715,8 @@ impl Parser {
                 return Box::new(ASTNode::none());
             }
         }
-        else if tokens.len() > 0 {
-            self.error("Variable declaration has no type", "Expected a type before the `:`, no type was provided", &tokens.get(1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
+        else if tokens.iter().skip(*i).len() > 0 {
+            self.error("Variable declaration has no type", "Expected a type before the `:`, no type was provided", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
             return Box::new(ASTNode::none());
         }
         else {
@@ -1725,7 +1731,7 @@ impl Parser {
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
             let mut tokens = tokens.clone();
-            return_tokens.push(self.get_type_idententifier(&mut tokens));
+            return_tokens.push(self.get_type_idententifier(&mut tokens, i));
         }
 
         return_tokens
@@ -1841,8 +1847,8 @@ impl Parser {
         }
 
         ScopedType {
-            is_array,
             scope,
+            is_array,
             is_ptr_or_ref,
         }
     }
@@ -1925,7 +1931,8 @@ impl Parser {
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
             let mut tokens = tokens.clone();
-            return_tokens.push(self.get_type_idententifier(&mut tokens));
+            let mut __ = 0;
+            return_tokens.push(self.get_type_idententifier(&mut tokens, &mut __));
         }
 
         NodeParameters {
