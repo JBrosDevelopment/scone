@@ -1,10 +1,26 @@
-// all test cases pass!
+i32: a = 5;
+i32: b = 10;
+bool: isValid = false;
+
+if a < b {
+    if b > 5 {
+        isValid = true;
+    }
+}
+
+bool: flag = false;
+if a > 0 {
+    if b > a {
+        if b == 10 {
+            flag = true;
+        }
+    }
+} 
+else {}
+
 
 
 ;// TODO:
-// if 0 == 0 || false { }
-// else if true { }
-// else { }
 // while true { }
 // for x in array.skip(1) { }
 // match name { "john" => {}, "doe" => {}, _ => {} }

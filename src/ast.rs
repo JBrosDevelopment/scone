@@ -31,8 +31,6 @@ pub enum NodeType {
 
     // flow
     If(ConditionalRegion),
-    ElseIf(ConditionalRegion),
-    Else(BodyRegion),
     While(ConditionalRegion),
     For(ForLoop),
     Match(MatchRegion),
@@ -252,7 +250,7 @@ pub struct Identifier {
 pub struct ConditionalRegion {
     pub condition: Box<ASTNode>,
     pub body: BodyRegion,
-    pub else_conditional_regions: Option<Vec<Box<ConditionalRegion>>>,
+    pub else_if_regions: Option<Vec<Box<ConditionalRegion>>>,
     pub else_region: Option<BodyRegion>,
 }
 

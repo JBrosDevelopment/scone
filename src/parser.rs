@@ -44,12 +44,21 @@ impl Parser {
     }
 
     pub fn error(&mut self, message: &str, help: &str, location: &Location) {
+        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra errors
+            return;
+        }
         self.output.error("parsing error", message, help, location);
     }
     pub fn warning(&mut self, message: &str, help: &str, location: &Location) {
+        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra warnings
+            return;
+        }
         self.output.warning("parsing warning", message, help, location);
     }
     pub fn message(&mut self, message: &str, help: &str, location: &Location) {
+        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra messages
+            return;
+        }
         self.output.message("parsing message", message, help, location);
     }
 
@@ -57,7 +66,6 @@ impl Parser {
         let mut ast: Vec<ASTNode> = Vec::new();
 
         while self.__curent_line < self.lines.len() {
-            println!("{}", self.output.full_code.split(";").map(|x|x.trim()).collect::<Vec<&str>>()[self.__curent_line]);
             let mut tokens = self.lines[self.__curent_line].clone();
             if let Ok(node) = self.get_ast_node(&mut tokens) {
                 println!("{}", Self::node_expr_to_string(&node));
@@ -74,6 +82,42 @@ impl Parser {
         if tokens.len() == 0 {
             return Err(());
         }
+
+        let unneeded_i = &mut 0;
+        match tokens[0].token_type {
+            TokenType::Break => {
+                return Ok(ASTNode {
+                    token: tokens[0].clone(),
+                    node: Box::new(NodeType::Break(tokens[0].clone())),
+                });
+            }
+            TokenType::Continue => {
+                return Ok(ASTNode {
+                    token: tokens[0].clone(),
+                    node: Box::new(NodeType::Continue(tokens[0].clone())),
+                });
+            }
+            TokenType::Return => {
+                let mut tokens_after_return = tokens[1..].to_vec();
+                let return_node = self.get_entire_expression(&mut tokens_after_return);
+                return Ok(ASTNode {
+                    token: tokens[0].clone(),
+                    node: Box::new(NodeType::ReturnExpression(return_node))
+                });
+            }
+            TokenType::If => {
+                return Ok(ASTNode {
+                    token: tokens[0].clone(),
+                    node: Box::new(NodeType::If(self.parse_if_statement(tokens, unneeded_i))),
+                });
+            }
+            TokenType::Else => {
+                self.error("Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
+                return Err(());
+            }
+            _ => { } // continue
+        }
+
         // for matching function declarations `: a < b` and `: a ( b` as `type: name(paramters)` or `type: name<types>(parameters)`
         // 0 = not declaring, 1 = declaring, 2 = found identifier, 3 = found `(` or `<` and that means declaring function.
         let mut is_declaring_func = 0;
@@ -178,30 +222,89 @@ impl Parser {
             return Err(());
         }
 
-        match tokens[0].token_type {
-            TokenType::Break => {
-                return Ok(ASTNode {
-                    token: tokens[0].clone(),
-                    node: Box::new(NodeType::Break(tokens[0].clone())),
-                });
+        // anything else
+        return Ok(*self.get_entire_expression(tokens));
+    }
+
+    fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, BodyRegion) {
+        if tokens[*i].token_type != TokenType::If { 
+            self.error("Expected `if`", "Parser error, expected `if`", &tokens[*i].location);
+        } else {
+            *i += 1; // skip if
+        }
+        // get expression
+        let mut brace_level = 0;
+        let mut parenthesis_level = 0;
+        let mut bracket_level = 0;
+        let mut expression_nodes = vec![];
+        while *i < tokens.len() {
+            let token = tokens[*i].clone();
+            match token.token_type {
+                TokenType::LParen => parenthesis_level += 1,
+                TokenType::RParen => parenthesis_level -= 1,
+                TokenType::LBracket => bracket_level += 1,
+                TokenType::RBracket => bracket_level -= 1,
+                TokenType::LBrace => brace_level += 1,
+                TokenType::RBrace => brace_level -= 1,
+                _ => {}
             }
-            TokenType::Continue => {
-                return Ok(ASTNode {
-                    token: tokens[0].clone(),
-                    node: Box::new(NodeType::Continue(tokens[0].clone())),
-                });
+            if parenthesis_level == 0 && bracket_level == 0 && brace_level == 1 {
+                break;
             }
-            TokenType::Return => {
-                let mut tokens_after_return = tokens[1..].to_vec();
-                let return_node = self.get_entire_expression(&mut tokens_after_return);
-                return Ok(ASTNode {
-                    token: tokens[0].clone(),
-                    node: Box::new(NodeType::ReturnExpression(return_node))
-                });
+            *i += 1;
+            expression_nodes.push(token.clone());
+        }
+
+        if brace_level != 1 {
+            self.error("If statement needs opening brace", "Expected the If statement to have an opening brace: `if EXPR { }`", &tokens[0].location);
+        }
+
+        let condition = self.get_entire_expression(&mut expression_nodes);
+        let body = self.get_code_block(tokens, i, false);
+        return (condition, body);
+    }
+
+    fn parse_if_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ConditionalRegion {
+        let (condition, body) = self.get_condition_and_body_for_if(tokens, i);
+
+        let mut else_region: Option<BodyRegion> = None;
+        let mut else_if_regions: Option<Vec<Box<ConditionalRegion>>> = None;
+
+        *i += 1;
+        while tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Else) {
+            *i += 1;
+            if tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::If {
+                // else if 
+                let (else_if_condition, else_if_body) = self.get_condition_and_body_for_if(tokens, i);
+
+                if else_if_regions.is_none() {
+                    else_if_regions = Some(vec![]);
+                }
+
+                else_if_regions.as_mut().unwrap().push(Box::new(ConditionalRegion {
+                    body: else_if_body,
+                    condition: else_if_condition,
+                    else_region: None,
+                    else_if_regions: None
+                }));
+
+                *i += 1;
+            } else if else_region.is_none() {
+                // else
+                else_region = Some(self.get_code_block(tokens, i, false));
+                *i += 1;
+            } else {
+                // double else
+                self.error("Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[*i - 1].location);
+                break;
             }
-            _ => {
-                return Ok(*self.get_entire_expression(tokens));
-            }
+        }
+
+        ConditionalRegion {
+            condition,
+            body,
+            else_region,
+            else_if_regions
         }
     }
 
@@ -847,7 +950,6 @@ impl Parser {
         let mut body = vec![];
         let mut semicolon_count = 0;
         let mut current_tokens = vec![vec![]];
-        let mut last_was_identifer = false;
 
         while self.__curent_line < self.lines.len() {
             while *i < tokens.len() {
@@ -855,19 +957,31 @@ impl Parser {
                     TokenType::LBrace => {
                         brace_level += 1;
                         if brace_level != 1 {
-                            if last_was_identifer {
+                            brace_level -= 1;
+
+                            let mut level = 0;
+                            while *i < tokens.len() {
                                 current_tokens[semicolon_count].push(tokens[*i].clone());
-                            }
-                            else {
-                                let nested_region = self.get_code_block(tokens, i, last_is_return);
-                                body.push(Box::new(ASTNode{
-                                    token: tokens[*i].clone(),
-                                    node: Box::new(NodeType::CodeBlock(nested_region)),
-                                }));
-                                brace_level -= 1;
+                                if tokens[*i].token_type == TokenType::LBrace {
+                                    level += 1;
+                                } else if tokens[*i].token_type == TokenType::RBrace {
+                                    level -= 1;
+                                    if level == 0 {
+                                        break;
+                                    }
+                                }
+                                *i += 1;
+
+                                if *i >= tokens.len() {
+                                    self.__curent_line += 1;
+                                    if self.__curent_line >= self.lines.len() {
+                                        break;
+                                    }
+                                    *tokens = self.lines[self.__curent_line].clone();
+                                    *i = 0;
+                                }
                             }
                         }
-                        last_was_identifer = false;
                     }
                     TokenType::RBrace => {
                         brace_level -= 1;
@@ -892,21 +1006,14 @@ impl Parser {
                         else {
                             current_tokens[semicolon_count].push(tokens[*i].clone());
                         }
-                        last_was_identifer = false;
-                    }
-                    TokenType::Identifier => {
-                        current_tokens[semicolon_count].push(tokens[*i].clone());
-                        last_was_identifer = true;
                     }
                     _ => {
                         current_tokens[semicolon_count].push(tokens[*i].clone());
-                        last_was_identifer = false;
                     }
                 }
                 *i += 1;
             }
 
-            last_was_identifer = false;
             current_tokens.push(vec![]);
             if let Ok(node) = self.get_ast_node(&mut current_tokens[semicolon_count]) {
                 body.push(Box::new(node));
@@ -2281,6 +2388,35 @@ impl Parser {
             }
             NodeType::Assignment(ref value) => {
                 format!("{} = {}", Self::node_expr_to_string(&value.left), Self::node_expr_to_string(&value.right))
+            }
+            NodeType::If(ref value) => {
+                let condition = Self::node_expr_to_string(&value.condition);
+                let mut body = "".to_string();
+                for param in value.body.body.iter() {
+                    body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                }
+                let mut else_if_string = "".to_string();
+                if let Some(else_if) = value.else_if_regions.clone() {
+                    for region in else_if.iter() {
+                        let condition = Self::node_expr_to_string(&region.condition);
+                        let mut body = "".to_string();
+                        for param in region.body.body.iter() {
+                            body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                        }
+                        else_if_string += format!("\nelse if {} {{ {} }}", condition, body).as_str();
+                    }
+                }
+
+                let mut else_string = "".to_string();
+                if let Some(else_region) = value.else_region.clone() {
+                    let mut body = "".to_string();
+                    for param in else_region.body.iter() {
+                        body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                    }
+                    else_string += format!("\nelse {{ {} }}", body).as_str();
+                }
+
+                format!("if {} {{ {} }}{}{}", condition, body, else_if_string, else_string)
             }
             _ => {
                 node.token.value.clone()

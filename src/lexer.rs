@@ -355,6 +355,7 @@ impl Lexer {
             else if c == '}' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::RBrace, "}".to_string(), current_location.clone()));
+                tokens.push(Token::new(TokenType::EndOfLine, "}".to_string(), current_location.clone()));
             }
             else if c == '(' {
                 current_location.advance(1);
@@ -789,6 +790,8 @@ impl Lexer {
                 tokens[i + 2].location.column = new_op_location.column;
     
                 i += 3;
+            } else if tokens[i].token_type == TokenType::EndOfLine && tokens[i].value == "}" && tokens.get(i + 1).map_or(false, |t| t.token_type == TokenType::Else) {
+                tokens.remove(i);
             } else {
                 i += 1;
             }
