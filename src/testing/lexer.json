@@ -1,55 +1,190 @@
 [
   {
-    "token_type": "Identifier",
-    "value": "a",
+    "token_type": "For",
+    "value": "for",
     "location": {
-      "line": 1,
-      "column": 1,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Increment",
-    "value": "++",
-    "location": {
-      "line": 1,
-      "column": 2,
-      "length": 2
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": ";",
-    "location": {
-      "line": 1,
-      "column": 4,
-      "length": 1
+      "line": 2,
+      "column": 5,
+      "length": 3
     }
   },
   {
     "token_type": "Identifier",
-    "value": "b",
+    "value": "index",
     "location": {
       "line": 2,
-      "column": 1,
+      "column": 9,
+      "length": 5
+    }
+  },
+  {
+    "token_type": "Comma",
+    "value": ",",
+    "location": {
+      "line": 2,
+      "column": 14,
       "length": 1
     }
   },
   {
-    "token_type": "Decrement",
-    "value": "--",
+    "token_type": "Identifier",
+    "value": "i32",
     "location": {
       "line": 2,
-      "column": 2,
-      "length": 2
+      "column": 16,
+      "length": 3
+    }
+  },
+  {
+    "token_type": "Colon",
+    "value": ":",
+    "location": {
+      "line": 2,
+      "column": 19,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "i",
+    "location": {
+      "line": 2,
+      "column": 21,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Assign",
+    "value": "=",
+    "location": {
+      "line": 2,
+      "column": 23,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "NumberConstant",
+    "value": "0",
+    "location": {
+      "line": 2,
+      "column": 25,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Comma",
+    "value": ",",
+    "location": {
+      "line": 2,
+      "column": 26,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "i",
+    "location": {
+      "line": 2,
+      "column": 28,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LessThan",
+    "value": "<",
+    "location": {
+      "line": 2,
+      "column": 30,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "NumberConstant",
+    "value": "0",
+    "location": {
+      "line": 2,
+      "column": 32,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Comma",
+    "value": ",",
+    "location": {
+      "line": 2,
+      "column": 33,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "i",
+    "location": {
+      "line": 2,
+      "column": 35,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Assign",
+    "value": "=",
+    "location": {
+      "line": 2,
+      "column": 37,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "i",
+    "location": {
+      "line": 2,
+      "column": 35,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Plus",
+    "value": "+",
+    "location": {
+      "line": 2,
+      "column": 39,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "NumberConstant",
+    "value": "1",
+    "location": {
+      "line": 2,
+      "column": 40,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LBrace",
+    "value": "{",
+    "location": {
+      "line": 2,
+      "column": 42,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RBrace",
+    "value": "}",
+    "location": {
+      "line": 2,
+      "column": 44,
+      "length": 1
     }
   },
   {
     "token_type": "EndOfLine",
-    "value": ";",
+    "value": "}",
     "location": {
       "line": 2,
-      "column": 4,
+      "column": 44,
       "length": 1
     }
   }

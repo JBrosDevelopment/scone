@@ -108,12 +108,15 @@ impl Parser {
             TokenType::If | TokenType::While => {
                 return Ok(ASTNode {
                     token: tokens[0].clone(),
-                    node: Box::new(NodeType::While(self.parse_statement(tokens, unneeded_i))),
+                    node: Box::new(NodeType::While(self.parse_conditional_statement(tokens, unneeded_i))),
                 });
             }
             TokenType::Else => {
                 self.error("Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
                 return Err(());
+            }
+            TokenType::For => {
+                return Ok(self.parse_for(tokens));
             }
             _ => { } // continue
         }
@@ -264,7 +267,141 @@ impl Parser {
         return (condition, body);
     }
 
-    fn parse_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ConditionalRegion {
+    fn parse_for_statement(&mut self, index_token: Option<Box<Token>>, set_tokens: Vec<Box<Token>>, condition_tokens: Vec<Box<Token>>, increment_tokens: Vec<Box<Token>>) -> ForLoop {
+        unimplemented!("for statement    index_token: {:?}", index_token);
+    }
+
+    fn parse_foreach_statement(&mut self, index_token: Option<Box<Token>> , for_tokens: Vec<Box<Token>>) -> ForEachLoop {
+        unimplemented!("foreach statement    index_token: {:?}", index_token);
+    }
+
+    fn parse_for(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
+        if tokens[0].token_type != TokenType::For {
+            self.error("Expected `for`", "Parser error, expected `for`", &tokens[0].location);
+            return ASTNode::none();
+        }
+
+        let mut segment_tokens = vec![vec![]];
+        let mut comma_index = 0;
+        let mut parenthesis_level = 0;
+        let mut bracket_level = 0;
+        let mut brace_level = 0;
+        let mut angle_bracket_level_count = 0; 
+
+        let mut i = 1;
+        while i < tokens.len() {
+            segment_tokens[comma_index].push(tokens[i].clone());
+            match tokens[i].token_type {
+                TokenType::LParen => parenthesis_level += 1,
+                TokenType::RParen => parenthesis_level -= 1,
+                TokenType::LBracket => bracket_level += 1,
+                TokenType::RBracket => bracket_level -= 1,
+                TokenType::LBrace => brace_level += 1,
+                TokenType::RBrace => brace_level -= 1,
+                TokenType::LessThan => {
+                    if angle_bracket_level_count <= 0 {
+                        let mut j = i;
+                        let mut temp_angle_bracket_level = 0;
+                        let mut highest = 0;
+                        let mut is_angle_bracket = true; // if is operator: `X < Y` or `Type<T>`
+                        while j < tokens.len() {
+                            match tokens[j].token_type {
+                                TokenType::GreaterThan => {
+                                    temp_angle_bracket_level -= 1;
+                                    if temp_angle_bracket_level == 0 {
+                                        if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen && tokens[j + 1].token_type != TokenType::DoubleColon).unwrap_or(false) {
+                                            is_angle_bracket = false;
+                                        }
+                                        break;
+                                    }
+                                }
+                                TokenType::LessThan => {
+                                    temp_angle_bracket_level += 1;
+                                    highest = temp_angle_bracket_level;
+                                }
+                                _ => {
+                                    if tokens[j].token_type.is_operator() {
+                                        is_angle_bracket = false;
+                                    }
+                                }
+
+                            }
+                            j += 1;
+                        }
+                        if is_angle_bracket && temp_angle_bracket_level == 0 {
+                            angle_bracket_level_count = highest;
+                        }
+                    }
+                    segment_tokens[comma_index].push(tokens[i].clone());
+                }
+                TokenType::GreaterThan => {
+                    if angle_bracket_level_count > 0 {
+                        angle_bracket_level_count -= 1;
+                    }
+                    segment_tokens[comma_index].push(tokens[i].clone());
+                }
+                TokenType::Comma => {
+                    if parenthesis_level == 0 && bracket_level == 0 && brace_level == 0 && angle_bracket_level_count <= 0 {
+                        segment_tokens[comma_index].pop(); // remove the comma
+                        comma_index += 1;
+                        segment_tokens.push(vec![]);
+                    }
+                }
+                _ => {},
+            }
+            i += 1;
+        }
+
+        if segment_tokens.len() == 0 {
+            self.error("Could not parse for statement", "No parameters were found for the for statement: `for X in Y { ... }` or `for VAR, CONDITION, INC { ... }`", &tokens[i].location);
+            return ASTNode::none();
+        } else if segment_tokens.len() == 1 {
+            // for X in Y
+            let node = self.parse_foreach_statement(None, segment_tokens[0].clone());
+            return ASTNode { 
+                token: tokens[0].clone(), 
+                node: Box::new(NodeType::ForEach(node)) 
+            };
+        } else if segment_tokens.len() == 2 {
+            // for index, X in Y
+            let index_token = if segment_tokens[0].len() != 1 {
+                self.error("Could not parse for statement", "The first parameter of the for statement must be a single identifier: `for index, X in Y { ... }`", &tokens[i].location);
+                None
+            } else {
+                Some(segment_tokens[0][0].clone())
+            };
+            let node = self.parse_foreach_statement(index_token, segment_tokens[1].clone());
+            return ASTNode { 
+                token: tokens[0].clone(), 
+                node: Box::new(NodeType::ForEach(node)) 
+            };
+        } else if segment_tokens.len() == 3 {
+            // for VAR, CONDITION, INC
+            let node = self.parse_for_statement(None, segment_tokens[0].clone(), segment_tokens[1].clone(), segment_tokens[2].clone());
+            return ASTNode { 
+                token: tokens[0].clone(), 
+                node: Box::new(NodeType::For(node)) 
+            };
+        } else if segment_tokens.len() == 4 {
+            // for index, VAR, CONDITION, INC
+            let index_token = if segment_tokens[0].len() != 1 {
+                self.error("Could not parse for statement", "The first parameter of the for statement must be a single identifier: `for index, X in Y { ... }`", &tokens[i].location);
+                None
+            } else {
+                Some(segment_tokens[0][0].clone())
+            };
+            let node = self.parse_for_statement(index_token, segment_tokens[1].clone(), segment_tokens[2].clone(), segment_tokens[3].clone());
+            return ASTNode { 
+                token: tokens[0].clone(), 
+                node: Box::new(NodeType::For(node)) 
+            };
+        } else {
+            self.error("Could not parse for statement", "Too many parameters were found for the for statement: `for X in Y { ... }` or `for VAR, CONDITION, INC { ... }`", &tokens[i].location);
+            return ASTNode::none();
+        }
+    }
+
+    fn parse_conditional_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ConditionalRegion {
         let is_while = tokens[*i].token_type == TokenType::While;
         let (condition, body) = self.get_condition_and_body_for_if(tokens, i);
 
@@ -720,7 +857,7 @@ impl Parser {
                                 TokenType::GreaterThan => {
                                     temp_angle_bracket_level -= 1;
                                     if temp_angle_bracket_level == 0 {
-                                        if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen).unwrap_or(false) {
+                                        if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen && tokens[j + 1].token_type != TokenType::DoubleColon).unwrap_or(false) {
                                             is_angle_bracket = false;
                                         }
                                         break;
@@ -853,7 +990,7 @@ impl Parser {
                                 TokenType::GreaterThan => {
                                     temp_angle_bracket_level -= 1;
                                     if temp_angle_bracket_level == 0 {
-                                        if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen).unwrap_or(false) {
+                                        if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen && tokens[j + 1].token_type != TokenType::DoubleColon).unwrap_or(false) {
                                             is_angle_bracket = false;
                                         }
                                         break;
@@ -1551,7 +1688,7 @@ impl Parser {
                             TokenType::GreaterThan => {
                                 temp_angle_bracket_level -= 1;
                                 if temp_angle_bracket_level == 0 {
-                                    if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen).unwrap_or(false) {
+                                    if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen && tokens[j + 1].token_type != TokenType::DoubleColon).unwrap_or(false) {
                                         is_angle_bracket = false;
                                     }
                                     angle_bracket_tokens.push(tokens[j].clone());

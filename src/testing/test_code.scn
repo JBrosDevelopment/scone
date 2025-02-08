@@ -1,3 +1,7 @@
+for x in array {
+
+}
+
 /*
     for x in array.skip(1) { }                  // foreach loop
     for index, x in array.skip(1) { }           // foreach loop with index
