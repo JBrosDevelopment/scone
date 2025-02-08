@@ -105,10 +105,10 @@ impl Parser {
                     node: Box::new(NodeType::ReturnExpression(return_node))
                 });
             }
-            TokenType::If => {
+            TokenType::If | TokenType::While => {
                 return Ok(ASTNode {
                     token: tokens[0].clone(),
-                    node: Box::new(NodeType::If(self.parse_if_statement(tokens, unneeded_i))),
+                    node: Box::new(NodeType::While(self.parse_statement(tokens, unneeded_i))),
                 });
             }
             TokenType::Else => {
@@ -227,8 +227,8 @@ impl Parser {
     }
 
     fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, BodyRegion) {
-        if tokens[*i].token_type != TokenType::If { 
-            self.error("Expected `if`", "Parser error, expected `if`", &tokens[*i].location);
+        if tokens[*i].token_type != TokenType::If && tokens[*i].token_type != TokenType::While { 
+            self.error("Expected `if` or `while`", "Parser error, expected `if` or `while`", &tokens[*i].location);
         } else {
             *i += 1; // skip if
         }
@@ -264,7 +264,8 @@ impl Parser {
         return (condition, body);
     }
 
-    fn parse_if_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ConditionalRegion {
+    fn parse_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ConditionalRegion {
+        let is_while = tokens[*i].token_type == TokenType::While;
         let (condition, body) = self.get_condition_and_body_for_if(tokens, i);
 
         let mut else_region: Option<BodyRegion> = None;
@@ -273,10 +274,11 @@ impl Parser {
         *i += 1;
         while tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Else) {
             *i += 1;
-            if tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::If {
+            if tokens.get(*i).is_some() && (tokens[*i].token_type == TokenType::If || tokens[*i].token_type == TokenType::While) {
                 // else if 
+                let is_while = tokens[*i].token_type == TokenType::While;
                 let (else_if_condition, else_if_body) = self.get_condition_and_body_for_if(tokens, i);
-
+                
                 if else_if_regions.is_none() {
                     else_if_regions = Some(vec![]);
                 }
@@ -285,7 +287,8 @@ impl Parser {
                     body: else_if_body,
                     condition: else_if_condition,
                     else_region: None,
-                    else_if_regions: None
+                    else_if_regions: None,
+                    is_while
                 }));
 
                 *i += 1;
@@ -304,7 +307,8 @@ impl Parser {
             condition,
             body,
             else_region,
-            else_if_regions
+            else_if_regions,
+            is_while
         }
     }
 
@@ -2389,7 +2393,7 @@ impl Parser {
             NodeType::Assignment(ref value) => {
                 format!("{} = {}", Self::node_expr_to_string(&value.left), Self::node_expr_to_string(&value.right))
             }
-            NodeType::If(ref value) => {
+            NodeType::If(ref value) | NodeType::While(ref value) => {
                 let condition = Self::node_expr_to_string(&value.condition);
                 let mut body = "".to_string();
                 for param in value.body.body.iter() {
@@ -2403,7 +2407,8 @@ impl Parser {
                         for param in region.body.body.iter() {
                             body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
                         }
-                        else_if_string += format!("\nelse if {} {{ {} }}", condition, body).as_str();
+                        let regional_if_name = region.is_while.then(|| "while").unwrap_or("if");
+                        else_if_string += format!("\nelse {} {} {{ {} }}", regional_if_name, condition, body).as_str();
                     }
                 }
 
@@ -2415,8 +2420,9 @@ impl Parser {
                     }
                     else_string += format!("\nelse {{ {} }}", body).as_str();
                 }
+                let if_name = value.is_while.then(|| "while").unwrap_or("if");
 
-                format!("if {} {{ {} }}{}{}", condition, body, else_if_string, else_string)
+                format!("{} {} {{ {} }}{}{}", if_name, condition, body, else_if_string, else_string)
             }
             _ => {
                 node.token.value.clone()

@@ -1,27 +1,16 @@
-i32: a = 5;
-i32: b = 10;
-bool: isValid = false;
+while true { 
+    
+} else if a {
+    
+} else while x {
 
-if a < b {
-    if b > 5 {
-        isValid = true;
-    }
+} else {
+
 }
-
-bool: flag = false;
-if a > 0 {
-    if b > a {
-        if b == 10 {
-            flag = true;
-        }
-    }
-} 
-else {}
 
 
 
 ;// TODO:
-// while true { }
 // for x in array.skip(1) { }
 // match name { "john" => {}, "doe" => {}, _ => {} }
 // loadlib "file.dll" // load dll

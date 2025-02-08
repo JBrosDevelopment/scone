@@ -252,6 +252,7 @@ pub struct ConditionalRegion {
     pub body: BodyRegion,
     pub else_if_regions: Option<Vec<Box<ConditionalRegion>>>,
     pub else_region: Option<BodyRegion>,
+    pub is_while: bool
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
