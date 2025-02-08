@@ -1,110 +1,117 @@
 [
   {
     "token": {
-      "token_type": "While",
-      "value": "while",
+      "token_type": "Increment",
+      "value": "++",
       "location": {
         "line": 1,
-        "column": 1,
-        "length": 5
+        "column": 2,
+        "length": 2
       }
     },
     "node": {
-      "While": {
-        "condition": {
+      "Operator": {
+        "left": {
           "token": {
-            "token_type": "BoolConstant",
-            "value": "true",
+            "token_type": "None",
+            "value": "",
+            "location": {
+              "line": 0,
+              "column": 0,
+              "length": 0
+            }
+          },
+          "node": "None"
+        },
+        "right": {
+          "token": {
+            "token_type": "Identifier",
+            "value": "a",
             "location": {
               "line": 1,
-              "column": 7,
-              "length": 4
+              "column": 1,
+              "length": 1
             }
           },
           "node": {
-            "Constant": {
-              "value": {
-                "token_type": "BoolConstant",
-                "value": "true",
-                "location": {
-                  "line": 1,
-                  "column": 7,
-                  "length": 4
-                }
-              },
-              "constant_type": "Bool"
+            "Identifier": {
+              "token_type": "Identifier",
+              "value": "a",
+              "location": {
+                "line": 1,
+                "column": 1,
+                "length": 1
+              }
             }
           }
         },
-        "body": {
-          "body": []
-        },
-        "else_if_regions": [
-          {
-            "condition": {
-              "token": {
-                "token_type": "Identifier",
-                "value": "a",
-                "location": {
-                  "line": 3,
-                  "column": 11,
-                  "length": 1
-                }
-              },
-              "node": {
-                "Identifier": {
-                  "token_type": "Identifier",
-                  "value": "a",
-                  "location": {
-                    "line": 3,
-                    "column": 11,
-                    "length": 1
-                  }
-                }
-              }
-            },
-            "body": {
-              "body": []
-            },
-            "else_if_regions": null,
-            "else_region": null,
-            "is_while": false
-          },
-          {
-            "condition": {
-              "token": {
-                "token_type": "Identifier",
-                "value": "x",
-                "location": {
-                  "line": 5,
-                  "column": 14,
-                  "length": 1
-                }
-              },
-              "node": {
-                "Identifier": {
-                  "token_type": "Identifier",
-                  "value": "x",
-                  "location": {
-                    "line": 5,
-                    "column": 14,
-                    "length": 1
-                  }
-                }
-              }
-            },
-            "body": {
-              "body": []
-            },
-            "else_if_regions": null,
-            "else_region": null,
-            "is_while": true
+        "operator": {
+          "token_type": "Increment",
+          "value": "++",
+          "location": {
+            "line": 1,
+            "column": 2,
+            "length": 2
           }
-        ],
-        "else_region": {
-          "body": []
+        }
+      }
+    }
+  },
+  {
+    "token": {
+      "token_type": "Decrement",
+      "value": "--",
+      "location": {
+        "line": 2,
+        "column": 2,
+        "length": 2
+      }
+    },
+    "node": {
+      "Operator": {
+        "left": {
+          "token": {
+            "token_type": "None",
+            "value": "",
+            "location": {
+              "line": 0,
+              "column": 0,
+              "length": 0
+            }
+          },
+          "node": "None"
         },
-        "is_while": true
+        "right": {
+          "token": {
+            "token_type": "Identifier",
+            "value": "b",
+            "location": {
+              "line": 2,
+              "column": 1,
+              "length": 1
+            }
+          },
+          "node": {
+            "Identifier": {
+              "token_type": "Identifier",
+              "value": "b",
+              "location": {
+                "line": 2,
+                "column": 1,
+                "length": 1
+              }
+            }
+          }
+        },
+        "operator": {
+          "token_type": "Decrement",
+          "value": "--",
+          "location": {
+            "line": 2,
+            "column": 2,
+            "length": 2
+          }
+        }
       }
     }
   }

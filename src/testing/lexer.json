@@ -1,172 +1,55 @@
 [
   {
-    "token_type": "While",
-    "value": "while",
-    "location": {
-      "line": 1,
-      "column": 1,
-      "length": 5
-    }
-  },
-  {
-    "token_type": "BoolConstant",
-    "value": "true",
-    "location": {
-      "line": 1,
-      "column": 7,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "LBrace",
-    "value": "{",
-    "location": {
-      "line": 1,
-      "column": 12,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 3,
-      "column": 1,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Else",
-    "value": "else",
-    "location": {
-      "line": 3,
-      "column": 3,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "If",
-    "value": "if",
-    "location": {
-      "line": 3,
-      "column": 8,
-      "length": 2
-    }
-  },
-  {
     "token_type": "Identifier",
     "value": "a",
     "location": {
-      "line": 3,
-      "column": 11,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "LBrace",
-    "value": "{",
-    "location": {
-      "line": 3,
-      "column": 13,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 5,
+      "line": 1,
       "column": 1,
       "length": 1
     }
   },
   {
-    "token_type": "Else",
-    "value": "else",
+    "token_type": "Increment",
+    "value": "++",
     "location": {
-      "line": 5,
-      "column": 3,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "While",
-    "value": "while",
-    "location": {
-      "line": 5,
-      "column": 8,
-      "length": 5
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "x",
-    "location": {
-      "line": 5,
-      "column": 14,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "LBrace",
-    "value": "{",
-    "location": {
-      "line": 5,
-      "column": 16,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 7,
-      "column": 1,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Else",
-    "value": "else",
-    "location": {
-      "line": 7,
-      "column": 3,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "LBrace",
-    "value": "{",
-    "location": {
-      "line": 7,
-      "column": 8,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 9,
-      "column": 1,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": "}",
-    "location": {
-      "line": 9,
-      "column": 1,
-      "length": 1
+      "line": 1,
+      "column": 2,
+      "length": 2
     }
   },
   {
     "token_type": "EndOfLine",
     "value": ";",
     "location": {
-      "line": 13,
+      "line": 1,
+      "column": 4,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "b",
+    "location": {
+      "line": 2,
       "column": 1,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Decrement",
+    "value": "--",
+    "location": {
+      "line": 2,
+      "column": 2,
+      "length": 2
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": ";",
+    "location": {
+      "line": 2,
+      "column": 4,
       "length": 1
     }
   }

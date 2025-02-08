@@ -32,6 +32,7 @@ pub enum NodeType {
     // flow
     If(ConditionalRegion),
     While(ConditionalRegion),
+    ForEach(ForEachLoop),
     For(ForLoop),
     Match(MatchRegion),
 
@@ -262,6 +263,16 @@ pub struct BodyRegion {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ForLoop {
+    pub index_segment: Option<Box<Token>>,
+    pub set_segment: Box<ASTNode>,
+    pub condition_segment: Box<ASTNode>,
+    pub increment_segment: Box<ASTNode>,
+    pub body: BodyRegion,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct ForEachLoop {
+    pub index_segment: Option<Box<Token>>,
     pub iter_value: Box<ASTNode>,
     pub iter_range: Box<ASTNode>,
     pub body: BodyRegion,
