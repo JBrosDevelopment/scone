@@ -350,6 +350,7 @@ impl Lexer {
             else if c == '{' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::LBrace, "{".to_string(), current_location.clone()));
+                tokens.push(Token::new(TokenType::EndOfLine, "{".to_string(), current_location.clone()));
                 last_was_negatable_ability = 3;
             }
             else if c == '}' {

@@ -83,7 +83,6 @@ impl Parser {
             return Err(());
         }
 
-        let unneeded_i = &mut 0;
         match tokens[0].token_type {
             TokenType::Break => {
                 return Ok(ASTNode {
@@ -108,7 +107,7 @@ impl Parser {
             TokenType::If | TokenType::While => {
                 return Ok(ASTNode {
                     token: tokens[0].clone(),
-                    node: Box::new(NodeType::While(self.parse_conditional_statement(tokens, unneeded_i))),
+                    node: Box::new(NodeType::While(self.parse_conditional_statement(tokens, &mut 0))),
                 });
             }
             TokenType::Else => {
@@ -173,9 +172,8 @@ impl Parser {
                     }
                 }
 
-                let mut __ = 0;
                 let mut type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
-                let var_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens, &mut __);
+                let var_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens, &mut 0);
 
                 let var_value: Box<ASTNode> = self.get_entire_expression(&mut rhs);
 
@@ -267,12 +265,54 @@ impl Parser {
         return (condition, body);
     }
 
-    fn parse_for_statement(&mut self, index_token: Option<Box<Token>>, set_tokens: Vec<Box<Token>>, condition_tokens: Vec<Box<Token>>, increment_tokens: Vec<Box<Token>>) -> ForLoop {
-        unimplemented!("for statement    index_token: {:?}", index_token);
+    fn parse_for_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, index_segment: Option<Box<Token>>, mut set_tokens: Vec<Box<Token>>, mut condition_tokens: Vec<Box<Token>>, mut increment_tokens: Vec<Box<Token>>) -> ForLoop {
+        let set_segment = Box::new(self.get_ast_node(&mut set_tokens).unwrap_or_else(|_| {
+            self.error("Error with for loop set segment", "For loop does not have set segment. An example would be: `for i32: i = 0, i < 10, i += 1 { ... }`", &set_tokens[0].location);
+            ASTNode::none()
+        }));
+        let condition_segment = self.get_entire_expression(&mut condition_tokens);
+        let increment_segment = self.get_entire_expression(&mut increment_tokens);
+        let body = self.get_code_block(tokens, i, false);
+        
+        ForLoop {
+            index_segment,
+            set_segment,
+            condition_segment,
+            increment_segment,
+            body
+        }
     }
 
-    fn parse_foreach_statement(&mut self, index_token: Option<Box<Token>> , for_tokens: Vec<Box<Token>>) -> ForEachLoop {
-        unimplemented!("foreach statement    index_token: {:?}", index_token);
+    fn parse_foreach_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, index_segment: Option<Box<Token>>, for_tokens: Vec<Box<Token>>) -> ForEachLoop {
+        let mut name_tokens = vec![];
+        let mut in_tokens = vec![];
+        
+        let mut in_has_happenend = false;
+        for token in for_tokens {
+            match token.token_type {
+                TokenType::In => in_has_happenend = true,
+                _ => {
+                    if in_has_happenend {
+                        in_tokens.push(token.clone());
+                    }
+                    else {
+                        name_tokens.push(token.clone());
+                    }
+                }
+            }
+        }
+
+        let iter_value = self.get_entire_expression(&mut name_tokens);
+        let iter_range = self.get_entire_expression(&mut in_tokens);
+
+        let body = self.get_code_block(tokens, i, false);
+
+        ForEachLoop {
+            iter_value,
+            iter_range,
+            index_segment,
+            body
+        }
     }
 
     fn parse_for(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
@@ -296,7 +336,13 @@ impl Parser {
                 TokenType::RParen => parenthesis_level -= 1,
                 TokenType::LBracket => bracket_level += 1,
                 TokenType::RBracket => bracket_level -= 1,
-                TokenType::LBrace => brace_level += 1,
+                TokenType::LBrace => {
+                    brace_level += 1;
+                    if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 && angle_bracket_level_count <= 0 {
+                        segment_tokens[comma_index].pop();
+                        break;
+                    }
+                }
                 TokenType::RBrace => brace_level -= 1,
                 TokenType::LessThan => {
                     if angle_bracket_level_count <= 0 {
@@ -332,13 +378,11 @@ impl Parser {
                             angle_bracket_level_count = highest;
                         }
                     }
-                    segment_tokens[comma_index].push(tokens[i].clone());
                 }
                 TokenType::GreaterThan => {
                     if angle_bracket_level_count > 0 {
                         angle_bracket_level_count -= 1;
                     }
-                    segment_tokens[comma_index].push(tokens[i].clone());
                 }
                 TokenType::Comma => {
                     if parenthesis_level == 0 && bracket_level == 0 && brace_level == 0 && angle_bracket_level_count <= 0 {
@@ -357,7 +401,7 @@ impl Parser {
             return ASTNode::none();
         } else if segment_tokens.len() == 1 {
             // for X in Y
-            let node = self.parse_foreach_statement(None, segment_tokens[0].clone());
+            let node = self.parse_foreach_statement(tokens, &mut i, None, segment_tokens[0].clone());
             return ASTNode { 
                 token: tokens[0].clone(), 
                 node: Box::new(NodeType::ForEach(node)) 
@@ -370,14 +414,14 @@ impl Parser {
             } else {
                 Some(segment_tokens[0][0].clone())
             };
-            let node = self.parse_foreach_statement(index_token, segment_tokens[1].clone());
+            let node = self.parse_foreach_statement(tokens, &mut i, index_token, segment_tokens[1].clone());
             return ASTNode { 
                 token: tokens[0].clone(), 
                 node: Box::new(NodeType::ForEach(node)) 
             };
         } else if segment_tokens.len() == 3 {
             // for VAR, CONDITION, INC
-            let node = self.parse_for_statement(None, segment_tokens[0].clone(), segment_tokens[1].clone(), segment_tokens[2].clone());
+            let node = self.parse_for_statement(tokens, &mut i, None, segment_tokens[0].clone(), segment_tokens[1].clone(), segment_tokens[2].clone());
             return ASTNode { 
                 token: tokens[0].clone(), 
                 node: Box::new(NodeType::For(node)) 
@@ -390,7 +434,7 @@ impl Parser {
             } else {
                 Some(segment_tokens[0][0].clone())
             };
-            let node = self.parse_for_statement(index_token, segment_tokens[1].clone(), segment_tokens[2].clone(), segment_tokens[3].clone());
+            let node = self.parse_for_statement(tokens, &mut i, index_token, segment_tokens[1].clone(), segment_tokens[2].clone(), segment_tokens[3].clone());
             return ASTNode { 
                 token: tokens[0].clone(), 
                 node: Box::new(NodeType::For(node)) 
@@ -1096,53 +1140,35 @@ impl Parser {
             while *i < tokens.len() {
                 match tokens[*i].token_type {
                     TokenType::LBrace => {
-                        brace_level += 1;
-                        if brace_level != 1 {
-                            brace_level -= 1;
-
-                            let mut level = 0;
-                            while *i < tokens.len() {
-                                current_tokens[semicolon_count].push(tokens[*i].clone());
-                                if tokens[*i].token_type == TokenType::LBrace {
-                                    level += 1;
-                                } else if tokens[*i].token_type == TokenType::RBrace {
-                                    level -= 1;
-                                    if level == 0 {
-                                        break;
-                                    }
-                                }
-                                *i += 1;
-
-                                if *i >= tokens.len() {
-                                    self.__curent_line += 1;
-                                    if self.__curent_line >= self.lines.len() {
-                                        break;
-                                    }
-                                    *tokens = self.lines[self.__curent_line].clone();
-                                    *i = 0;
-                                }
-                            }
+                        if brace_level == 0 {
+                            brace_level += 1;
+                        } else {
+                            current_tokens[semicolon_count].push(tokens[*i].clone());
                         }
                     }
                     TokenType::RBrace => {
                         brace_level -= 1;
                         if brace_level == 0 {
                             if let Ok(node) = self.get_ast_node(&mut current_tokens[semicolon_count]) {
-                                body.push(Box::new(node));
+                                body.push((Box::new(node), self.__curent_line));
                             }
                             if last_is_return {
                                 if let Some(last) = body.last_mut() {
-                                    if let NodeType::ReturnExpression(_) = last.node.as_ref() {
+                                    if let NodeType::ReturnExpression(_) = last.0.node.as_ref() {
                                         // nothing
                                     } else {
-                                        last.node = Box::new(NodeType::ReturnExpression(Box::new(ASTNode {
+                                        last.0.node = Box::new(NodeType::ReturnExpression(Box::new(ASTNode {
                                             token: tokens[*i].clone(),
-                                            node: last.as_ref().node.clone(),
+                                            node: last.0.as_ref().node.clone(),
                                         })));
                                     }
                                 }
                             }
-                            return BodyRegion { body };
+
+                            // sort by line number
+                            body.sort_by(|a, b| a.1.cmp(&b.1));
+                            
+                            return BodyRegion { body: body.iter().map(|b| b.0.clone()).collect() };
                         }
                         else {
                             current_tokens[semicolon_count].push(tokens[*i].clone());
@@ -1155,10 +1181,10 @@ impl Parser {
                 *i += 1;
             }
 
-            current_tokens.push(vec![]);
             if let Ok(node) = self.get_ast_node(&mut current_tokens[semicolon_count]) {
-                body.push(Box::new(node));
+                body.push((Box::new(node), self.__curent_line));
             }
+            current_tokens.push(vec![]);
             semicolon_count += 1;
 
             self.__curent_line += 1;
@@ -1170,7 +1196,7 @@ impl Parser {
         }
 
         self.error("No end of Body Region", "Code block does not have ending brace `{ ... }` ", &tokens[*i].location);
-        return BodyRegion { body };
+        return BodyRegion { body: body.iter().map(|b| b.0.clone()).collect() };
     }
 
     fn get_entire_expression(&mut self, tokens: &mut Vec<Box<Token>>) -> Box<ASTNode> {
@@ -2179,8 +2205,7 @@ impl Parser {
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
             let mut tokens = tokens.clone();
-            let mut __ = 0;
-            return_tokens.push(self.get_type_idententifier(&mut tokens, &mut __));
+            return_tokens.push(self.get_type_idententifier(&mut tokens, &mut 0));
         }
 
         NodeParameters {
@@ -2560,6 +2585,31 @@ impl Parser {
                 let if_name = value.is_while.then(|| "while").unwrap_or("if");
 
                 format!("{} {} {{ {} }}{}{}", if_name, condition, body, else_if_string, else_string)
+            }
+            NodeType::ForEach(ref value) => {
+                let index = value.index_segment.clone().map_or("".to_string(), |t| t.value.clone());
+                let val = Self::node_expr_to_string(&value.iter_value);
+                let range = Self::node_expr_to_string(&value.iter_range);
+
+                let mut body = "".to_string();
+                for param in value.body.body.iter() {
+                    body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                }
+
+                format!("for {}{} in {} {{ {} }}", value.index_segment.clone().map_or("".to_string(), |_| index + ", "), val, range, body)
+            }
+            NodeType::For(ref value) => {
+                let index = value.index_segment.clone().map_or("".to_string(), |t| t.value.clone());
+                let set = Self::node_expr_to_string(&value.set_segment);
+                let cond = Self::node_expr_to_string(&value.condition_segment);
+                let inc = Self::node_expr_to_string(&value.increment_segment);
+
+                let mut body = "".to_string();
+                for param in value.body.body.iter() {
+                    body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                }
+
+                format!("for {}{}, {}, {} {{ {} }}", value.index_segment.clone().map_or("".to_string(), |_| index + ", "), set, cond, inc, body)
             }
             _ => {
                 node.token.value.clone()

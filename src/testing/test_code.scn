@@ -1,14 +1,7 @@
-for x in array {
-
-}
-
-/*
-    for x in array.skip(1) { }                  // foreach loop
-    for index, x in array.skip(1) { }           // foreach loop with index
-    for i32: i = 0, i < 0, i += 1 { }           // for loop
-    for index, i32: i = 0, i < 0, i += 1 { }    // for loop with index
-*/
-
+for x in array.skip(1) { }                  // foreach loop
+for index, x in array.skip(1) { }           // foreach loop with index
+for i32: i = 0, i < 0, i += 1 { }           // for loop
+for index, i32: i = 0, i < 0, i += 1 { }    // for loop with index
 
 
 ;// TODO:
