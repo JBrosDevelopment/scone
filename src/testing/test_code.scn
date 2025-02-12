@@ -1,8 +1,11 @@
-for x in array.skip(1) { }                  // foreach loop
-for index, x in array.skip(1) { }           // foreach loop with index
-for i32: i = 0, i < 0, i += 1 { }           // for loop
-for index, i32: i = 0, i < 0, i += 1 { }    // for loop with index
-
+match a {
+    b => {
+        c;
+        d;
+    }
+    e => f,
+    _ => g,
+}
 
 ;// TODO:
 // match name { "john" => {}, "doe" => {}, _ => {} }
@@ -25,3 +28,4 @@ for index, i32: i = 0, i < 0, i += 1 { }    // for loop with index
 // enum Files { File1 = 0 -> "1", File2 }
 // class Color { }
 // struct Pixel { }
+// typedef A B

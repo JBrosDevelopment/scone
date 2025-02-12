@@ -1,885 +1,212 @@
 [
   {
     "token": {
-      "token_type": "RBrace",
-      "value": "}",
+      "token_type": "Match",
+      "value": "match",
       "location": {
         "line": 1,
-        "column": 26,
-        "length": 1
+        "column": 1,
+        "length": 5
       }
     },
     "node": {
-      "ForEach": {
-        "index_segment": null,
-        "iter_value": {
+      "Match": {
+        "match_value": {
           "token": {
             "token_type": "Identifier",
-            "value": "x",
+            "value": "a",
             "location": {
               "line": 1,
-              "column": 5,
+              "column": 7,
               "length": 1
             }
           },
           "node": {
             "Identifier": {
               "token_type": "Identifier",
-              "value": "x",
+              "value": "a",
               "location": {
                 "line": 1,
-                "column": 5,
+                "column": 7,
                 "length": 1
               }
             }
           }
         },
-        "iter_range": {
-          "token": {
-            "token_type": "Identifier",
-            "value": "array",
-            "location": {
-              "line": 1,
-              "column": 10,
-              "length": 5
-            }
-          },
-          "node": {
-            "ScopedExpression": {
-              "scope": [
-                {
-                  "expression": {
-                    "token": {
-                      "token_type": "Identifier",
-                      "value": "array",
-                      "location": {
-                        "line": 1,
-                        "column": 10,
-                        "length": 5
-                      }
-                    },
-                    "node": {
-                      "Identifier": {
-                        "token_type": "Identifier",
-                        "value": "array",
-                        "location": {
-                          "line": 1,
-                          "column": 10,
-                          "length": 5
-                        }
-                      }
-                    }
-                  },
-                  "scope_type": null,
-                  "type_parameters": {
-                    "parameters": []
-                  }
-                },
-                {
-                  "expression": {
-                    "token": {
-                      "token_type": "Identifier",
-                      "value": "skip",
-                      "location": {
-                        "line": 1,
-                        "column": 16,
-                        "length": 4
-                      }
-                    },
-                    "node": {
-                      "FunctionCall": {
-                        "parameters": {
-                          "parameters": [
-                            {
-                              "token": {
-                                "token_type": "NumberConstant",
-                                "value": "1",
-                                "location": {
-                                  "line": 1,
-                                  "column": 21,
-                                  "length": 1
-                                }
-                              },
-                              "node": {
-                                "Constant": {
-                                  "value": {
-                                    "token_type": "NumberConstant",
-                                    "value": "1",
-                                    "location": {
-                                      "line": 1,
-                                      "column": 21,
-                                      "length": 1
-                                    }
-                                  },
-                                  "constant_type": "U8"
-                                }
-                              }
-                            }
-                          ]
-                        },
-                        "type_parameters": null,
-                        "name": {
-                          "token_type": "Identifier",
-                          "value": "skip",
-                          "location": {
-                            "line": 1,
-                            "column": 16,
-                            "length": 4
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "scope_type": "Dot",
-                  "type_parameters": null
+        "match_cases": [
+          {
+            "pattern": {
+              "token": {
+                "token_type": "Identifier",
+                "value": "b",
+                "location": {
+                  "line": 2,
+                  "column": 5,
+                  "length": 1
                 }
-              ]
-            }
-          }
-        },
-        "body": {
-          "body": []
-        }
-      }
-    }
-  },
-  {
-    "token": {
-      "token_type": "RBrace",
-      "value": "}",
-      "location": {
-        "line": 2,
-        "column": 33,
-        "length": 1
-      }
-    },
-    "node": {
-      "ForEach": {
-        "index_segment": {
-          "token_type": "Identifier",
-          "value": "index",
-          "location": {
-            "line": 2,
-            "column": 5,
-            "length": 5
-          }
-        },
-        "iter_value": {
-          "token": {
-            "token_type": "Identifier",
-            "value": "x",
-            "location": {
-              "line": 2,
-              "column": 12,
-              "length": 1
-            }
-          },
-          "node": {
-            "Identifier": {
-              "token_type": "Identifier",
-              "value": "x",
-              "location": {
-                "line": 2,
-                "column": 12,
-                "length": 1
-              }
-            }
-          }
-        },
-        "iter_range": {
-          "token": {
-            "token_type": "Identifier",
-            "value": "array",
-            "location": {
-              "line": 2,
-              "column": 17,
-              "length": 5
-            }
-          },
-          "node": {
-            "ScopedExpression": {
-              "scope": [
-                {
-                  "expression": {
-                    "token": {
-                      "token_type": "Identifier",
-                      "value": "array",
-                      "location": {
-                        "line": 2,
-                        "column": 17,
-                        "length": 5
-                      }
-                    },
-                    "node": {
-                      "Identifier": {
-                        "token_type": "Identifier",
-                        "value": "array",
-                        "location": {
-                          "line": 2,
-                          "column": 17,
-                          "length": 5
-                        }
-                      }
-                    }
-                  },
-                  "scope_type": null,
-                  "type_parameters": {
-                    "parameters": []
-                  }
-                },
-                {
-                  "expression": {
-                    "token": {
-                      "token_type": "Identifier",
-                      "value": "skip",
-                      "location": {
-                        "line": 2,
-                        "column": 23,
-                        "length": 4
-                      }
-                    },
-                    "node": {
-                      "FunctionCall": {
-                        "parameters": {
-                          "parameters": [
-                            {
-                              "token": {
-                                "token_type": "NumberConstant",
-                                "value": "1",
-                                "location": {
-                                  "line": 2,
-                                  "column": 28,
-                                  "length": 1
-                                }
-                              },
-                              "node": {
-                                "Constant": {
-                                  "value": {
-                                    "token_type": "NumberConstant",
-                                    "value": "1",
-                                    "location": {
-                                      "line": 2,
-                                      "column": 28,
-                                      "length": 1
-                                    }
-                                  },
-                                  "constant_type": "U8"
-                                }
-                              }
-                            }
-                          ]
-                        },
-                        "type_parameters": null,
-                        "name": {
-                          "token_type": "Identifier",
-                          "value": "skip",
-                          "location": {
-                            "line": 2,
-                            "column": 23,
-                            "length": 4
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "scope_type": "Dot",
-                  "type_parameters": null
-                }
-              ]
-            }
-          }
-        },
-        "body": {
-          "body": []
-        }
-      }
-    }
-  },
-  {
-    "token": {
-      "token_type": "RBrace",
-      "value": "}",
-      "location": {
-        "line": 3,
-        "column": 33,
-        "length": 1
-      }
-    },
-    "node": {
-      "For": {
-        "index_segment": null,
-        "set_segment": {
-          "token": {
-            "token_type": "Identifier",
-            "value": "i",
-            "location": {
-              "line": 3,
-              "column": 10,
-              "length": 1
-            }
-          },
-          "node": {
-            "VariableDeclaration": {
-              "access_modifier": [],
-              "var_type": {
-                "token": {
+              },
+              "node": {
+                "Identifier": {
                   "token_type": "Identifier",
-                  "value": "i32",
+                  "value": "b",
                   "location": {
-                    "line": 3,
+                    "line": 2,
                     "column": 5,
-                    "length": 3
-                  }
-                },
-                "node": {
-                  "TypeIdentifier": {
-                    "scope": [
-                      {
-                        "name": {
-                          "token_type": "Identifier",
-                          "value": "i32",
-                          "location": {
-                            "line": 3,
-                            "column": 5,
-                            "length": 3
-                          }
-                        },
-                        "scope_type": null,
-                        "type_parameters": null
-                      }
-                    ],
-                    "is_ptr_or_ref": [],
-                    "is_array": false
-                  }
-                }
-              },
-              "var_name": {
-                "token_type": "Identifier",
-                "value": "i",
-                "location": {
-                  "line": 3,
-                  "column": 10,
-                  "length": 1
-                }
-              },
-              "var_value": {
-                "token": {
-                  "token_type": "NumberConstant",
-                  "value": "0",
-                  "location": {
-                    "line": 3,
-                    "column": 14,
                     "length": 1
                   }
-                },
-                "node": {
-                  "Constant": {
-                    "value": {
-                      "token_type": "NumberConstant",
-                      "value": "0",
-                      "location": {
-                        "line": 3,
-                        "column": 14,
-                        "length": 1
-                      }
-                    },
-                    "constant_type": "U8"
-                  }
                 }
-              },
-              "description": null
-            }
-          }
-        },
-        "condition_segment": {
-          "token": {
-            "token_type": "LessThan",
-            "value": "<",
-            "location": {
-              "line": 3,
-              "column": 19,
-              "length": 1
-            }
-          },
-          "node": {
-            "Operator": {
-              "left": {
-                "token": {
-                  "token_type": "Identifier",
-                  "value": "i",
-                  "location": {
-                    "line": 3,
-                    "column": 17,
-                    "length": 1
-                  }
-                },
-                "node": {
-                  "Identifier": {
+              }
+            },
+            "body": {
+              "body": [
+                {
+                  "token": {
                     "token_type": "Identifier",
-                    "value": "i",
+                    "value": "c",
                     "location": {
                       "line": 3,
-                      "column": 17,
+                      "column": 9,
                       "length": 1
                     }
-                  }
-                }
-              },
-              "right": {
-                "token": {
-                  "token_type": "NumberConstant",
-                  "value": "0",
-                  "location": {
-                    "line": 3,
-                    "column": 21,
-                    "length": 1
-                  }
-                },
-                "node": {
-                  "Constant": {
-                    "value": {
-                      "token_type": "NumberConstant",
-                      "value": "0",
+                  },
+                  "node": {
+                    "Identifier": {
+                      "token_type": "Identifier",
+                      "value": "c",
                       "location": {
                         "line": 3,
-                        "column": 21,
+                        "column": 9,
                         "length": 1
                       }
-                    },
-                    "constant_type": "U8"
-                  }
-                }
-              },
-              "operator": {
-                "token_type": "LessThan",
-                "value": "<",
-                "location": {
-                  "line": 3,
-                  "column": 19,
-                  "length": 1
-                }
-              }
-            }
-          }
-        },
-        "increment_segment": {
-          "token": {
-            "token_type": "Assign",
-            "value": "=",
-            "location": {
-              "line": 3,
-              "column": 26,
-              "length": 1
-            }
-          },
-          "node": {
-            "Operator": {
-              "left": {
-                "token": {
-                  "token_type": "Identifier",
-                  "value": "i",
-                  "location": {
-                    "line": 3,
-                    "column": 24,
-                    "length": 1
+                    }
                   }
                 },
-                "node": {
-                  "Identifier": {
+                {
+                  "token": {
                     "token_type": "Identifier",
-                    "value": "i",
+                    "value": "d",
                     "location": {
-                      "line": 3,
-                      "column": 24,
+                      "line": 4,
+                      "column": 9,
                       "length": 1
                     }
-                  }
-                }
-              },
-              "right": {
-                "token": {
-                  "token_type": "Plus",
-                  "value": "+",
-                  "location": {
-                    "line": 3,
-                    "column": 28,
-                    "length": 1
-                  }
-                },
-                "node": {
-                  "Operator": {
-                    "left": {
-                      "token": {
-                        "token_type": "Identifier",
-                        "value": "i",
-                        "location": {
-                          "line": 3,
-                          "column": 24,
-                          "length": 1
-                        }
-                      },
-                      "node": {
-                        "Identifier": {
-                          "token_type": "Identifier",
-                          "value": "i",
-                          "location": {
-                            "line": 3,
-                            "column": 24,
-                            "length": 1
-                          }
-                        }
-                      }
-                    },
-                    "right": {
-                      "token": {
-                        "token_type": "NumberConstant",
-                        "value": "1",
-                        "location": {
-                          "line": 3,
-                          "column": 29,
-                          "length": 1
-                        }
-                      },
-                      "node": {
-                        "Constant": {
-                          "value": {
-                            "token_type": "NumberConstant",
-                            "value": "1",
-                            "location": {
-                              "line": 3,
-                              "column": 29,
-                              "length": 1
-                            }
-                          },
-                          "constant_type": "U8"
-                        }
-                      }
-                    },
-                    "operator": {
-                      "token_type": "Plus",
-                      "value": "+",
+                  },
+                  "node": {
+                    "Identifier": {
+                      "token_type": "Identifier",
+                      "value": "d",
                       "location": {
-                        "line": 3,
-                        "column": 28,
+                        "line": 4,
+                        "column": 9,
                         "length": 1
                       }
                     }
                   }
                 }
-              },
-              "operator": {
-                "token_type": "Assign",
-                "value": "=",
-                "location": {
-                  "line": 3,
-                  "column": 26,
-                  "length": 1
-                }
-              }
-            }
-          }
-        },
-        "body": {
-          "body": []
-        }
-      }
-    }
-  },
-  {
-    "token": {
-      "token_type": "RBrace",
-      "value": "}",
-      "location": {
-        "line": 4,
-        "column": 40,
-        "length": 1
-      }
-    },
-    "node": {
-      "For": {
-        "index_segment": {
-          "token_type": "Identifier",
-          "value": "index",
-          "location": {
-            "line": 4,
-            "column": 5,
-            "length": 5
-          }
-        },
-        "set_segment": {
-          "token": {
-            "token_type": "Identifier",
-            "value": "i",
-            "location": {
-              "line": 4,
-              "column": 17,
-              "length": 1
+              ]
             }
           },
-          "node": {
-            "VariableDeclaration": {
-              "access_modifier": [],
-              "var_type": {
-                "token": {
-                  "token_type": "Identifier",
-                  "value": "i32",
-                  "location": {
-                    "line": 4,
-                    "column": 12,
-                    "length": 3
-                  }
-                },
-                "node": {
-                  "TypeIdentifier": {
-                    "scope": [
-                      {
-                        "name": {
-                          "token_type": "Identifier",
-                          "value": "i32",
-                          "location": {
-                            "line": 4,
-                            "column": 12,
-                            "length": 3
-                          }
-                        },
-                        "scope_type": null,
-                        "type_parameters": null
-                      }
-                    ],
-                    "is_ptr_or_ref": [],
-                    "is_array": false
-                  }
-                }
-              },
-              "var_name": {
+          {
+            "pattern": {
+              "token": {
                 "token_type": "Identifier",
-                "value": "i",
+                "value": "e",
                 "location": {
-                  "line": 4,
-                  "column": 17,
+                  "line": 6,
+                  "column": 5,
                   "length": 1
                 }
               },
-              "var_value": {
-                "token": {
-                  "token_type": "NumberConstant",
-                  "value": "0",
-                  "location": {
-                    "line": 4,
-                    "column": 21,
-                    "length": 1
-                  }
-                },
-                "node": {
-                  "Constant": {
-                    "value": {
-                      "token_type": "NumberConstant",
-                      "value": "0",
-                      "location": {
-                        "line": 4,
-                        "column": 21,
-                        "length": 1
-                      }
-                    },
-                    "constant_type": "U8"
-                  }
-                }
-              },
-              "description": null
-            }
-          }
-        },
-        "condition_segment": {
-          "token": {
-            "token_type": "LessThan",
-            "value": "<",
-            "location": {
-              "line": 4,
-              "column": 26,
-              "length": 1
-            }
-          },
-          "node": {
-            "Operator": {
-              "left": {
-                "token": {
+              "node": {
+                "Identifier": {
                   "token_type": "Identifier",
-                  "value": "i",
+                  "value": "e",
                   "location": {
-                    "line": 4,
-                    "column": 24,
+                    "line": 6,
+                    "column": 5,
                     "length": 1
                   }
-                },
-                "node": {
-                  "Identifier": {
-                    "token_type": "Identifier",
-                    "value": "i",
-                    "location": {
-                      "line": 4,
-                      "column": 24,
-                      "length": 1
-                    }
-                  }
-                }
-              },
-              "right": {
-                "token": {
-                  "token_type": "NumberConstant",
-                  "value": "0",
-                  "location": {
-                    "line": 4,
-                    "column": 28,
-                    "length": 1
-                  }
-                },
-                "node": {
-                  "Constant": {
-                    "value": {
-                      "token_type": "NumberConstant",
-                      "value": "0",
-                      "location": {
-                        "line": 4,
-                        "column": 28,
-                        "length": 1
-                      }
-                    },
-                    "constant_type": "U8"
-                  }
-                }
-              },
-              "operator": {
-                "token_type": "LessThan",
-                "value": "<",
-                "location": {
-                  "line": 4,
-                  "column": 26,
-                  "length": 1
                 }
               }
-            }
-          }
-        },
-        "increment_segment": {
-          "token": {
-            "token_type": "Assign",
-            "value": "=",
-            "location": {
-              "line": 4,
-              "column": 33,
-              "length": 1
-            }
-          },
-          "node": {
-            "Operator": {
-              "left": {
-                "token": {
-                  "token_type": "Identifier",
-                  "value": "i",
-                  "location": {
-                    "line": 4,
-                    "column": 31,
-                    "length": 1
-                  }
-                },
-                "node": {
-                  "Identifier": {
+            },
+            "body": {
+              "body": [
+                {
+                  "token": {
                     "token_type": "Identifier",
-                    "value": "i",
+                    "value": "f",
                     "location": {
-                      "line": 4,
-                      "column": 31,
+                      "line": 6,
+                      "column": 10,
                       "length": 1
                     }
-                  }
-                }
-              },
-              "right": {
-                "token": {
-                  "token_type": "Plus",
-                  "value": "+",
-                  "location": {
-                    "line": 4,
-                    "column": 35,
-                    "length": 1
-                  }
-                },
-                "node": {
-                  "Operator": {
-                    "left": {
-                      "token": {
-                        "token_type": "Identifier",
-                        "value": "i",
-                        "location": {
-                          "line": 4,
-                          "column": 31,
-                          "length": 1
-                        }
-                      },
-                      "node": {
-                        "Identifier": {
-                          "token_type": "Identifier",
-                          "value": "i",
-                          "location": {
-                            "line": 4,
-                            "column": 31,
-                            "length": 1
-                          }
-                        }
-                      }
-                    },
-                    "right": {
-                      "token": {
-                        "token_type": "NumberConstant",
-                        "value": "1",
-                        "location": {
-                          "line": 4,
-                          "column": 36,
-                          "length": 1
-                        }
-                      },
-                      "node": {
-                        "Constant": {
-                          "value": {
-                            "token_type": "NumberConstant",
-                            "value": "1",
-                            "location": {
-                              "line": 4,
-                              "column": 36,
-                              "length": 1
-                            }
-                          },
-                          "constant_type": "U8"
-                        }
-                      }
-                    },
-                    "operator": {
-                      "token_type": "Plus",
-                      "value": "+",
+                  },
+                  "node": {
+                    "Identifier": {
+                      "token_type": "Identifier",
+                      "value": "f",
                       "location": {
-                        "line": 4,
-                        "column": 35,
+                        "line": 6,
+                        "column": 10,
                         "length": 1
                       }
                     }
                   }
                 }
-              },
-              "operator": {
-                "token_type": "Assign",
-                "value": "=",
+              ]
+            }
+          },
+          {
+            "pattern": {
+              "token": {
+                "token_type": "Underscore",
+                "value": "_",
                 "location": {
-                  "line": 4,
-                  "column": 33,
+                  "line": 7,
+                  "column": 5,
                   "length": 1
                 }
+              },
+              "node": {
+                "Discard": {
+                  "token_type": "Underscore",
+                  "value": "_",
+                  "location": {
+                    "line": 7,
+                    "column": 5,
+                    "length": 1
+                  }
+                }
               }
+            },
+            "body": {
+              "body": [
+                {
+                  "token": {
+                    "token_type": "Identifier",
+                    "value": "g",
+                    "location": {
+                      "line": 7,
+                      "column": 10,
+                      "length": 1
+                    }
+                  },
+                  "node": {
+                    "Identifier": {
+                      "token_type": "Identifier",
+                      "value": "g",
+                      "location": {
+                        "line": 7,
+                        "column": 10,
+                        "length": 1
+                      }
+                    }
+                  }
+                }
+              ]
             }
           }
-        },
-        "body": {
-          "body": []
-        }
+        ]
       }
     }
   }

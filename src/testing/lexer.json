@@ -1,142 +1,70 @@
 [
   {
-    "token_type": "For",
-    "value": "for",
+    "token_type": "Match",
+    "value": "match",
     "location": {
       "line": 1,
       "column": 1,
-      "length": 3
+      "length": 5
     }
   },
   {
     "token_type": "Identifier",
-    "value": "x",
+    "value": "a",
     "location": {
       "line": 1,
+      "column": 7,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "LBrace",
+    "value": "{",
+    "location": {
+      "line": 1,
+      "column": 9,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": "{",
+    "location": {
+      "line": 1,
+      "column": 9,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "b",
+    "location": {
+      "line": 2,
       "column": 5,
       "length": 1
     }
   },
   {
-    "token_type": "In",
-    "value": "in",
+    "token_type": "DoubleArrow",
+    "value": "=>",
     "location": {
-      "line": 1,
+      "line": 2,
       "column": 7,
       "length": 2
     }
   },
   {
-    "token_type": "Identifier",
-    "value": "array",
-    "location": {
-      "line": 1,
-      "column": 10,
-      "length": 5
-    }
-  },
-  {
-    "token_type": "Dot",
-    "value": ".",
-    "location": {
-      "line": 1,
-      "column": 15,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "skip",
-    "location": {
-      "line": 1,
-      "column": 16,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "LParen",
-    "value": "(",
-    "location": {
-      "line": 1,
-      "column": 20,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "1",
-    "location": {
-      "line": 1,
-      "column": 21,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RParen",
-    "value": ")",
-    "location": {
-      "line": 1,
-      "column": 22,
-      "length": 1
-    }
-  },
-  {
     "token_type": "LBrace",
     "value": "{",
     "location": {
-      "line": 1,
-      "column": 24,
+      "line": 2,
+      "column": 10,
       "length": 1
     }
   },
   {
     "token_type": "EndOfLine",
     "value": "{",
-    "location": {
-      "line": 1,
-      "column": 24,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 1,
-      "column": 26,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": "}",
-    "location": {
-      "line": 1,
-      "column": 26,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "For",
-    "value": "for",
-    "location": {
-      "line": 2,
-      "column": 1,
-      "length": 3
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "index",
-    "location": {
-      "line": 2,
-      "column": 5,
-      "length": 5
-    }
-  },
-  {
-    "token_type": "Comma",
-    "value": ",",
     "location": {
       "line": 2,
       "column": 10,
@@ -145,487 +73,10 @@
   },
   {
     "token_type": "Identifier",
-    "value": "x",
-    "location": {
-      "line": 2,
-      "column": 12,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "In",
-    "value": "in",
-    "location": {
-      "line": 2,
-      "column": 14,
-      "length": 2
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "array",
-    "location": {
-      "line": 2,
-      "column": 17,
-      "length": 5
-    }
-  },
-  {
-    "token_type": "Dot",
-    "value": ".",
-    "location": {
-      "line": 2,
-      "column": 22,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "skip",
-    "location": {
-      "line": 2,
-      "column": 23,
-      "length": 4
-    }
-  },
-  {
-    "token_type": "LParen",
-    "value": "(",
-    "location": {
-      "line": 2,
-      "column": 27,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "1",
-    "location": {
-      "line": 2,
-      "column": 28,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RParen",
-    "value": ")",
-    "location": {
-      "line": 2,
-      "column": 29,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "LBrace",
-    "value": "{",
-    "location": {
-      "line": 2,
-      "column": 31,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": "{",
-    "location": {
-      "line": 2,
-      "column": 31,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 2,
-      "column": 33,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": "}",
-    "location": {
-      "line": 2,
-      "column": 33,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "For",
-    "value": "for",
+    "value": "c",
     "location": {
       "line": 3,
-      "column": 1,
-      "length": 3
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i32",
-    "location": {
-      "line": 3,
-      "column": 5,
-      "length": 3
-    }
-  },
-  {
-    "token_type": "Colon",
-    "value": ":",
-    "location": {
-      "line": 3,
-      "column": 8,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i",
-    "location": {
-      "line": 3,
-      "column": 10,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Assign",
-    "value": "=",
-    "location": {
-      "line": 3,
-      "column": 12,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "0",
-    "location": {
-      "line": 3,
-      "column": 14,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Comma",
-    "value": ",",
-    "location": {
-      "line": 3,
-      "column": 15,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i",
-    "location": {
-      "line": 3,
-      "column": 17,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "LessThan",
-    "value": "<",
-    "location": {
-      "line": 3,
-      "column": 19,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "0",
-    "location": {
-      "line": 3,
-      "column": 21,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Comma",
-    "value": ",",
-    "location": {
-      "line": 3,
-      "column": 22,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i",
-    "location": {
-      "line": 3,
-      "column": 24,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Assign",
-    "value": "=",
-    "location": {
-      "line": 3,
-      "column": 26,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i",
-    "location": {
-      "line": 3,
-      "column": 24,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Plus",
-    "value": "+",
-    "location": {
-      "line": 3,
-      "column": 28,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "1",
-    "location": {
-      "line": 3,
-      "column": 29,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "LBrace",
-    "value": "{",
-    "location": {
-      "line": 3,
-      "column": 31,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": "{",
-    "location": {
-      "line": 3,
-      "column": 31,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 3,
-      "column": 33,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": "}",
-    "location": {
-      "line": 3,
-      "column": 33,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "For",
-    "value": "for",
-    "location": {
-      "line": 4,
-      "column": 1,
-      "length": 3
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "index",
-    "location": {
-      "line": 4,
-      "column": 5,
-      "length": 5
-    }
-  },
-  {
-    "token_type": "Comma",
-    "value": ",",
-    "location": {
-      "line": 4,
-      "column": 10,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i32",
-    "location": {
-      "line": 4,
-      "column": 12,
-      "length": 3
-    }
-  },
-  {
-    "token_type": "Colon",
-    "value": ":",
-    "location": {
-      "line": 4,
-      "column": 15,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i",
-    "location": {
-      "line": 4,
-      "column": 17,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Assign",
-    "value": "=",
-    "location": {
-      "line": 4,
-      "column": 19,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "0",
-    "location": {
-      "line": 4,
-      "column": 21,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Comma",
-    "value": ",",
-    "location": {
-      "line": 4,
-      "column": 22,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i",
-    "location": {
-      "line": 4,
-      "column": 24,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "LessThan",
-    "value": "<",
-    "location": {
-      "line": 4,
-      "column": 26,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "0",
-    "location": {
-      "line": 4,
-      "column": 28,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Comma",
-    "value": ",",
-    "location": {
-      "line": 4,
-      "column": 29,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i",
-    "location": {
-      "line": 4,
-      "column": 31,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Assign",
-    "value": "=",
-    "location": {
-      "line": 4,
-      "column": 33,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Identifier",
-    "value": "i",
-    "location": {
-      "line": 4,
-      "column": 31,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "Plus",
-    "value": "+",
-    "location": {
-      "line": 4,
-      "column": 35,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "NumberConstant",
-    "value": "1",
-    "location": {
-      "line": 4,
-      "column": 36,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "LBrace",
-    "value": "{",
-    "location": {
-      "line": 4,
-      "column": 38,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": "{",
-    "location": {
-      "line": 4,
-      "column": 38,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "RBrace",
-    "value": "}",
-    "location": {
-      "line": 4,
-      "column": 40,
-      "length": 1
-    }
-  },
-  {
-    "token_type": "EndOfLine",
-    "value": "}",
-    "location": {
-      "line": 4,
-      "column": 40,
+      "column": 9,
       "length": 1
     }
   },
@@ -633,7 +84,142 @@
     "token_type": "EndOfLine",
     "value": ";",
     "location": {
+      "line": 3,
+      "column": 10,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "d",
+    "location": {
+      "line": 4,
+      "column": 9,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": ";",
+    "location": {
+      "line": 4,
+      "column": 10,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RBrace",
+    "value": "}",
+    "location": {
+      "line": 5,
+      "column": 5,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": "}",
+    "location": {
+      "line": 5,
+      "column": 5,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "e",
+    "location": {
+      "line": 6,
+      "column": 5,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "DoubleArrow",
+    "value": "=>",
+    "location": {
+      "line": 6,
+      "column": 7,
+      "length": 2
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "f",
+    "location": {
+      "line": 6,
+      "column": 10,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Comma",
+    "value": ",",
+    "location": {
+      "line": 6,
+      "column": 11,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Underscore",
+    "value": "_",
+    "location": {
       "line": 7,
+      "column": 5,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "DoubleArrow",
+    "value": "=>",
+    "location": {
+      "line": 7,
+      "column": 7,
+      "length": 2
+    }
+  },
+  {
+    "token_type": "Identifier",
+    "value": "g",
+    "location": {
+      "line": 7,
+      "column": 10,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "Comma",
+    "value": ",",
+    "location": {
+      "line": 7,
+      "column": 11,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "RBrace",
+    "value": "}",
+    "location": {
+      "line": 8,
+      "column": 1,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": "}",
+    "location": {
+      "line": 8,
+      "column": 1,
+      "length": 1
+    }
+  },
+  {
+    "token_type": "EndOfLine",
+    "value": ";",
+    "location": {
+      "line": 10,
       "column": 1,
       "length": 1
     }

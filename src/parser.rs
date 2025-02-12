@@ -21,7 +21,7 @@ pub struct Parser {
     output: ErrorHandling,
     ast: Vec<ASTNode>,
     lines: Vec<Vec<Box<Token>>>,
-    __curent_line: usize,
+    __curent_parsing_line: usize,
 }
 
 impl Parser {
@@ -30,7 +30,7 @@ impl Parser {
             output: ErrorHandling::new(file, full_code),
             ast: Vec::new(),
             lines: Self::split_tokens_into_lines(&tokens),
-            __curent_line: 0,
+            __curent_parsing_line: 0,
         }
     }
 
@@ -65,14 +65,14 @@ impl Parser {
     fn generate_from_tokens(&mut self) -> Vec<ASTNode> {
         let mut ast: Vec<ASTNode> = Vec::new();
 
-        while self.__curent_line < self.lines.len() {
-            let mut tokens = self.lines[self.__curent_line].clone();
+        while self.__curent_parsing_line < self.lines.len() {
+            let mut tokens = self.lines[self.__curent_parsing_line].clone();
             if let Ok(node) = self.get_ast_node(&mut tokens) {
                 println!("{}", Self::node_expr_to_string(&node));
                 ast.push(node);
                 println!();
             }
-            self.__curent_line += 1;
+            self.__curent_parsing_line += 1;
         }
 
         ast
@@ -116,6 +116,9 @@ impl Parser {
             }
             TokenType::For => {
                 return Ok(self.parse_for(tokens));
+            }
+            TokenType::Match => {
+                return Ok(self.parse_match(tokens, &mut 0));
             }
             _ => { } // continue
         }
@@ -265,10 +268,191 @@ impl Parser {
         return (condition, body);
     }
 
+    fn parse_match_case(&mut self, mut pattern_tokens: Vec<Box<Token>>, mut case_lines: Vec<Vec<Box<Token>>>, err_token: &Box<Token>) -> MatchCase {
+        let err = MatchCase{ body: BodyRegion { body: vec![] }, pattern: Box::new(ASTNode::err()) };
+
+        let pattern = self.get_entire_expression(&mut pattern_tokens);
+
+        if case_lines.len() < 1 {
+            self.error("Incorrect match case grammer", "Expected match case body to have either a single line, or a braced body: `EXPR => LINE,` or `EXPR => { BODY }`", &err_token.location);
+            return err
+        } else if case_lines[0].len() < 1 {
+            self.error("Incorrect match case grammer", "Expected match case body to have either a single line, or a braced body: `EXPR => LINE,` or `EXPR => { BODY }`", &err_token.location);
+            return err
+        }
+
+        let body = if case_lines[0][0].token_type == TokenType::LBrace {
+            // body { }
+            let temp_lines = self.lines.clone();
+            let temp_index = self.__curent_parsing_line;
+
+            let tokens = &mut case_lines[0].clone();
+            self.lines = case_lines;
+            self.__curent_parsing_line = 0;
+            let returns = self.get_code_block(tokens, &mut 0, false);
+
+            self.lines = temp_lines;
+            self.__curent_parsing_line = temp_index;
+            
+            returns
+        } else {
+            // line 
+            if case_lines.len() > 1 {
+                self.error("Incorrect match case grammer, expected single line", "Expected match case to have a single line or a body: `EXPR => LINE,` or `EXPR => { BODY }`", &case_lines[0][0].location);
+                return err;
+            }
+            BodyRegion {
+                body: vec![self.get_entire_expression(&mut case_lines[0])]
+            }
+        };
+
+        MatchCase {
+            pattern,
+            body
+        }
+    }
+
+    fn parse_match(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ASTNode {
+        if tokens[0].token_type != TokenType::Match {
+            self.error("Expected `match`", "Parser error, expected `match`", &tokens[0].location);
+            return ASTNode::err();
+        }
+        let original_token = tokens[*i].clone();
+
+        let mut brace_level = 0;
+        let mut parenthesis_level = 0;
+        let mut bracket_level = 0;
+        let mut expression_nodes = vec![];
+        *i += 1;
+        while *i < tokens.len() {
+            let token = tokens[*i].clone();
+            match token.token_type {
+                TokenType::LParen => parenthesis_level += 1,
+                TokenType::RParen => parenthesis_level -= 1,
+                TokenType::LBracket => bracket_level += 1,
+                TokenType::RBracket => bracket_level -= 1,
+                TokenType::LBrace => brace_level += 1,
+                TokenType::RBrace => brace_level -= 1,
+                _ => {}
+            }
+            if parenthesis_level == 0 && bracket_level == 0 && brace_level == 1 {
+                break;
+            }
+            *i += 1;
+            expression_nodes.push(token.clone());
+        }
+
+        if brace_level != 1 {
+            self.error("If statement needs opening brace", "Expected the If statement to have an opening brace: `if EXPR { }`", &tokens[0].location);
+        }
+
+        brace_level = 0;
+        parenthesis_level = 0;
+        bracket_level = 0;
+
+        let match_value = self.get_entire_expression(&mut expression_nodes);
+        
+        let mut comma_count = 0;
+        let mut semicolon_count = 0;
+        let mut patterns = vec![vec![]]; // cases [ patterns [ ] ]
+        let mut cases_lines_tokens = vec![vec![vec![]]]; // cases [ lines [ tokens [ ] ] ]
+        let mut has_arrow_happened = false;
+        let mut done = false;
+        while self.__curent_parsing_line < self.lines.len() {
+            while *i < tokens.len() {
+                if has_arrow_happened {
+                    cases_lines_tokens[comma_count][semicolon_count].push(tokens[*i].clone());
+                } else {
+                    patterns[comma_count].push(tokens[*i].clone());
+                }
+                match tokens[*i].token_type {
+                    TokenType::LParen => parenthesis_level += 1,
+                    TokenType::RParen => parenthesis_level -= 1,
+                    TokenType::LBracket => bracket_level += 1,
+                    TokenType::RBracket => bracket_level -= 1,
+                    TokenType::LBrace => { 
+                        if brace_level == 0 {
+                            patterns[comma_count].pop();
+                        }
+                        brace_level += 1;
+                    },
+                    TokenType::RBrace => {
+                        brace_level -= 1;
+                        if brace_level == 0 {
+                            cases_lines_tokens[comma_count][semicolon_count].pop();
+                            done = true; 
+                            // allow for: `match A { case B => C, }` *NOTICE* comma at the end
+                            // if last token was a comma, remove it from the last case
+                            if *i >= 1 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Comma) {
+                                cases_lines_tokens.pop(); 
+                                patterns.pop();
+                            }
+                            break;
+                        } else if brace_level == 1 && self.lines.get(self.__curent_parsing_line + 1).map_or(false, |l| l.get(0).map_or(false, |t| t.token_type != TokenType::Comma && t.token_type != TokenType::LBrace && t.token_type != TokenType::RBrace)) { 
+                            // check the next line if it has a comma, if it does, let the comma split it, otherwise split by `}`
+                            comma_count += 1;
+                            semicolon_count = 0;
+                            has_arrow_happened = false;
+                            patterns.push(vec![]);
+                            cases_lines_tokens.push(vec![vec![]]);
+                        }
+                    },
+                    TokenType::Comma => {
+                        if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 {
+                            cases_lines_tokens[comma_count][semicolon_count].pop();
+                            comma_count += 1;
+                            semicolon_count = 0;
+                            has_arrow_happened = false;
+                            patterns.push(vec![]);
+                            cases_lines_tokens.push(vec![vec![]]);
+                        } 
+                    },
+                    TokenType::DoubleArrow => {
+                        if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 {
+                            has_arrow_happened = true;
+                            patterns[comma_count].pop();
+                            semicolon_count = 0;
+                        }
+                    }
+                    _ => { }
+                }
+                *i += 1;
+            }
+
+            if done {
+                break;
+            }
+
+            self.__curent_parsing_line += 1;
+            if self.__curent_parsing_line >= self.lines.len() {
+                break;
+            }
+            if has_arrow_happened {
+                semicolon_count += 1;
+                cases_lines_tokens[comma_count].push(vec![]);
+            }
+            *i = 0;
+            *tokens = self.lines[self.__curent_parsing_line].clone();
+        }
+
+        let mut match_cases = vec![];
+        for index in 0..cases_lines_tokens.len() {
+            match_cases.push(self.parse_match_case(patterns[index].clone(), cases_lines_tokens[index].clone(), &original_token));
+        }
+
+        ASTNode {
+            token: original_token,
+            node: Box::new(NodeType::Match(MatchRegion {
+                match_value,
+                match_cases
+            }))
+        }
+    }
+
     fn parse_for_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, index_segment: Option<Box<Token>>, mut set_tokens: Vec<Box<Token>>, mut condition_tokens: Vec<Box<Token>>, mut increment_tokens: Vec<Box<Token>>) -> ForLoop {
         let set_segment = Box::new(self.get_ast_node(&mut set_tokens).unwrap_or_else(|_| {
             self.error("Error with for loop set segment", "For loop does not have set segment. An example would be: `for i32: i = 0, i < 10, i += 1 { ... }`", &set_tokens[0].location);
-            ASTNode::none()
+            ASTNode::err()
         }));
         let condition_segment = self.get_entire_expression(&mut condition_tokens);
         let increment_segment = self.get_entire_expression(&mut increment_tokens);
@@ -318,7 +502,7 @@ impl Parser {
     fn parse_for(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
         if tokens[0].token_type != TokenType::For {
             self.error("Expected `for`", "Parser error, expected `for`", &tokens[0].location);
-            return ASTNode::none();
+            return ASTNode::err();
         }
 
         let mut segment_tokens = vec![vec![]];
@@ -398,7 +582,7 @@ impl Parser {
 
         if segment_tokens.len() == 0 {
             self.error("Could not parse for statement", "No parameters were found for the for statement: `for X in Y { ... }` or `for VAR, CONDITION, INC { ... }`", &tokens[i].location);
-            return ASTNode::none();
+            return ASTNode::err();
         } else if segment_tokens.len() == 1 {
             // for X in Y
             let node = self.parse_foreach_statement(tokens, &mut i, None, segment_tokens[0].clone());
@@ -441,7 +625,7 @@ impl Parser {
             };
         } else {
             self.error("Could not parse for statement", "Too many parameters were found for the for statement: `for X in Y { ... }` or `for VAR, CONDITION, INC { ... }`", &tokens[i].location);
-            return ASTNode::none();
+            return ASTNode::err();
         }
     }
 
@@ -1136,7 +1320,7 @@ impl Parser {
         let mut semicolon_count = 0;
         let mut current_tokens = vec![vec![]];
 
-        while self.__curent_line < self.lines.len() {
+        while self.__curent_parsing_line < self.lines.len() {
             while *i < tokens.len() {
                 match tokens[*i].token_type {
                     TokenType::LBrace => {
@@ -1150,7 +1334,7 @@ impl Parser {
                         brace_level -= 1;
                         if brace_level == 0 {
                             if let Ok(node) = self.get_ast_node(&mut current_tokens[semicolon_count]) {
-                                body.push((Box::new(node), self.__curent_line));
+                                body.push((Box::new(node), self.__curent_parsing_line));
                             }
                             if last_is_return {
                                 if let Some(last) = body.last_mut() {
@@ -1182,17 +1366,17 @@ impl Parser {
             }
 
             if let Ok(node) = self.get_ast_node(&mut current_tokens[semicolon_count]) {
-                body.push((Box::new(node), self.__curent_line));
+                body.push((Box::new(node), self.__curent_parsing_line));
             }
             current_tokens.push(vec![]);
             semicolon_count += 1;
 
-            self.__curent_line += 1;
+            self.__curent_parsing_line += 1;
             *i = 0;
-            if self.__curent_line >= self.lines.len() {
+            if self.__curent_parsing_line >= self.lines.len() {
                 break;
             }
-            *tokens = self.lines[self.__curent_line].clone();
+            *tokens = self.lines[self.__curent_parsing_line].clone();
         }
 
         self.error("No end of Body Region", "Code block does not have ending brace `{ ... }` ", &tokens[*i].location);
@@ -1324,11 +1508,11 @@ impl Parser {
                             }).0;
                             let right = expr_stack.pop().unwrap_or_else(|| {
                                 self.error("Couldn't parse expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
-                                return (Box::new(ASTNode::none()), 0);
+                                return (Box::new(ASTNode::err()), 0);
                             }).0;
                             let left = expr_stack.pop().unwrap_or_else(|| {
                                 self.error("Couldn't parse expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
-                                return (Box::new(ASTNode::none()), 0);
+                                return (Box::new(ASTNode::err()), 0);
                             }).0;
 
                             let node: Box<ASTNode> = Box::new(ASTNode {
@@ -1476,11 +1660,11 @@ impl Parser {
                 while let Some(top_op) = op_stack.pop() {
                     let right = expr_stack.pop().unwrap_or_else(|| {
                         self.error("Couldn't parse expression in parenthesis", "Right hand side of expression is empty", &token.location);
-                        return (Box::new(ASTNode::none()), 0);
+                        return (Box::new(ASTNode::err()), 0);
                     }).0;
                     let left = expr_stack.pop().unwrap_or_else(|| {
                         self.error("Couldn't parse expression in parenthesis", "Left hand side of expression is empty", &token.location);
-                        return (Box::new(ASTNode::none()), 0);
+                        return (Box::new(ASTNode::err()), 0);
                     }).0;
 
                     let node = Box::new(ASTNode {
@@ -1502,7 +1686,7 @@ impl Parser {
                         scope: vec![Identifier {
                             expression: expr_stack.pop().map(|x| x.0).unwrap_or_else(|| {
                                 self.error("Couldn't parse scope expression in parenthesis", "Expression is empty while trying to get scope", &token.location);
-                                return Box::new(ASTNode::none());
+                                return Box::new(ASTNode::err());
                             }),
                             scope_type: None,
                             type_parameters: None
@@ -1583,7 +1767,7 @@ impl Parser {
                     }));
                 } else {
                     self.error("Could not parse constant", "Couldn't decide type from constant", &token.location);
-                    return Box::new(ASTNode::none());
+                    return Box::new(ASTNode::err());
                 }
 
                 expr_stack.push((node, *i));
@@ -1639,14 +1823,19 @@ impl Parser {
                     token: token.clone(),
                     node: Box::new(NodeType::LambdaExpression(lambda)),
                 }), *i));
+            } else if token.token_type == TokenType::Underscore && tokens.get(*i + 1).is_none() {
+                expr_stack.push((Box::new(ASTNode {
+                    node: Box::new(NodeType::Discard(token.clone())),
+                    token
+                }), *i));
             }
             else if token.token_type == TokenType::Comma {
                 self.error("Unexpected token in expression", "Didn't expect this token in expression. Maybe you meant to use a comma in a tuple, if that's so, put inside parentheises", &token.location);
-                return Box::new(ASTNode::none());
+                return Box::new(ASTNode::err());
             }
             else {
                 self.error("Unexpected token in expression", "Didn't expect this token in expression", &token.location);
-                return Box::new(ASTNode::none());
+                return Box::new(ASTNode::err());
             }
 
             *i += 1;
@@ -1657,7 +1846,7 @@ impl Parser {
 
         let expression_node = self.expression_stacks_to_ast_node(&mut op_stack, &mut expr_stack);
 
-        return expression_node.unwrap_or(Box::new(ASTNode::none()));
+        return expression_node.unwrap_or(Box::new(ASTNode::err()));
     }
 
     fn check_if_tuple(&mut self, tokens: &Vec<Box<Token>>, mut i: usize, recursing: bool) -> (Vec<Vec<Box<Token>>>, bool, usize) {
@@ -1812,11 +2001,11 @@ impl Parser {
                 node: Box::new(NodeType::Operator(Expression {
                     left: left.unwrap_or_else(|| {
                         self.error("Couldn't parse expression", "Left hand side of expression is empty", &operator.0.location);
-                        (Box::new(ASTNode::none()), 0)
+                        (Box::new(ASTNode::err()), 0)
                     }).0,
                     right: right.unwrap_or_else(|| {
                         self.error("Couldn't parse expression", "Right hand side of expression is empty", &operator.0.location);
-                        (Box::new(ASTNode::none()), 0)
+                        (Box::new(ASTNode::err()), 0)
                     }).0,
                     operator: operator.0.clone(),
                 })),
@@ -1836,7 +2025,7 @@ impl Parser {
         }
         let parameters_node = expr_stack.pop().unwrap_or_else(|| {
             self.error("Couldn't parse lamda", "No parameters for lambda were found: `x => x + 1`", &token.location);
-            return (Box::new(ASTNode::none()), 0);
+            return (Box::new(ASTNode::err()), 0);
         }).0;
 
         let parameters = NodeParameters {
@@ -1960,11 +2149,11 @@ impl Parser {
                 }
                 else if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::Comma) {
                     self.error("Incorrect type", "Multiple variables in one declaration is not supported, try instead using a tuple by putting parenthesis around types", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
-                    return Box::new(ASTNode::none());
+                    return Box::new(ASTNode::err());
                 }
                 else {
                     self.error("Incorrect type", "Expected a tuple or type before the `::` or  `.`", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
-                    return Box::new(ASTNode::none());
+                    return Box::new(ASTNode::err());
                 }
             }
             else if first_token.token_type == TokenType::LParen {
@@ -1978,23 +2167,23 @@ impl Parser {
             }
             else if first_token.token_type == TokenType::LBrace {
                 self.error("Incorrect type", "Incorrect type declaration `type: name`, objects `{}` are not supported as a type", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
-                return Box::new(ASTNode::none());
+                return Box::new(ASTNode::err());
             }
             else if first_token.token_type == TokenType::LBracket {
                 self.error("Incorrect type", "Incorrect type declaration. If you were trying to create an array, do: `type[]`", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
-                return Box::new(ASTNode::none());
+                return Box::new(ASTNode::err());
             }
             else {
                 self.error("Variable declaration has incorrect type", format!("Expected tuple or type, found: `{}`", first_token.value).as_str(), &first_token.location);
-                return Box::new(ASTNode::none());
+                return Box::new(ASTNode::err());
             }
         }
         else if tokens.iter().skip(*i).len() > 0 {
             self.error("Variable declaration has no type", "Expected a type before the `:`, no type was provided", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
-            return Box::new(ASTNode::none());
+            return Box::new(ASTNode::err());
         }
         else {
-            return Box::new(ASTNode::none());
+            return Box::new(ASTNode::err());
         }
     }
 
@@ -2086,11 +2275,11 @@ impl Parser {
             // continues to next line
             if *i >= tokens.len() {
                 *i = 0;
-                self.__curent_line += 1;
+                self.__curent_parsing_line += 1;
                 let mut err = false;
                 let v = Vec::new();
 
-                *tokens = self.lines.get(self.__curent_line).unwrap_or_else(|| {
+                *tokens = self.lines.get(self.__curent_parsing_line).unwrap_or_else(|| {
                     err = true;
                     &v
                 }).clone();
@@ -2610,6 +2799,30 @@ impl Parser {
                 }
 
                 format!("for {}{}, {}, {} {{ {} }}", value.index_segment.clone().map_or("".to_string(), |_| index + ", "), set, cond, inc, body)
+            }
+            NodeType::Match(ref value) => {
+                let expression = Self::node_expr_to_string(&value.match_value);
+                let mut cases = "".to_string();
+
+                for case in value.match_cases.clone() {
+                    let mut c = Self::node_expr_to_string(&case.pattern);
+                    c += " => { ";
+                    
+                    let mut body = "".to_string();
+                    for param in case.body.body.iter() {
+                        body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                    }
+
+                    c += &body;
+                    c += "}";
+
+                    cases = cases + &(c + ", ");
+                }
+
+                format!("match {} {{ {} }}", expression, cases)
+            }
+            NodeType::Discard(_) => {
+                "_".to_string()
             }
             _ => {
                 node.token.value.clone()

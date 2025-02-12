@@ -46,6 +46,7 @@ pub enum NodeType {
     AsCast(Expression),
     IsCheck(Expression),
     CodeBlock(BodyRegion),
+    Discard(Box<Token>),
     
     // declare
     TupleDeclaration(NodeParameters),
@@ -114,7 +115,7 @@ pub struct ASTNode {
     pub node: Box<NodeType>,
 }
 impl ASTNode {
-    pub fn none() -> ASTNode {
+    pub fn err() -> ASTNode {
         ASTNode {
             token: Box::new(Token::new_empty()),
             node: Box::new(NodeType::None),
