@@ -510,7 +510,6 @@ impl Parser {
         let mut parenthesis_level = 0;
         let mut bracket_level = 0;
         let mut brace_level = 0;
-        let mut angle_bracket_level_count = 0; 
 
         let mut i = 1;
         while i < tokens.len() {
@@ -522,54 +521,14 @@ impl Parser {
                 TokenType::RBracket => bracket_level -= 1,
                 TokenType::LBrace => {
                     brace_level += 1;
-                    if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 && angle_bracket_level_count <= 0 {
+                    if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 {
                         segment_tokens[comma_index].pop();
                         break;
                     }
                 }
                 TokenType::RBrace => brace_level -= 1,
-                TokenType::LessThan => {
-                    if angle_bracket_level_count <= 0 {
-                        let mut j = i;
-                        let mut temp_angle_bracket_level = 0;
-                        let mut highest = 0;
-                        let mut is_angle_bracket = true; // if is operator: `X < Y` or `Type<T>`
-                        while j < tokens.len() {
-                            match tokens[j].token_type {
-                                TokenType::GreaterThan => {
-                                    temp_angle_bracket_level -= 1;
-                                    if temp_angle_bracket_level == 0 {
-                                        if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen && tokens[j + 1].token_type != TokenType::DoubleColon).unwrap_or(false) {
-                                            is_angle_bracket = false;
-                                        }
-                                        break;
-                                    }
-                                }
-                                TokenType::LessThan => {
-                                    temp_angle_bracket_level += 1;
-                                    highest = temp_angle_bracket_level;
-                                }
-                                _ => {
-                                    if tokens[j].token_type.is_operator() {
-                                        is_angle_bracket = false;
-                                    }
-                                }
-
-                            }
-                            j += 1;
-                        }
-                        if is_angle_bracket && temp_angle_bracket_level == 0 {
-                            angle_bracket_level_count = highest;
-                        }
-                    }
-                }
-                TokenType::GreaterThan => {
-                    if angle_bracket_level_count > 0 {
-                        angle_bracket_level_count -= 1;
-                    }
-                }
                 TokenType::Comma => {
-                    if parenthesis_level == 0 && bracket_level == 0 && brace_level == 0 && angle_bracket_level_count <= 0 {
+                    if parenthesis_level == 0 && bracket_level == 0 && brace_level == 0 {
                         segment_tokens[comma_index].pop(); // remove the comma
                         comma_index += 1;
                         segment_tokens.push(vec![]);
@@ -757,13 +716,13 @@ impl Parser {
         *i -= 1;
 
         let mut last_punc = None;
-        let mut scope = self.get_ident_scope(tokens, i, &mut last_punc);
+        let (mut scope, valid_lt_as_type_parameter) = self.get_ident_scope(tokens, i, &mut last_punc); // `valid_lt_as_type_parameter`
         *i += 1;
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LParen) {
             scope = self.function_call(tokens, Some(scope), i, last_punc)
         }
-        else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LessThan) {
+        else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LessThan) && valid_lt_as_type_parameter {
             scope = self.function_call(tokens, Some(scope), i, last_punc)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
@@ -784,7 +743,9 @@ impl Parser {
             scope = self.get_indexer_expression(tokens, Some(scope), i)
         }
 
-        *i -= 1;
+        if *i > 1 {
+            *i -= 1;
+        }
         return scope
     }
 
@@ -1319,6 +1280,7 @@ impl Parser {
         let mut body = vec![];
         let mut semicolon_count = 0;
         let mut current_tokens = vec![vec![]];
+        let original_token = tokens.get(*i).unwrap_or(&tokens[0]).clone();
 
         while self.__curent_parsing_line < self.lines.len() {
             while *i < tokens.len() {
@@ -1379,7 +1341,7 @@ impl Parser {
             *tokens = self.lines[self.__curent_parsing_line].clone();
         }
 
-        self.error("No end of Body Region", "Code block does not have ending brace `{ ... }` ", &tokens[*i].location);
+        self.error("No end of Body Region", "Code block does not have ending brace `{ ... }` ", &tokens.get(*i).unwrap_or(&original_token).location);
         return BodyRegion { body: body.iter().map(|b| b.0.clone()).collect() };
     }
 
@@ -1615,7 +1577,7 @@ impl Parser {
                         // if not then it is apart of expression                        
                         let mut insides = vec![];
                         let mut level = 1;
-                        while *i < tokens.len() {
+                        while *i + 1 < tokens.len() {
                             *i += 1;
                             if tokens[*i].token_type == TokenType::LParen {
                                 level += 1;
@@ -1823,7 +1785,7 @@ impl Parser {
                     token: token.clone(),
                     node: Box::new(NodeType::LambdaExpression(lambda)),
                 }), *i));
-            } else if token.token_type == TokenType::Underscore && tokens.get(*i + 1).is_none() {
+            } else if token.token_type == TokenType::Underscore {
                 expr_stack.push((Box::new(ASTNode {
                     node: Box::new(NodeType::Discard(token.clone())),
                     token
@@ -2060,7 +2022,7 @@ impl Parser {
                     TokenType::RParen => {
                         parenthesis_level -= 1;
                         lambda_tokens.push(token.clone());
-                        if parenthesis_level <= 0 && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace){
+                        if parenthesis_level <= 0 && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
                             break;
                         }
                     }
@@ -2071,7 +2033,7 @@ impl Parser {
                     TokenType::RBrace => {
                         brace_level -= 1;
                         lambda_tokens.push(token.clone());
-                        if brace_level <= 0  && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) {
+                        if brace_level <= 0  && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
                             break;
                         }
                     }
@@ -2082,7 +2044,7 @@ impl Parser {
                     TokenType::RBracket => {
                         bracket_level -= 1;
                         lambda_tokens.push(token.clone());
-                        if bracket_level <= 0 && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) {
+                        if bracket_level <= 0 && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
                             break;
                         }
                     }
@@ -2402,7 +2364,7 @@ impl Parser {
         }
     }
 
-    fn get_ident_scope(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, last_punc: &mut Option<ScopeType>) -> ScopedIdentifier {
+    fn get_ident_scope(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, last_punc: &mut Option<ScopeType>) -> (ScopedIdentifier, bool) { // (Identifier, i_is_not_less_than /*not including type parameters*/)
         let mut scope = ScopedIdentifier { scope: vec![] };
         let mut first_token = true;
         let mut keep_last_punc = None;
@@ -2415,7 +2377,7 @@ impl Parser {
                     *i += 1;
                     if last_punc.is_some() || first_token {
                         self.error("Scope has incorrect type", "Consecutive `::` found. Use `::` only between valid names, for example `A::B::C`", &token.location);
-                        return scope;
+                        return (scope, true);
                     }
                     *last_punc = Some(ScopeType::DoubleColon);
                     keep_last_punc = Some(ScopeType::DoubleColon);
@@ -2424,7 +2386,7 @@ impl Parser {
                     *i += 1;
                     if last_punc.is_some() || first_token {
                         self.error("Scope has incorrect type", "Consecutive `.` found. Use `.` only between valid names, for example `A.B.C`", &token.location);
-                        return scope;
+                        return (scope, true);
                     }
                     *last_punc = Some(ScopeType::Dot);
                     keep_last_punc = Some(ScopeType::Dot);
@@ -2457,7 +2419,7 @@ impl Parser {
                     
                     if last_punc.is_none() && !first_token {
                         self.error("Scope has incorrect type", "Expected `::` or `.` before identifier. Use `::` and `.` to separate scope levels.", &token.location);
-                        return scope;
+                        return (scope, true);
                     }
                     first_token = false;
 
@@ -2474,23 +2436,32 @@ impl Parser {
                 TokenType::LBracket => {
                     *i = last_identifier_index;
                     *last_punc = keep_last_punc;
-                    return scope;
+                    return (scope, true);
+                }
+                TokenType::LessThan => {
+                    *i = last_identifier_index;
+                    *last_punc = keep_last_punc;
+                    scope.scope.pop();
+                    
+                    // the false basically means that the next token is not the start of a type parameter list, even though it is a less than operator
+                    // if it were, it would have been handled above in the TokenType::Identifier case
+                    return (scope, false); 
                 }
                 _ => {
                     *i = last_identifier_index;
                     *last_punc = keep_last_punc;
                     scope.scope.pop();
-                    return scope;
+                    return (scope, true);
                 }
             }
         }
 
         if last_punc.is_some() {
             self.error("Scope has incorrect type", "Trailing punctuation found. A valid identifier must follow `::` or `.`", &tokens.last().unwrap().location);
-            return scope;
+            return (scope, true);
         }
 
-        return scope;
+        return (scope, true);
     }
 
     fn get_type_scope(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Vec<TypeIdentifier> {
