@@ -230,55 +230,6 @@ impl Parser {
         return Ok(*self.get_entire_expression(tokens));
     }
 
-    fn get_expression_for_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
-        /*let mut brace_level = 0;
-        let mut parenthesis_level = 0;
-        let mut bracket_level = 0;
-        let mut expression_nodes = vec![];
-        let mut found = false;
-        while self.__curent_parsing_line < self.lines.len() {
-            while *i < tokens.len() {
-                let token = tokens[*i].clone();
-                match token.token_type {
-                    TokenType::LParen => parenthesis_level += 1,
-                    TokenType::RParen => parenthesis_level -= 1,
-                    TokenType::LBracket => bracket_level += 1,
-                    TokenType::RBracket => bracket_level -= 1,
-                    TokenType::LBrace => brace_level += 1,
-                    TokenType::RBrace => brace_level -= 1,
-                    _ => {}
-                }
-                if parenthesis_level == 0 && bracket_level == 0 && brace_level == 1 {
-                    found = true;
-                    break;
-                }
-                *i += 1;
-                expression_nodes.push(token.clone());
-            }
-
-            if found {
-                break;
-            }
-
-            self.__curent_parsing_line += 1;
-            if self.__curent_parsing_line >= self.lines.len() {
-                self.error("If statement needs closing brace", "Expected the If statement to have a closing brace: `if EXPR { }`", &tokens[*i].location);
-                break;
-            }
-
-            *i = 0;
-            *tokens = self.lines[self.__curent_parsing_line].clone();
-        }
-
-        if brace_level != 1 {
-            self.error("If statement needs opening brace", "Expected the If statement to have an opening brace: `if EXPR { }`", &tokens[0].location);
-        }
-
-        self.get_entire_expression(expression_nodes.as_mut())*/
-
-        return self.get_expression(tokens, i, Some(vec![TokenType::LBrace]));
-    }
-
     fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, BodyRegion) {
         if tokens[*i].token_type != TokenType::If && tokens[*i].token_type != TokenType::While { 
             self.error("Expected `if` or `while`", "Parser error, expected `if` or `while`", &tokens[*i].location);
@@ -286,7 +237,7 @@ impl Parser {
             *i += 1; // skip if
         }
 
-        let condition = self.get_expression_for_statement(tokens, i);
+        let condition = self.get_expression(tokens, i);
         let body = self.get_code_block(tokens, i, false);
         
         return (condition, body);
@@ -344,7 +295,7 @@ impl Parser {
         let original_token = tokens[*i].clone();
 
         *i += 1;
-        let match_value = self.get_expression_for_statement(tokens, i);
+        let match_value = self.get_expression(tokens, i);
 
         let mut brace_level = 0;
         let mut parenthesis_level = 0;
@@ -693,7 +644,7 @@ impl Parser {
             */
             *i += 1;
 
-            let chained_expression = self.get_expression(tokens, i, None);
+            let chained_expression = self.get_expression(tokens, i);
 
             scope.scope.push(Identifier {
                 expression: chained_expression.clone(),
@@ -989,7 +940,7 @@ impl Parser {
         // Handle chaining if the next token is a dot
         if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
             *i += 2;
-            let chained_expression = self.get_expression(tokens, i, None);
+            let chained_expression = self.get_expression(tokens, i);
             scope.scope.push(Identifier {
                 expression: chained_expression,
                 scope_type: Some(ScopeType::Dot),
@@ -1271,7 +1222,7 @@ impl Parser {
 
         if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
             *i += 2;
-            let chained_expression = self.get_expression(tokens, i, None);
+            let chained_expression = self.get_expression(tokens, i);
             scope.scope.push(Identifier {
                 expression: chained_expression,
                 scope_type: Some(ScopeType::Dot),
@@ -1359,16 +1310,16 @@ impl Parser {
 
     fn get_entire_expression(&mut self, tokens: &mut Vec<Box<Token>>) -> Box<ASTNode> {
         let mut __ = usize::MAX;
-        self.get_expression(tokens, &mut __, None)
+        self.get_expression(tokens, &mut __)
     }
 
-    fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: Option<Vec<TokenType>>) -> Box<ASTNode> {
+    fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
         let mut expr_stack: Vec<(Box<ASTNode>, usize)> = Vec::new();
         let mut op_stack: Vec<(Box<Token>, usize)> = Vec::new();
         let mut last_was_ident = false;
         let mut last_was_unary_operator = false;
         let mut paran_index = 0;
-        let mut is_1_expression = until.is_none();
+        let mut is_1_expression = true;
         let start_index = *i;
 
         if *i == usize::MAX {
@@ -1379,12 +1330,6 @@ impl Parser {
 
         while *i < tokens.len() {
             let token = tokens[*i].clone();
-
-            if let Some(until) = until.clone() {
-                if until.iter().any(|t| t == &token.token_type) {
-                    break;
-                }
-            }
 
             if token.token_type == TokenType::RightArrow {
                 break;
@@ -1418,7 +1363,7 @@ impl Parser {
             }
             else if token.token_type == TokenType::Identifier {
                 last_was_unary_operator = false;
-                if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || tokens[*i + 1].token_type == TokenType::LBrace || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LessThan) && !until.clone().map_or(false, |t| t.iter().any(|x| x == &tokens[*i + 1].token_type)) {
+                if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || tokens[*i + 1].token_type == TokenType::LBrace || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LessThan) {
                     if tokens[*i + 1].token_type == TokenType::LessThan {
                         let mut j = *i;
                         let mut angle_bracket_level = 0;
@@ -1480,7 +1425,7 @@ impl Parser {
                         last_was_unary_operator = false;
 
                         *i += 1;
-                        let next_expression = self.get_expression(tokens, i, None);
+                        let next_expression = self.get_expression(tokens, i);
                         *i -= 1;
 
                         let unary = UnaryExpression {
@@ -1497,7 +1442,7 @@ impl Parser {
                         last_was_unary_operator = false;
 
                         *i += 1;
-                        let next_expression = self.get_expression(tokens, i, None);
+                        let next_expression = self.get_expression(tokens, i);
                         *i -= 1;
 
                         let unary = UnaryExpression {

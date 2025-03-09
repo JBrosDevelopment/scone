@@ -1,7 +1,4 @@
-if a(l => { d{} }) {
-
-
-} 
+a({c;d;})
 
 /*{
     brace_level = (brace_level - 1); 
