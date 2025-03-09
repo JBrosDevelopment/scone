@@ -1,139 +1,24 @@
-// this snippet gives errors
+if a(l => { d{} }) {
 
-while (self.__curent_parsing_line < self.lines.len()) {
-    while ((*i) < tokens.len()) {
-        if has_arrow_happened {
-            cases_lines_tokens[comma_count][semicolon_count].push(tokens[(*i)].clone());  
-        }
-        else {
-            patterns[comma_count].push(tokens[(*i)].clone());  
-        } 
-        match tokens[(*i)].token_type {
-            TokenType::LParen => {
-                (parenthesis_level = (parenthesis_level + 1)); 
-            }, 
-            TokenType::RParen => {
-                (parenthesis_level = (parenthesis_level - 1)); 
-            }, 
-            TokenType::LBracket => {
-                (bracket_level = (bracket_level + 1)); 
-            }, 
-            TokenType::RBracket => {
-                (bracket_level = (bracket_level - 1)); 
-            }, 
-            TokenType::LBrace => {
-                if (brace_level == 0) {
-                    patterns[comma_count].pop();  
-                } 
-                brace_level = (brace_level + 1); 
-            }, 
-            TokenType::RBrace => {
-                brace_level = (brace_level - 1); 
-                if (brace_level == 0) {
-                    cases_lines_tokens[comma_count][semicolon_count].pop();
-                    done = true; 
-                    if (((*i) >= 1) && tokens.get(((*i) - 1)).map_or(false, (t) => { return (t.token_type == TokenType::Comma); })) {
-                        cases_lines_tokens.pop(); 
-                        patterns.pop();  
-                    } 
-                    break;  
-                }
-                else if ((brace_level == 1) && self.lines.get((self.__curent_parsing_line + 1)).map_or(false, (l) => { return l.get(0).map_or(false, (t) => { return (((t.token_type != TokenType::Comma) && (t.token_type != TokenType::LBrace)) && (t.token_type != TokenType::RBrace)); }); })) {
-                    comma_count = (comma_count + 1); 
-                    semicolon_count = 0; 
-                    has_arrow_happened = false;  
-                } 
-            }, 
-            TokenType::Comma => {
-                if (((brace_level == 1) && (parenthesis_level == 0)) && (bracket_level == 0)) {
-                    cases_lines_tokens[comma_count][semicolon_count].pop(); 
-                    comma_count = (comma_count + 1); 
-                    semicolon_count = 0; 
-                    has_arrow_happened = false;  
-                } 
-            }, 
-            TokenType::DoubleArrow => {
-                if (((brace_level == 1) && (parenthesis_level == 0)) && (bracket_level == 0)) {
-                    has_arrow_happened = true; patterns[comma_count].pop(); semicolon_count = 0;  
-                } 
-            }, 
-            _ => { } 
-        } 
-    (*i) = (i + 1);  
-    }  
-}
 
-// this parses fine
-if tokens.iter().skip(*i).len() == 1 {
-    return Box::new(ASTNode {
-        token = first_token.clone(),
-        node = Box::new(NodeType::TypeIdentifier(ScopedType {
-            scope = [TypeIdentifier {
-                name = first_token.clone(),
-                type_parameters = None,
-                scope_type = None,
-            }],
-            is_array = false,
-            is_ptr_or_ref = [],
-        }))
-    });
-}
-while self.__curent_parsing_line < self.lines.len() {
-    while *i < tokens.len() {
-        if has_arrow_happened {
-            cases_lines_tokens[comma_count][semicolon_count].push(tokens[*i].clone());
-        } else {
-            patterns[comma_count].push(tokens[*i].clone());
-        }
-        match tokens[*i].token_type {
-            TokenType::LParen => parenthesis_level += 1,
-            TokenType::RParen => parenthesis_level -= 1,
-            TokenType::LBracket => bracket_level += 1,
-            TokenType::RBracket => bracket_level -= 1,
-            TokenType::LBrace => { 
-                if brace_level == 0 {
-                    patterns[comma_count].pop();
-                }
-                brace_level += 1;
-            },
-            TokenType::RBrace => {
-                brace_level -= 1;
-                if brace_level == 0 {
-                    cases_lines_tokens[comma_count][semicolon_count].pop();
-                    done = true; 
-                    // allow for: `match A { case B => C, }` *NOTICE* comma at the end
-                    // if last token was a comma, remove it from the last case
-                    if *i >= 1 && tokens.get(*i - 1).map_or(false, t => t.token_type == TokenType::Comma) {
-                        cases_lines_tokens.pop(); 
-                        patterns.pop();
-                    }
-                    break;
-                } else if brace_level == 1 && self.lines.get(self.__curent_parsing_line + 1).map_or(false, l => l.get(0).map_or(false, t => t.token_type != TokenType::Comma && t.token_type != TokenType::LBrace && t.token_type != TokenType::RBrace)) { 
-                    // check the next line if it has a comma, if it does, let the comma split it, otherwise split by `}`
-                    comma_count += 1;
-                    semicolon_count = 0;
-                    has_arrow_happened = false;
-                }
-            },
-            TokenType::Comma => {
-                if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 {
-                    cases_lines_tokens[comma_count][semicolon_count].pop();
-                    comma_count += 1;
-                    semicolon_count = 0;
-                    has_arrow_happened = false;
-                } 
-            },
-            TokenType::DoubleArrow => {
-                if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 {
-                    has_arrow_happened = true;
-                    patterns[comma_count].pop();
-                    semicolon_count = 0;
-                }
-            }
-            _ => { }
-        }
-        *i += 1;
+} 
+
+/*{
+    brace_level = (brace_level - 1); 
+    if (brace_level == 0) {
+        cases_lines_tokens[comma_count][semicolon_count].pop();
+        done = true; 
+        if (((*i) >= 1) && tokens.get(((*i) - 1)).map_or(false, (t) => { return (t.token_type == TokenType::Comma); })) {
+            cases_lines_tokens.pop(); 
+            patterns.pop();  
+        } 
+        break;  
     }
+    else if ((brace_level == 1) && self.lines.get((self.__curent_parsing_line + 1)).map_or(false, (l) => { return l.get(0).map_or(false, (t) => { return (((t.token_type != TokenType::Comma) && (t.token_type != TokenType::LBrace)) && (t.token_type != TokenType::RBrace)); }); })) {
+        comma_count = (comma_count + 1); 
+        semicolon_count = 0; 
+        has_arrow_happened = false;  
+    } 
 }
 
 
