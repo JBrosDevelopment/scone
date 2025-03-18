@@ -1,4 +1,6 @@
-a({c;d;})
+(a,b,c => {a;b})
+
+//tuple = (vec { x = 1, y = 2 }.x, matrix[1][0]).b;
 
 /*{
     brace_level = (brace_level - 1); 
@@ -16,11 +18,10 @@ a({c;d;})
         semicolon_count = 0; 
         has_arrow_happened = false;  
     } 
-}
+}*/
 
 
 ;// TODO:
-// match name { "john" => {}, "doe" => {}, _ => {} }
 // loadlib "file.dll" // load dll
 // use LIB::This // include library
 // use LIB::* // library with astrix includes
