@@ -1,6 +1,8 @@
-(a,b,c => {a;b})
+[a, b(x => {x;v})]
 
-//tuple = (vec { x = 1, y = 2 }.x, matrix[1][0]).b;
+//a[a(b => {c;d})]
+//a ? b(c => {d;e}) : f
+//a { b = c(d => {e;f}) }
 
 /*{
     brace_level = (brace_level - 1); 
