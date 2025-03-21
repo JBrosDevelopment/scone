@@ -237,7 +237,7 @@ impl Parser {
             *i += 1; // skip if
         }
 
-        let condition = self.get_expression(tokens, i, None);
+        let condition = self.get_expression(tokens, i, Self::NORMAL_PARSING);
         let body = self.get_code_block(tokens, i, false);
         
         return (condition, body);
@@ -295,7 +295,7 @@ impl Parser {
         let original_token = tokens[*i].clone();
 
         *i += 1;
-        let match_value = self.get_expression(tokens, i, None);
+        let match_value = self.get_expression(tokens, i, Self::NORMAL_PARSING);
 
         let mut brace_level = 0;
         let mut parenthesis_level = 0;
@@ -606,7 +606,7 @@ impl Parser {
 
             if tokens.get(*i + 1).is_some() && tokens[*i + 1].token_type == TokenType::LParen {
                 *i += 1;
-                node_parameters = self.get_parameters_for_function(tokens, i);
+                node_parameters = self.get_node_parameters(tokens, i, Self::PARSRING_FOR_FUNCTION);
             }
             else {
                 self.error("Invalid token for funciton call", format!("Expected either `<` or `(` for function call, got: `{}`", next_token.value).as_str(), &tokens[*i].location);
@@ -644,7 +644,7 @@ impl Parser {
             */
             *i += 1;
 
-            let chained_expression = self.get_expression(tokens, i, None);
+            let chained_expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
 
             scope.scope.push(Identifier {
                 expression: chained_expression.clone(),
@@ -946,7 +946,7 @@ impl Parser {
         // Handle chaining if the next token is a dot
         if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
             *i += 2;
-            let chained_expression = self.get_expression(tokens, i, None);
+            let chained_expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
             scope.scope.push(Identifier {
                 expression: chained_expression,
                 scope_type: Some(ScopeType::Dot),
@@ -1251,7 +1251,7 @@ impl Parser {
                 self.__curent_parsing_line += 1;
                 *tokens = self.lines[self.__curent_parsing_line].clone();
             }
-            let chained_expression = self.get_expression(tokens, i, None);
+            let chained_expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
             scope.scope.push(Identifier {
                 expression: chained_expression,
                 scope_type: Some(ScopeType::Dot),
@@ -1273,7 +1273,7 @@ impl Parser {
         let current_line = self.__curent_parsing_line;
         let current_output = self.output.messages.clone();
 
-        let nodes = self.get_parameters_for_function(tokens, &mut j);
+        let nodes = self.get_node_parameters(tokens, &mut j, Self::PARSRING_FOR_FUNCTION);
         let is_tuple = nodes.len() > 1;
 
         let tuple = Box::new(ASTNode {
@@ -1284,7 +1284,7 @@ impl Parser {
         });
 
         if is_tuple {
-            *i = j;
+            *i = j - 1;
         } else {
             self.__curent_parsing_line = current_line;
             *tokens = self.lines[self.__curent_parsing_line].clone();
@@ -1366,21 +1366,24 @@ impl Parser {
 
     fn get_entire_expression(&mut self, tokens: &mut Vec<Box<Token>>) -> Box<ASTNode> {
         let mut __ = usize::MAX;
-        self.get_expression(tokens, &mut __, None)
+        self.get_expression(tokens, &mut __, Self::NORMAL_PARSING)
     }
 
+    const NORMAL_PARSING: u8 = 0;
     const PARSRING_FOR_FUNCTION: u8 = 1;
     const PARSING_FOR_FUNCTION_UNTIL: [TokenType; 2] = [TokenType::Comma, TokenType::RParen];
     const PARSRING_FOR_INSIDE_PARENTHESIS: u8 = 2;
     const PARSRING_FOR_INSIDE_PARENTHESIS_UNTIL: [TokenType; 1] = [TokenType::RParen];
+    const PARSRING_FOR_ARRAY: u8 = 3;
+    const PARSRING_FOR_ARRAY_UNTIL: [TokenType; 2] = [TokenType::Comma, TokenType::RBracket];
 
-    fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: Option<u8>) -> Box<ASTNode> {
+    fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Box<ASTNode> { // 
         let mut expr_stack: Vec<(Box<ASTNode>, usize)> = Vec::new();
         let mut op_stack: Vec<(Box<Token>, usize)> = Vec::new();
         let mut last_was_ident = false;
         let mut last_was_unary_operator: bool = false;
         let mut paran_index = 0;
-        let mut is_1_expression = until.is_none();
+        let mut is_1_expression = until == 0;
         let start_index = *i;
         
         if *i == usize::MAX {
@@ -1393,13 +1396,17 @@ impl Parser {
             let token = tokens[*i].clone();
             let mut inc_i = true;
 
-            if let Some(until) = until.clone() {
+            debug!(token);
+
+            if until != 0 {
                 if Self::PARSRING_FOR_FUNCTION == until && Self::PARSING_FOR_FUNCTION_UNTIL.iter().any(|t| t == &token.token_type) {
                     if *i > 0 {
                         *i -= 1;
                     }
                     break;
                 } else if Self::PARSRING_FOR_INSIDE_PARENTHESIS == until && Self::PARSRING_FOR_INSIDE_PARENTHESIS_UNTIL.iter().any(|t| t == &token.token_type) {
+                    break;
+                } else if Self::PARSRING_FOR_ARRAY == until && Self::PARSRING_FOR_ARRAY_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
                 }
             }
@@ -1436,7 +1443,7 @@ impl Parser {
             }
             else if token.token_type == TokenType::Identifier {
                 last_was_unary_operator = false;
-                if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || tokens[*i + 1].token_type == TokenType::LBrace || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LessThan) && !until.clone().map_or(false, |t| (t == Self::PARSRING_FOR_FUNCTION && Self::PARSING_FOR_FUNCTION_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type) || t == Self::PARSRING_FOR_INSIDE_PARENTHESIS && Self::PARSRING_FOR_INSIDE_PARENTHESIS_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type))) {
+                if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || tokens[*i + 1].token_type == TokenType::LBrace || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LessThan) && !(until != 0 && (until == Self::PARSRING_FOR_FUNCTION && Self::PARSING_FOR_FUNCTION_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type) || until == Self::PARSRING_FOR_INSIDE_PARENTHESIS && Self::PARSRING_FOR_INSIDE_PARENTHESIS_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type))) {
                     if tokens[*i + 1].token_type == TokenType::LessThan {
                         let mut j = *i;
                         let mut angle_bracket_level = 0;
@@ -1498,7 +1505,7 @@ impl Parser {
                         last_was_unary_operator = false;
 
                         *i += 1;
-                        let next_expression = self.get_expression(tokens, i, None);
+                        let next_expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
                         *i -= 1;
 
                         let unary = UnaryExpression {
@@ -1515,7 +1522,7 @@ impl Parser {
                         last_was_unary_operator = false;
 
                         *i += 1;
-                        let next_expression = self.get_expression(tokens, i, None);
+                        let next_expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
                         *i -= 1;
 
                         let unary = UnaryExpression {
@@ -1648,8 +1655,7 @@ impl Parser {
                         // so `i` would be at `b`. So when it checks for `i + 1` it would be at `)` and not `.`
                         // to fix this, we need to instead use an `until` parsing, use a enum where it would parse for function or for expression
 
-                        let until = Some(Self::PARSRING_FOR_INSIDE_PARENTHESIS);
-                        let node = self.get_expression(tokens, i, until);
+                        let node = self.get_expression(tokens, i, Self::PARSRING_FOR_INSIDE_PARENTHESIS);
 
                         if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
                             // scope traversal
@@ -2005,17 +2011,26 @@ impl Parser {
         }
     }
 
-    fn get_parameters_for_function(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
+    fn get_node_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Vec<Box<ASTNode>> { // until is for PARSRING_FOR_FUNCTION or PARSRING_FOR_ARRAY constants
         /*
             It needs to loop through tokens until it finds the ending `)`. The problem I was having is that it doesn't take into account new lines.
             So like `func(a => {a;b})` wouldn't parse normally. So I got to fix this.
             I'm thinking it will parse until it hits a comma, and then it would add it to a stack. If it hits a `)` then it would add it to the stack and return.
         */
 
+        // this allows this function to be reused for both functions and arrays
+        let until_token = match until {
+            Self::PARSRING_FOR_FUNCTION => TokenType::RParen,
+            Self::PARSRING_FOR_ARRAY => TokenType::RBracket,
+            _  => { 
+                self.error("Parsing error", "Internal parsing error, caused when invalid argument was passed while trying to get node parameters. Maybe try adding constant Self::PARSRING_FOR_FUNCTION", &tokens[*i].location);
+                return vec![];
+            }
+        };
+
         let mut parameters = vec![];
         *i += 1;
 
-        let until = Some(Self::PARSRING_FOR_FUNCTION);
         parameters.push(self.get_expression(tokens, i, until));
 
         if tokens.get(*i).map_or(false, |x| x.token_type != TokenType::Comma) {
@@ -2025,7 +2040,7 @@ impl Parser {
         let mut done = false;
         while self.__curent_parsing_line < self.lines.len() {
             while *i < tokens.len() {
-                if tokens[*i].token_type == TokenType::RParen {
+                if tokens[*i].token_type == until_token {
                     // ends
                     *i += 1;
                     done = true;
