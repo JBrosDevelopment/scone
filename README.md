@@ -1,15 +1,23 @@
-# Scone Programming Language (*in development*)
+# Scone Programming Language *(in development)*
 
-The scone programming language is a straightforward language that is designed to be syntactically like Rust, C, and Java. 
+**Scone** is a simple yet powerful programming language currently in development.  
+Its syntax takes inspiration from Rust, C, and Java, aiming to be **familiar**, **readable**, and **efficient**.
 
-The language is still in development. This is what the syntax will look like:
+### Key Features
+- Clean, familiar syntax (inspired by Rust, C, and Java)
+- Operator overloading
+- Type inference
+- Interfaces and traits (like `ToString`)
+- Aliased constructors for intuitive object creation
+- Strong typing with explicit type declarations
 
-```rust 
+## Example Code
 
-pub class Color <- ToString -> "Example for a color class" {
-    u8: R = 0 -> "Red color code value 0 - 255";
-    u8: G = 0 -> "Green color code value 0 - 255";
-    u8: B = 0 -> "Blue color code value 0 - 255";
+```rust
+pub class Color <- ToString -> "Example of a color class" {
+    u8: R = 0 -> "Red color value (0 - 255)";
+    u8: G = 0 -> "Green color value (0 - 255)";
+    u8: B = 0 -> "Blue color value (0 - 255)";
 
     #! alias
     Color::new(u8: r, u8: g, u8: b) -> "Creates a color object with given RGB values" {
@@ -42,23 +50,28 @@ pub class Color <- ToString -> "Example for a color class" {
 }
 
 void: main() {
-    // creating a new object, no properties were provided, so the default values will be used
+    // Create a new Color object with default values (R: 0, G: 0, B: 0)
     Color: color1 = Color {};
 
-    // because of alias tag, the compiler will infer the correct function
+    // Thanks to the alias tag, the compiler infers the constructor function here
     Color: color2 = new(255, 255, 255);
 
-    // accessing static members
+    // Accessing a static method that returns a white Color object
     Color: white = Color::white();
-    
-    // accessing non-static members
+
+    // Calling an instance method (implements ToString)
     print(color2.to_string());
 
-    // type inference
+    // Type inference with 'auto'
     auto: red = color2.R; 
 
-    // operator overloading
+    // Operator overloading in action (adds the color values together)
     Color: color3 = color1 + color2;
 }
 
 ```
+
+## Contributing
+
+Contributions, feedback, and suggestions are welcome!
+Stay tuned for updates as the language evolves.
