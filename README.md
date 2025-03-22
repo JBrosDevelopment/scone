@@ -50,10 +50,10 @@ pub class Color <- ToString -> "Example of a color class" {
 }
 
 void: main() {
-    // Create a new Color object with default values (R: 0, G: 0, B: 0)
+    // Create a new Color object with default values
     Color: color1 = Color {};
 
-    // Thanks to the alias tag, the compiler infers the constructor function here
+    // The alias tag allows the compiler to infer the `new` function
     Color: color2 = new(255, 255, 255);
 
     // Accessing a static method that returns a white Color object
@@ -62,10 +62,10 @@ void: main() {
     // Calling an instance method (implements ToString)
     print(color2.to_string());
 
-    // Type inference with 'auto'
+    // Type inference with `auto`
     auto: red = color2.R; 
 
-    // Operator overloading in action (adds the color values together)
+    // Operator overloading
     Color: color3 = color1 + color2;
 }
 
