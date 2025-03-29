@@ -852,7 +852,7 @@ impl Parser {
     }
     
     fn get_indexer_expression(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize) -> ScopedIdentifier {
-        let array_nodes = self.array_nodes(tokens, i);
+        let array_nodes = self.get_node_parameters(tokens, i, Self::PARSRING_FOR_ARRAY);
 
         if scope.is_none() {
             self.error("Couldn't parse indexing", "Expected an indexer, but no object was provided for the index", &tokens[*i].location);
@@ -887,7 +887,6 @@ impl Parser {
         let mut went_through_lbracket = false;
 
         scope.scope.push(identifier);
-        *i += 1;
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
             scope = self.get_indexer_expression(tokens, Some(scope), i);
@@ -929,7 +928,7 @@ impl Parser {
 
     fn get_array_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ScopedIdentifier {
         let first_token = tokens[*i].clone();
-        let array_nodes = self.array_nodes(tokens, i);
+        let array_nodes = self.get_node_parameters(tokens, i, Self::PARSRING_FOR_ARRAY);
 
         // Update the last identifier's expression if possible
         let mut scope = ScopedIdentifier {
@@ -944,8 +943,8 @@ impl Parser {
         };
 
         // Handle chaining if the next token is a dot
-        if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
-            *i += 2;
+        if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Dot) {
+            *i += 1;
             let chained_expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
             scope.scope.push(Identifier {
                 expression: chained_expression,
@@ -958,123 +957,6 @@ impl Parser {
         }
 
         scope
-    }
-
-    fn array_nodes(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
-        let mut all_tokens: Vec<Vec<Box<Token>>> = vec![vec![]];
-        let mut comma_vec_index = 0;
-        let mut parenthesis_level = 0;
-        let mut brace_level = 0;
-        let mut bracket_level = 0;
-
-        // this will go up if it finds `<` and will increase as many times there are `<` before there is the `>`. This is slightly different then the other ones
-        let mut last_was_comma = 0;
-        let mut angle_bracket_level_count = 0;
-
-        while *i < tokens.len() {
-            last_was_comma -= 1;
-            match tokens[*i].token_type {
-                TokenType::LBracket => {
-                    bracket_level += 1;
-                    if bracket_level > 1 {
-                        all_tokens[comma_vec_index].push(tokens[*i].clone());
-                    }
-                }
-                TokenType::RBracket => {
-                    bracket_level -= 1;
-                    if bracket_level == 0 && brace_level == 0 && parenthesis_level == 0 && angle_bracket_level_count <= 0 {
-                        if last_was_comma > 0 {
-                            all_tokens.pop();
-                        }
-                        break;
-                    }
-                    else {
-                        all_tokens[comma_vec_index].push(tokens[*i].clone());
-                    }
-                }
-                TokenType::Comma => {
-                    if bracket_level == 1 && parenthesis_level == 0 && brace_level == 0 && angle_bracket_level_count <= 0 {
-                        last_was_comma = 2;
-                        all_tokens.push(vec![]);
-                        comma_vec_index += 1;
-                    }
-                    else {
-                        all_tokens[comma_vec_index].push(tokens[*i].clone());
-                    }
-                }
-                TokenType::LessThan => {
-                    if angle_bracket_level_count <= 0 {
-                        let mut j = *i;
-                        let mut temp_angle_bracket_level = 0;
-                        let mut highest = 0;
-                        let mut is_angle_bracket = true; // if is operator: `X < Y` or `Type<T>`
-                        while j < tokens.len() {
-                            match tokens[j].token_type {
-                                TokenType::GreaterThan => {
-                                    temp_angle_bracket_level -= 1;
-                                    if temp_angle_bracket_level == 0 {
-                                        if tokens.get(j + 1).is_some().then(|| tokens[j + 1].token_type != TokenType::LParen && tokens[j + 1].token_type != TokenType::DoubleColon).unwrap_or(false) {
-                                            is_angle_bracket = false;
-                                        }
-                                        break;
-                                    }
-                                }
-                                TokenType::LessThan => {
-                                    temp_angle_bracket_level += 1;
-                                    highest = temp_angle_bracket_level;
-                                }
-                                _ => {
-                                    if tokens[j].token_type.is_operator() {
-                                        is_angle_bracket = false;
-                                    }
-                                }
-
-                            }
-                            j += 1;
-                        }
-                        if is_angle_bracket && temp_angle_bracket_level == 0 {
-                            angle_bracket_level_count = highest;
-                        }
-                    }
-                    all_tokens[comma_vec_index].push(tokens[*i].clone());
-                }
-                TokenType::GreaterThan => {
-                    if angle_bracket_level_count > 0 {
-                        angle_bracket_level_count -= 1;
-                    }
-                    all_tokens[comma_vec_index].push(tokens[*i].clone());
-                }
-                TokenType::LBrace => {
-                    brace_level += 1;
-                    all_tokens[comma_vec_index].push(tokens[*i].clone());
-                }
-                TokenType::RBrace => {
-                    brace_level -= 1;
-                    all_tokens[comma_vec_index].push(tokens[*i].clone());
-                }
-                TokenType::LParen => {
-                    parenthesis_level += 1;
-                    all_tokens[comma_vec_index].push(tokens[*i].clone());
-                }
-                TokenType::RParen => {
-                    parenthesis_level -= 1;
-                    all_tokens[comma_vec_index].push(tokens[*i].clone());
-                }
-                _ => {
-                    all_tokens[comma_vec_index].push(tokens[*i].clone());
-                }
-            }
-            *i += 1;
-        }
-
-        let mut array_nodes = vec![];
-        for token_vec in all_tokens {
-            let mut token_vec= token_vec.clone();
-            let node = self.get_entire_expression(&mut token_vec);
-            array_nodes.push(node);
-        }
-
-        array_nodes
     }
 
     fn get_object_instantiation(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize, last_punc: Option<ScopeType>) -> ScopedIdentifier {
@@ -1395,8 +1277,6 @@ impl Parser {
         while *i < tokens.len() {
             let token = tokens[*i].clone();
             let mut inc_i = true;
-
-            debug!(token);
 
             if until != 0 {
                 if Self::PARSRING_FOR_FUNCTION == until && Self::PARSING_FOR_FUNCTION_UNTIL.iter().any(|t| t == &token.token_type) {
@@ -2054,7 +1934,7 @@ impl Parser {
                 }
                 else {
                     // error
-                    self.error("Error getting parameters for function", format!("Expected `,` or `)` but got `{}` while parsing function", tokens[*i].value).as_str(), &tokens[*i].location);
+                    //self.error("Error getting parameters for function", format!("Expected `,` or `)` but got `{}` while parsing function", tokens[*i].value).as_str(), &tokens[*i].location);
                     done = true;
                     break;
                 }
