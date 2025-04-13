@@ -1,6 +1,4 @@
-(a ? b : c) ? (d ? e : f) : (g ? h : i);
-a ? (b ? c : d) ? e : f : g;
-a ? b(c => {d;e}) : f
+a::list<(string, s<a,b,d<ew>>)>: c = 0;
 
 //a { b = c(d => {e;f}) }
 

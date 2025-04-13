@@ -1631,22 +1631,6 @@ impl Parser {
         return expression_node.unwrap_or(Box::new(ASTNode::err()));
     }
 
-    fn get_tokens_in_delimeter(tokens: &Vec<Box<Token>>, i: &mut usize, start: TokenType, end: TokenType, return_stack: &mut Vec<Box<Token>>) {
-        let mut level = 0;
-        while *i < tokens.len() {
-            return_stack.push(tokens[*i].clone());
-            if tokens[*i].token_type == start {
-                level += 1;
-            } else if tokens[*i].token_type == end {
-                level -= 1;
-                if level == 0 {
-                    break;
-                }
-            }
-            *i += 1;
-        }
-    }
-
     fn expression_stacks_to_ast_node(&mut self, op_stack: &mut Vec<Box<Token>>, expr_stack: &mut Vec<Box<ASTNode>>) -> Option<Box<ASTNode>> {
         while let Some(operator) = op_stack.pop() {
             if operator.token_type == TokenType::LParen && expr_stack.len() < 2 {
@@ -1866,11 +1850,12 @@ impl Parser {
     fn get_tuple_node_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
         // (Tuple, Type)
         let all_tokens = self.get_node_parameters_for_tuple(tokens, i);
-
+        
         let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
         for tokens in all_tokens {
             let mut tokens = tokens.clone();
-            return_tokens.push(self.get_type_idententifier(&mut tokens, i));
+            let mut zero = 0;
+            return_tokens.push(self.get_type_idententifier(&mut tokens, &mut zero));
         }
 
         return_tokens
@@ -2272,8 +2257,22 @@ impl Parser {
                     let mut maybe_type_parameters = NodeParameters { parameters: vec![] };
                     if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::LessThan) {
                         *i += 1;
+
                         let mut insides = vec![];
-                        Self::get_tokens_in_delimeter(tokens, i, TokenType::LessThan, TokenType::GreaterThan, &mut insides);
+                        let mut level = 0;
+                        
+                        while *i < tokens.len() {
+                            insides.push(tokens[*i].clone());
+                            if tokens[*i].token_type == TokenType::LessThan {
+                                level += 1;
+                            } else if tokens[*i].token_type == TokenType::GreaterThan {
+                                level -= 1;
+                                if level == 0 {
+                                    break;
+                                }
+                            }
+                            *i += 1;
+                        }
 
                         let mut j = 0;
                         maybe_type_parameters = self.get_type_parameters(&mut insides, &mut j);
