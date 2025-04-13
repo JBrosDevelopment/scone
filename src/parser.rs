@@ -742,113 +742,18 @@ impl Parser {
         return scope
     }
     
-    fn get_ternary(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> NodeType {
-        #[derive(PartialEq)]
-        enum TernaryState {
-            Condition,
-            Then,
-            Else,
-        }
-    
-        struct TernaryType {
-            condition: Vec<Box<Token>>,
-            then: Vec<Box<Token>>,
-            else_then: Vec<Box<Token>>,
-        }
-    
-        let original_i = *i;
-    
-        let mut ternary_state = TernaryState::Condition;
-        let mut ternary_tokens = TernaryType {
-            condition: vec![],
-            then: vec![],
-            else_then: vec![],
-        };
-    
-        let mut delimiter_level = 0;
-        let mut question_mark_level = 0;
-    
-        let mut current_tokens: Vec<Box<Token>> = vec![];
-    
-        while *i < tokens.len() {
-            match tokens[*i].token_type {
-                TokenType::LParen | TokenType::LBrace | TokenType::LBracket => {
-                    let start_delimiter = tokens[*i].token_type.clone();
-                    let end_delimiter = match start_delimiter {
-                        TokenType::LParen => TokenType::RParen,
-                        TokenType::LBrace => TokenType::RBrace,
-                        TokenType::LBracket => TokenType::RBracket,
-                        _ => unreachable!(),
-                    };
-    
-                    let mut insides = vec![];
-                    Self::get_tokens_in_delimeter(tokens, i, start_delimiter, end_delimiter, &mut insides);
+    fn get_ternary(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, first_part: Box<ASTNode>) -> NodeType {
+        *i += 1;
 
-                    for token in insides {
-                        current_tokens.push(token);
-                    }
-                }
-                TokenType::QuestionMark => {
-                    question_mark_level += 1;
-                    if delimiter_level == 0 && ternary_state == TernaryState::Condition {
-                        ternary_tokens.condition = current_tokens;
-                        current_tokens = vec![];
-                        ternary_state = TernaryState::Then;
-                    } else {
-                        current_tokens.push(tokens[*i].clone());
-                    }
-                }
-                TokenType::Colon => {
-                    question_mark_level -= 1;
-                    if delimiter_level == 0 && question_mark_level == 0 && ternary_state == TernaryState::Then {
-                        ternary_tokens.then = current_tokens;
-                        current_tokens = vec![];
-                        ternary_state = TernaryState::Else;
-                    } else {
-                        current_tokens.push(tokens[*i].clone());
-                    }
-                }
-                TokenType::RBrace | TokenType::RBracket | TokenType::RParen => {
-                    if delimiter_level == 0 {
-                        if *i > 0 {
-                            *i -= 1;
-                        }
-                        break;
-                    }
-                    delimiter_level -= 1;
-                    current_tokens.push(tokens[*i].clone());
-                }
-                _ => {
-                    current_tokens.push(tokens[*i].clone());
-                }
-            }
-    
-            if delimiter_level < 0 {
-                self.error("Unmatched delimiters", "Mismatched parentheses, braces, or brackets in ternary expression.", &tokens[original_i].location);
-                return NodeType::None;
-            }
-    
-            *i += 1;
-        }
-    
-        if ternary_state != TernaryState::Else {
-            self.error("Incomplete ternary expression", "Expected `:` to complete the ternary expression: `a ? b : c`", &tokens[original_i].location);
-            return NodeType::None;
-        }
-    
-        ternary_tokens.else_then = current_tokens;
-    
-        let condition = self.get_entire_expression(&mut ternary_tokens.condition);
-        let then = self.get_entire_expression(&mut ternary_tokens.then);
-        let else_then = self.get_entire_expression(&mut ternary_tokens.else_then);
-    
-        let ternary = TernaryConditional {
-            condition,
-            then,
-            else_then,
-        };
-    
-        NodeType::TernaryOperator(ternary)
+        let second_part = self.get_expression(tokens, i, Self::PARSRING_FOR_TERNARY);
+        *i += 1;
+        let third_part = self.get_expression(tokens, i, Self::PARSRING_FOR_TERNARY);
+
+        NodeType::TernaryOperator(TernaryConditional {
+            condition: first_part,
+            then: second_part,
+            else_then: third_part,
+        })
     }
     
     fn get_indexer_expression(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize) -> ScopedIdentifier {
@@ -1258,10 +1163,12 @@ impl Parser {
     const PARSRING_FOR_INSIDE_PARENTHESIS_UNTIL: [TokenType; 1] = [TokenType::RParen];
     const PARSRING_FOR_ARRAY: u8 = 3;
     const PARSRING_FOR_ARRAY_UNTIL: [TokenType; 2] = [TokenType::Comma, TokenType::RBracket];
+    const PARSRING_FOR_TERNARY: u8 = 4;
+    const PARSRING_FOR_TERNARY_UNTIL: [TokenType; 1] = [TokenType::Colon];
 
     fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Box<ASTNode> { // 
-        let mut expr_stack: Vec<(Box<ASTNode>, usize)> = Vec::new();
-        let mut op_stack: Vec<(Box<Token>, usize)> = Vec::new();
+        let mut expr_stack: Vec<Box<ASTNode>> = Vec::new();
+        let mut op_stack: Vec<Box<Token>> = Vec::new();
         let mut last_was_ident = false;
         let mut last_was_unary_operator: bool = false;
         let mut paran_index = 0;
@@ -1272,7 +1179,6 @@ impl Parser {
             is_1_expression = false;
             *i = 0;
         }
-        let mut starting_index_for_ternary = *i;
 
         while *i < tokens.len() {
             let token = tokens[*i].clone();
@@ -1288,6 +1194,8 @@ impl Parser {
                     break;
                 } else if Self::PARSRING_FOR_ARRAY == until && Self::PARSRING_FOR_ARRAY_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
+                } else if Self::PARSRING_FOR_TERNARY == until && Self::PARSRING_FOR_TERNARY_UNTIL.iter().any(|t| t == &token.token_type) {
+                    break;
                 }
             }
 
@@ -1296,30 +1204,25 @@ impl Parser {
             }
             else if token.token_type == TokenType::QuestionMark {
                 // ternary operator a ? b : c
-                *i = starting_index_for_ternary;
-                for op in op_stack.clone() {
-                    if op.1 >= *i {
-                        op_stack.remove(op_stack.iter().position(|x| x.1 == op.1).unwrap_or_else(|| {
-                            self.error("Couldn't parse expression", "Operator stack is empty in ternary expression", &token.location);
-                            return 0;
-                        }));
-                    }
+
+                let left_operand = expr_stack.pop().unwrap_or_else(|| {
+                    self.error("Ternary operator has no left operand", "Ternary operator must have a left operand: `a ? b : c`", &token.location);
+                    return Box::new(ASTNode::err());
+                });
+                
+                let ternary = self.get_ternary(tokens, i, left_operand.clone());
+
+                if *i >= 1 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket || t.token_type == TokenType::RBrace) {
+                    *i -= 1;
                 }
-                for expr in expr_stack.clone() {
-                    if expr.1 >= *i {
-                        expr_stack.remove(expr_stack.iter().position(|x| x.1 == expr.1).unwrap_or_else(|| {
-                            self.error("Couldn't parse expression", "Expression stack is empty in ternary expression", &token.location);
-                            return 0;
-                        }));
-                    }
+                if *i >= 1 {
+                    *i -= 1;
                 }
 
-                let ternary = self.get_ternary(tokens, i);
-                starting_index_for_ternary = *i;
-                expr_stack.push((Box::new(ASTNode {
+                expr_stack.push(Box::new(ASTNode {
                     token: token.clone(),
                     node: Box::new(ternary),
-                }), *i));
+                }));
             }
             else if token.token_type == TokenType::Identifier {
                 last_was_unary_operator = false;
@@ -1345,7 +1248,7 @@ impl Parser {
                                 token: token.clone(),
                                 node: Box::new(NodeType::Identifier(token.clone())),
                             });
-                            expr_stack.push((node, *i));
+                            expr_stack.push(node);
                         }
                     }
                     else {
@@ -1362,7 +1265,7 @@ impl Parser {
                         token: token.clone(),
                         node: Box::new(NodeType::Identifier(token.clone())),
                     });
-                    expr_stack.push((node, *i));
+                    expr_stack.push(node);
                 }
             }
             else if token.token_type.is_operator() {
@@ -1370,10 +1273,10 @@ impl Parser {
                 let mut handle_as_operator = true;
                 if last_was_ident && token.token_type == TokenType::LessThan && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Identifier) {
                     // part of function call: function<TYPE>()
-                    expr_stack.push((Box::new(ASTNode {
+                    expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
                         node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i))),
-                    }), *i));
+                    }));
                     handle_as_operator = false;
                 }
                 else if last_was_unary_operator {
@@ -1393,10 +1296,10 @@ impl Parser {
                             operand: next_expression.clone(),
                         };
 
-                        expr_stack.push((Box::new(ASTNode {
+                        expr_stack.push(Box::new(ASTNode {
                             token: token.clone(),
                             node: Box::new(NodeType::UnaryOperator(unary)),
-                        }), *i));
+                        }));
                     }
                     else if tokens.get(*i - 1).is_some().then(|| tokens[*i - 1].token_type.is_operator() || tokens[*i - 1].token_type == TokenType::LParen || tokens[*i - 1].token_type == TokenType::LBracket || tokens[*i - 1].token_type == TokenType::Comma || tokens[*i - 1].token_type == TokenType::LBrace).unwrap_or(false) {
                         last_was_unary_operator = false;
@@ -1410,10 +1313,10 @@ impl Parser {
                             operand: next_expression.clone(),
                         };
 
-                        expr_stack.push((Box::new(ASTNode {
+                        expr_stack.push(Box::new(ASTNode {
                             token: token.clone(),
                             node: Box::new(NodeType::UnaryOperator(unary)),
-                        }), *i));
+                        }));
                     }
                     else {
                         handle_as_operator = true;
@@ -1423,26 +1326,26 @@ impl Parser {
                     *i += 1;
                     let ty = self.get_type_idententifier(tokens, i);
                     *i -= 1;
-                    expr_stack.push((ty, *i));
+                    expr_stack.push(ty);
                 } 
 
                 last_was_ident = false;
                 if handle_as_operator {
                     last_was_unary_operator = false;
                     while let Some(top_op) = op_stack.last() {
-                        if token.token_type.precedence() <= top_op.0.token_type.precedence() {
+                        if token.token_type.precedence() <= top_op.token_type.precedence() {
                             let operator = op_stack.pop().unwrap_or_else(|| {
                                 self.error("Couldn't parse expression", "Operator stack is empty", &token.location);
-                                return (Box::new(Token::new_empty()), 0);
-                            }).0;
+                                return Box::new(Token::new_empty());
+                            });
                             let right = expr_stack.pop().unwrap_or_else(|| {
                                 self.error("Couldn't parse expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
-                                return (Box::new(ASTNode::err()), 0);
-                            }).0;
+                                return Box::new(ASTNode::err());
+                            });
                             let left = expr_stack.pop().unwrap_or_else(|| {
                                 self.error("Couldn't parse expression", "This error usually occurs when 2 operators are next to eachother, `val + / val`", &token.location);
-                                return (Box::new(ASTNode::err()), 0);
-                            }).0;
+                                return Box::new(ASTNode::err());
+                            });
 
                             let node: Box<ASTNode> = Box::new(ASTNode {
                                 token: operator.clone(),
@@ -1453,22 +1356,22 @@ impl Parser {
                                 })),
                             });
 
-                            expr_stack.push((node, *i));
+                            expr_stack.push(node);
                         } else {
                             break;
                         }
                     }
-                    op_stack.push((token.clone(), *i));
+                    op_stack.push(token.clone());
                 }
             }
             else if token.token_type == TokenType::DoubleColon {
                 last_was_unary_operator = false;
                 if last_was_ident {
                     // scope traversal
-                    expr_stack.push((Box::new(ASTNode {
+                    expr_stack.push(Box::new(ASTNode {
                         token: tokens[*i - 1].clone(),
                         node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i))),
-                    }), *i));
+                    }));
                 }
                 else {
                     self.error("Expected identifier before double colon", "Expected identifier before double colon: `IDENT::IDENT`", &token.location);
@@ -1479,10 +1382,10 @@ impl Parser {
                 last_was_unary_operator = false;
                 if last_was_ident {
                     // scope traversal
-                    expr_stack.push((Box::new(ASTNode {
+                    expr_stack.push(Box::new(ASTNode {
                         token: tokens[*i - 1].clone(),
                         node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i))),
-                    }), *i));
+                    }));
                 }
                 else {
                     self.error("Expected identifier before dot", "Expected a correct expression before scoping: `expression.member`", &token.location);
@@ -1494,10 +1397,10 @@ impl Parser {
                 if last_was_ident {
                     last_was_ident = false;
                     // part of function call
-                    expr_stack.push((Box::new(ASTNode {
+                    expr_stack.push(Box::new(ASTNode {
                         token: tokens[*i - 1].clone(),
                         node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i))),
-                    }), *i));
+                    }));
                 }
                 else {
                     let (is_tuple, tuple) = self.check_and_return_tuple(tokens, i);
@@ -1514,13 +1417,13 @@ impl Parser {
 
                             let scope = self.scope_call_with_scope(tokens, i, tuple_scope, Some(ScopeType::Dot));
 
-                            expr_stack.push((Box::new(ASTNode {
+                            expr_stack.push(Box::new(ASTNode {
                                 token: tokens[*i - 1].clone(),
                                 node: Box::new(NodeType::ScopedExpression(scope)),
-                            }), *i));
+                            }));
                         }
                         else {
-                            expr_stack.push((tuple, *i));
+                            expr_stack.push(tuple);
                         }
 
                         last_was_ident = false;
@@ -1550,13 +1453,13 @@ impl Parser {
 
                             let scope = self.scope_call_with_scope(tokens, i, parenthesis_scope, Some(ScopeType::Dot));
 
-                            expr_stack.push((Box::new(ASTNode {
+                            expr_stack.push(Box::new(ASTNode {
                                 token: tokens[*i - 1].clone(),
                                 node: Box::new(NodeType::ScopedExpression(scope)),
-                            }), *i));
+                            }));
                         }
                         else {
-                            expr_stack.push((node, *i));
+                            expr_stack.push(node);
                         }
                     }
                 }
@@ -1567,23 +1470,23 @@ impl Parser {
                 while let Some(top_op) = op_stack.pop() {
                     let right = expr_stack.pop().unwrap_or_else(|| {
                         self.error("Couldn't parse expression in parenthesis", "Right hand side of expression is empty", &token.location);
-                        return (Box::new(ASTNode::err()), 0);
-                    }).0;
+                        return Box::new(ASTNode::err());
+                    });
                     let left = expr_stack.pop().unwrap_or_else(|| {
                         self.error("Couldn't parse expression in parenthesis", "Left hand side of expression is empty", &token.location);
-                        return (Box::new(ASTNode::err()), 0);
-                    }).0;
+                        return Box::new(ASTNode::err());
+                    });
 
                     let node = Box::new(ASTNode {
-                        token: top_op.0.clone(),
+                        token: top_op.clone(),
                         node: Box::new(NodeType::Operator(Expression{
                             left,
                             right,
-                            operator: top_op.0,
+                            operator: top_op,
                         })),
                     });
 
-                    expr_stack.push((node, *i));
+                    expr_stack.push(node);
                 }
 
                 if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
@@ -1591,7 +1494,7 @@ impl Parser {
                     *i += 1;
                     let given_scope = ScopedIdentifier {
                         scope: vec![Identifier {
-                            expression: expr_stack.pop().map(|x| x.0).unwrap_or_else(|| {
+                            expression: expr_stack.pop().unwrap_or_else(|| {
                                 self.error("Couldn't parse scope expression in parenthesis", "Expression is empty while trying to get scope", &token.location);
                                 return Box::new(ASTNode::err());
                             }),
@@ -1601,10 +1504,14 @@ impl Parser {
                     };
                     let scope = self.scope_call_with_scope(tokens, i, given_scope, Some(ScopeType::Dot));
 
-                    expr_stack.push((Box::new(ASTNode {
+                    expr_stack.push(Box::new(ASTNode {
                         token: tokens[*i - 1].clone(),
                         node: Box::new(NodeType::ScopedExpression(scope)),
-                    }), *i));
+                    }));
+                }
+
+                if paran_index < 0 {
+                    break;
                 }
             }
             else if token.token_type == TokenType::LBracket {
@@ -1612,7 +1519,7 @@ impl Parser {
                     // indexing
                     let temp_scope = ScopedIdentifier {
                         scope: vec![Identifier {
-                            expression: expr_stack.pop().map(|x| x.0).unwrap_or(
+                            expression: expr_stack.pop().unwrap_or(
                                 Box::new(ASTNode {
                                     token: tokens[*i - 1].clone(),
                                     node: Box::new(NodeType::Identifier(tokens[*i - 1].clone())),
@@ -1622,18 +1529,18 @@ impl Parser {
                         }]
                     };
                     let indexing_expresion = self.get_indexer_expression(tokens, Some(temp_scope), i);
-                    expr_stack.push((Box::new(ASTNode {
+                    expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
                         node: Box::new(NodeType::ScopedExpression(indexing_expresion)),
-                    }), *i));
+                    }));
                 }
                 else {
                     // array expression
                     let array_expression = self.get_array_expression(tokens, i);
-                    expr_stack.push((Box::new(ASTNode {
+                    expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
                         node: Box::new(NodeType::ScopedExpression(array_expression)),
-                    }), *i));
+                    }));
                 }
             }
             else if token.token_type == TokenType::RBracket {
@@ -1644,18 +1551,18 @@ impl Parser {
                     let expr_token = tokens[*i].clone();
                     let obj_instantiation = self.get_object_instantiation(tokens, None, i, None);
 
-                    expr_stack.push((Box::new(ASTNode {
+                    expr_stack.push(Box::new(ASTNode {
                         token: expr_token,
                         node: Box::new(NodeType::ScopedExpression(obj_instantiation))
-                    }), *i));
+                    }));
                 }
                 else {
                     // code block
                     let code_block = self.get_code_block(tokens, i, false);
-                    expr_stack.push((Box::new(ASTNode {
+                    expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
                         node: Box::new(NodeType::CodeBlock(code_block)),
-                    }), *i));
+                    }));
                 }
                 if tokens.len() >= *i && self.__curent_parsing_line + 1 < self.lines.len() {
                     if self.lines[self.__curent_parsing_line + 1].get(0).map_or(false, |t| t.token_type.is_operator() || matches!(t.token_type, TokenType::Dot | TokenType::LBrace | TokenType::LBracket | TokenType::LParen | TokenType::RParen | TokenType::RBracket | TokenType::RBrace)) {
@@ -1686,20 +1593,20 @@ impl Parser {
                     return Box::new(ASTNode::err());
                 }
 
-                expr_stack.push((node, *i));
+                expr_stack.push(node);
             }
             else if token.token_type == TokenType::DoubleArrow {
                 let lambda = self.get_lambda(tokens, i, &mut expr_stack, &mut inc_i);
 
-                expr_stack.push((Box::new(ASTNode {
+                expr_stack.push(Box::new(ASTNode {
                     token: token.clone(),
                     node: Box::new(NodeType::LambdaExpression(lambda)),
-                }), *i));
+                }));
             } else if token.token_type == TokenType::Underscore {
-                expr_stack.push((Box::new(ASTNode {
+                expr_stack.push(Box::new(ASTNode {
                     node: Box::new(NodeType::Discard(token.clone())),
                     token
-                }), *i));
+                }));
             }
             else if token.token_type == TokenType::Comma {
                 self.error("Unexpected token in expression", "Didn't expect this token in expression. Maybe you meant to use a comma in a tuple, if that's so, put inside parentheises", &token.location);
@@ -1740,9 +1647,9 @@ impl Parser {
         }
     }
 
-    fn expression_stacks_to_ast_node(&mut self, op_stack: &mut Vec<(Box<Token>, usize)>, expr_stack: &mut Vec<(Box<ASTNode>, usize)>) -> Option<Box<ASTNode>> {
+    fn expression_stacks_to_ast_node(&mut self, op_stack: &mut Vec<Box<Token>>, expr_stack: &mut Vec<Box<ASTNode>>) -> Option<Box<ASTNode>> {
         while let Some(operator) = op_stack.pop() {
-            if operator.0.token_type == TokenType::LParen && expr_stack.len() < 2 {
+            if operator.token_type == TokenType::LParen && expr_stack.len() < 2 {
                 break;
             }
 
@@ -1750,31 +1657,31 @@ impl Parser {
             let left = expr_stack.pop();
 
             let node = Box::new(ASTNode {
-                token: operator.0.clone(),
+                token: operator.clone(),
                 node: Box::new(NodeType::Operator(Expression {
                     left: left.unwrap_or_else(|| {
-                        self.error("Couldn't parse expression", "Left hand side of expression is empty", &operator.0.location);
-                        (Box::new(ASTNode::err()), 0)
-                    }).0,
+                        self.error("Couldn't parse expression", "Left hand side of expression is empty", &operator.location);
+                        Box::new(ASTNode::err())
+                    }),
                     right: right.unwrap_or_else(|| {
-                        self.error("Couldn't parse expression", "Right hand side of expression is empty", &operator.0.location);
-                        (Box::new(ASTNode::err()), 0)
-                    }).0,
-                    operator: operator.0.clone(),
+                        self.error("Couldn't parse expression", "Right hand side of expression is empty", &operator.location);
+                        Box::new(ASTNode::err())
+                    }),
+                    operator: operator.clone(),
                 })),
             });
 
-            expr_stack.push((node, 0));
+            expr_stack.push(node);
         }
 
         if expr_stack.len() != 1 && expr_stack.len() > 0 {
-            self.error("Couldn't parse expression", "The expression does not have a root. This usually occurs with the typo: `a b`", &expr_stack.last().unwrap().0.token.location);
+            self.error("Couldn't parse expression", "The expression does not have a root. This usually occurs with the typo: `a b`", &expr_stack.last().unwrap().token.location);
         }
 
-        return expr_stack.pop().map(|x| x.0);
+        return expr_stack.pop()
     }
 
-    fn get_lambda(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, expr_stack: &mut Vec<(Box<ASTNode>, usize)>, inc_i: &mut bool) -> LambdaExpression {
+    fn get_lambda(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, expr_stack: &mut Vec<Box<ASTNode>>, inc_i: &mut bool) -> LambdaExpression {
         let token = tokens[*i].clone();
 
         if expr_stack.is_empty() {
@@ -1782,8 +1689,8 @@ impl Parser {
         }
         let parameters_node = expr_stack.pop().unwrap_or_else(|| {
             self.error("Couldn't parse lamda", "No parameters for lambda were found: `x => x + 1`", &token.location);
-            return (Box::new(ASTNode::err()), 0);
-        }).0;
+            return Box::new(ASTNode::err());
+        });
 
         let parameters = NodeParameters {
             parameters: {
