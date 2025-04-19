@@ -314,11 +314,17 @@ impl Lexer {
                     current_location.column -= 1; // remove `-` from location
                 }
         
+                let mut one_dot = false;
                 while i < chars.len() {
                     if char::is_numeric(chars[i]) {
                         number.push(chars[i]);
                         i += 1;
-                    } else {
+                    } else if chars[i] == '.' && one_dot == false {
+                        number.push('.');
+                        one_dot = true;
+                        i += 1;
+                    }
+                    else {
                         break;
                     }
                 }

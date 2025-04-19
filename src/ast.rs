@@ -41,14 +41,14 @@ pub enum NodeType {
     Continue(Box<Token>),
 
     // other
-    Use(ScopedIdentifier),
-    LoadLib(LoadLib),
+    Use(Box<Token>),
     AsCast(Expression),
     IsCheck(Expression),
     CodeBlock(BodyRegion),
     Discard(Box<Token>),
     
     // declare
+    TypeDefinition(TypeDefinition),
     TupleDeclaration(NodeParameters),
     VariableDeclaration(VariableDeclaration),
     FunctionDeclaration(FunctionDeclaration),
@@ -280,13 +280,6 @@ pub struct ForEachLoop {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct LoadLib {
-    pub alias: Box<Token>,
-    pub path: Box<Token>,
-    pub description: Option<Box<Token>>,
-}
-
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct MatchRegion {
     pub match_value: Box<ASTNode>,
     pub match_cases: Vec<MatchCase>,
@@ -354,4 +347,11 @@ pub struct IndexingExpression {
 pub struct LambdaExpression {
     pub parameters: NodeParameters,
     pub body: BodyRegion,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct TypeDefinition {
+    pub left: Box<ASTNode>,
+    pub right: Box<ASTNode>,
+    pub description: Option<Box<Token>>,
 }

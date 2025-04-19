@@ -1,7 +1,17 @@
-a::list<(string, s<a,b,d<ew>>)>: c = 0;
+{
+    a = a{a = 0};
+    b;
+    {
+        {
+            f => {
+                a;s;
+            }
+        }
+    }
+}
 
-//a { b = c(d => {e;f}) }
 
+// some real code to use as testing
 /*{
     brace_level = (brace_level - 1); 
     if (brace_level == 0) {
@@ -22,23 +32,20 @@ a::list<(string, s<a,b,d<ew>>)>: c = 0;
 
 
 ;// TODO:
-// loadlib "file.dll" // load dll
-// use LIB::This // include library
-// use LIB::* // library with astrix includes
-// use LIB::{a, b} // includes specific members
+// use "library"; // keyword for library imports
 // #! alias // for compiler: shorthand for instantiation of class
 // #! def NAME = VALUE // for compiler: define compile time constants
 // #! def ADD(x, y) x + y // define function
 // #! once NAME // for compiler if not defined, then define. For files
 // #! ifndef NAME // spceific compile time if
-// #! if ARGUMENT // if statement for compilers
+// #! if ARGUMENT // if statement for compiler
 // #! deprecated 
 // #! allow WARNING_OR_ERROR
 // #! warn WARNING_OR_ERROR
 // #! error WARNING_OR_ERROR
 // u0: add(u8: a, u8: b) -> "example" { }
 // string: to_string() => "Obj [" + name.to_string() + "]";
-// enum Files { File1 = 0 -> "1", File2 }
-// class Color { }
+// enum Files -> "description" { File1 = 0, File2 -> "1" }
+// class Color -> "color class" { }
 // struct Pixel { }
-// typedef A B
+// typedef (u8, u8, u8) <- Color -> "description";

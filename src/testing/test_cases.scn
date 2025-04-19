@@ -204,3 +204,22 @@ i32*: ptr = &value;
 i32**: doublePtr = &ptr;
 i32***: triplePtr = &doublePtr;
 i32: dereferencedValue = *(*(*triplePtr));
+
+
+a { b = 1, c = 2, d = 3 };
+a::pos { x = 0, y = 1 }.c + 1;
+pos { x = 5 * 2, y = 10 / 2 }.c * 3;
+pos { x = getX(), y = getY() }.normalize().x;
+a::b::c::Shape { width = 100, height = 200 }.area();
+ShapeFactory().create("Circle", radius + 10).diameter();
+TreeNode { left = null, right = TreeNode { value = 5 } }.right.value;
+Vec3 { x = 1, y = 2, z = 3 }.length() + Vec3 { x = 4, y = 5, z = 6 }.length();
+Entity { position = Vec2 { x = 10, y = 20 }, velocity = Vec2 { x = 1, y = 1 } }.move();
+Game::Character { name = "Hero", stats = StatBlock { health = 100, mana = 50 } }.stats.health;
+Renderer::Material { albedo = Color { r = 255, g = 255, b = 255 }, roughness = 0.5 }.bind();
+SceneObject { transform = Transform { pos = Vec3 { x = 0, y = 1, z = 2 }, rot = Quaternion::identity() } }.transform.pos.y;
+Graph::Node { id = 42, edges = [ Graph::Edge { to = 1, weight = 0.5 }, Graph::Edge { to = 2, weight = 1.0 } ] }.edges[1].weight;
+Matrix4x4 { values = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }.inverse().transpose();
+Level::Tile { id = 12, meta = Meta { solid = true, visible = true } }.meta.visible;
+Widget::Button { text = "Click", onClick = handler() }.text.length();
+a{ b = c{ d = e{}.h }.i }.j;
