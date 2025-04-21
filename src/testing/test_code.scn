@@ -1,15 +1,15 @@
-{
-    a = a{a = 0};
-    b;
-    {
-        {
-            f => {
-                a;s;
-            }
-        }
-    }
-}
-
+(a?b:c).d
+//value = (nested::func().a + (5 * 3)).b;
+//array[1][2] = (10, 20, 30).c + matrix[2][3];
+//result = { x = 5; y = -x + 2; return y * 3; };
+//tuple: pair = (array[0][1], "value").a + 1;
+//matrix[0][1] = vec { a = (1, 2).b, b = 3 * 2 };
+//bool: valid = (x ? y : z).a && array[2][3];
+//x = func(array[1][2]).b - (nested[3][4]).a;
+//tuple = (vec { x = 1, y = 2 }.x, matrix[1][0]).b;
+//str: output = func<type>("test").a + nested::call().b;
+//array[0][2] = ((5 * 2) - tuple[1].b).c;
+//matrix[2][3] = array[(5 + 3)].a * vec { x = 1 }.x;
 
 // some real code to use as testing
 /*{

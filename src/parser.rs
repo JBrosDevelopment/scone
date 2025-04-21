@@ -100,46 +100,6 @@ impl Parser {
             return Err(());
         }
 
-        match tokens[0].token_type {
-            TokenType::Break => {
-                return Ok(ASTNode {
-                    token: tokens[0].clone(),
-                    node: Box::new(NodeType::Break(tokens[0].clone())),
-                });
-            }
-            TokenType::Continue => {
-                return Ok(ASTNode {
-                    token: tokens[0].clone(),
-                    node: Box::new(NodeType::Continue(tokens[0].clone())),
-                });
-            }
-            TokenType::Return => {
-                let mut tokens_after_return = tokens[1..].to_vec();
-                let return_node = self.get_entire_expression(&mut tokens_after_return);
-                return Ok(ASTNode {
-                    token: tokens[0].clone(),
-                    node: Box::new(NodeType::ReturnExpression(return_node))
-                });
-            }
-            TokenType::If | TokenType::While => {
-                return Ok(ASTNode {
-                    token: tokens[0].clone(),
-                    node: Box::new(NodeType::While(self.parse_conditional_statement(tokens, &mut 0))),
-                });
-            }
-            TokenType::Else => {
-                self.error(line!(), "Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
-                return Err(());
-            }
-            TokenType::For => {
-                return Ok(self.parse_for(tokens));
-            }
-            TokenType::Match => {
-                return Ok(self.parse_match(tokens, &mut 0));
-            }
-            _ => { } // continue
-        }
-
         // for matching function declarations `: a < b` and `: a ( b` as `type: name(paramters)` or `type: name<types>(parameters)`
         // 0 = not declaring, 1 = declaring, 2 = found identifier, 3 = found `(` or `<` and that means declaring function.
         let mut is_declaring_func = 0;
@@ -161,53 +121,8 @@ impl Parser {
             let mut lhs = tokens[0..assign_index as usize].to_vec();
             let mut rhs = tokens[assign_index as usize + 1..].to_vec();
 
-            if lhs.len() == 1 && lhs[0].token_type == TokenType::Underscore {
-                // is an underscore assignment,
-                *tokens = rhs;
-            } else if lhs.len() >= 2 && lhs[lhs.len() - 2].token_type == TokenType::Colon {
-                // declaring variable
-                let var_name: Box<Token> = lhs[lhs.len() - 1].clone();
-
-                let mut accessing_end_index = 0;
-                let mut access_modifier: Vec<AccessModifier> = Vec::new();
-                for token in lhs.iter() {
-                    match token.token_type {
-                        TokenType::Pub => access_modifier.push(AccessModifier::Public),
-                        TokenType::Priv => access_modifier.push(AccessModifier::Private),
-                        TokenType::Override => access_modifier.push(AccessModifier::Override),
-                        TokenType::Virtual => access_modifier.push(AccessModifier::Virtual),
-                        TokenType::Static => access_modifier.push(AccessModifier::Static),
-                        TokenType::Const => access_modifier.push(AccessModifier::Const),
-                        TokenType::Extern => access_modifier.push(AccessModifier::Extern),
-                        TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
-                        _ => break
-                    }
-                    accessing_end_index += 1;
-                }
-
-                let description: Option<Box<Token>> = rhs.iter().position(|x| x.token_type == TokenType::RightArrow).and_then(|arrow_index| rhs.get(arrow_index + 1).cloned());
-                if let Some(des) = description.clone() {
-                    if des.token_type != TokenType::StringConstant {
-                        self.error(line!(), "variable description must be a string", "Description must be a string. Try placing quotes arounf it", &des.location);
-                    }
-                }
-
-                let mut type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
-                let var_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens, &mut 0);
-
-                let var_value: Box<ASTNode> = self.get_entire_expression(&mut rhs);
-
-                let var_decl = VariableDeclaration {
-                    access_modifier,
-                    var_name: var_name.clone(),
-                    description,
-                    var_value,
-                    var_type,
-                };
-                return Ok(ASTNode {
-                    token: var_name.clone(),
-                    node: Box::new(NodeType::VariableDeclaration(var_decl)),
-                });
+            if (lhs.len() == 1 && lhs[0].token_type == TokenType::Underscore) || (lhs.len() >= 2 && lhs[lhs.len() - 2].token_type == TokenType::Colon) {
+                return self.declaring_variable(tokens);
             }
             else {
                 // assigning variable
@@ -245,6 +160,78 @@ impl Parser {
 
         // anything else
         return Ok(*self.get_entire_expression(tokens));
+    }
+
+    fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>) -> Result<ASTNode, ()> {
+        let mut assign_index = -1;
+        for (index, token) in tokens.iter().enumerate() {
+            match token.token_type {
+                TokenType::Assign => { assign_index = index as i32; break; },
+                _ => {}
+            }
+        }
+
+        if assign_index != -1 {
+            let lhs = tokens[0..assign_index as usize].to_vec();
+            let mut rhs = tokens[assign_index as usize + 1..].to_vec();
+
+            if lhs.len() == 1 && lhs[0].token_type == TokenType::Underscore {
+                // is an underscore assignment,
+                *tokens = rhs;
+            } else if lhs.len() >= 2 && lhs[lhs.len() - 2].token_type == TokenType::Colon {
+                // declaring variable
+                let var_name: Box<Token> = lhs[lhs.len() - 1].clone();
+
+                let mut accessing_end_index = 0;
+                let mut access_modifier: Vec<AccessModifier> = Vec::new();
+                for token in lhs.iter() {
+                    match token.token_type {
+                        TokenType::Pub => access_modifier.push(AccessModifier::Public),
+                        TokenType::Priv => access_modifier.push(AccessModifier::Private),
+                        TokenType::Override => access_modifier.push(AccessModifier::Override),
+                        TokenType::Virtual => access_modifier.push(AccessModifier::Virtual),
+                        TokenType::Static => access_modifier.push(AccessModifier::Static),
+                        TokenType::Const => access_modifier.push(AccessModifier::Const),
+                        TokenType::Extern => access_modifier.push(AccessModifier::Extern),
+                        TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
+                        _ => break
+                    }
+                    accessing_end_index += 1;
+                }
+
+                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                // NEED TO REDO DESCRIPTIONS //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                /*let description: Option<Box<Token>> = rhs.iter().position(|x| x.token_type == TokenType::RightArrow).and_then(|arrow_index| rhs.get(arrow_index + 1).cloned());
+                if let Some(des) = description.clone() {
+                    if des.token_type != TokenType::StringConstant {
+                        self.error(line!(), "variable description must be a string", "Description must be a string. Try placing quotes arounf it", &des.location);
+                    }
+                }*/
+
+                let mut type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
+                let var_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens, &mut 0);
+
+                let var_value: Box<ASTNode> = self.get_entire_expression(&mut rhs);
+
+                let var_decl = VariableDeclaration {
+                    access_modifier,
+                    var_name: var_name.clone(),
+                    description: None,
+                    var_value,
+                    var_type,
+                };
+                return Ok(ASTNode {
+                    token: var_name.clone(),
+                    node: Box::new(NodeType::VariableDeclaration(var_decl)),
+                });
+            }
+
+            return Ok(*self.get_entire_expression(tokens));
+        }
+        else {
+            return Err(());
+        }
     }
 
     fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, BodyRegion) {
@@ -871,7 +858,7 @@ impl Parser {
     }
 
     fn get_object_instantiation(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize, last_punc: Option<ScopeType>) -> ScopedIdentifier {
-        let name_token = tokens[*i - 1].clone();
+        let name_token = tokens.get(*i - 1).unwrap_or(&self.try_get_last_token(tokens)).clone();
         let scope_is_empty = scope.is_none(); // because if not, it's coming from scope_call_with_scope and there is another `Parser::dec(i)` in there that will cause issues
         
         if self.__curent_parsing_line >= self.lines.len() {
@@ -961,6 +948,7 @@ impl Parser {
     fn check_and_return_tuple(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (bool, Box<ASTNode>) {
         let first_token = tokens[*i].clone();
         let mut j = i.clone();
+        let current_tokens = tokens.clone();
         let current_line = self.__curent_parsing_line;
         let current_output = self.output.messages.clone();
 
@@ -978,11 +966,27 @@ impl Parser {
             *i = j - 1;
         } else {
             self.__curent_parsing_line = current_line;
-            *tokens = self.lines[self.__curent_parsing_line].clone();
+            *tokens = current_tokens;
             self.output.messages = current_output;
         }
 
         (is_tuple, tuple)
+    }
+
+    fn try_get_last_token(&self, tokens: &Vec<Box<Token>>) -> Box<Token> {
+        let mut catch = 0;
+        let mut current_line = self.__curent_parsing_line;
+        let mut token = tokens.get(0);
+        while token.is_none() {
+            current_line -= 1;
+            token = self.lines[current_line].get(0);
+
+            catch += 1;
+            if catch > 100 {
+                break;
+            }
+        }
+        return token.unwrap_or(&Box::new(Token::new_empty())).clone();
     }
 
     fn get_code_block(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, last_is_return: bool) -> BodyRegion {
@@ -991,7 +995,8 @@ impl Parser {
             *tokens = self.lines[self.__curent_parsing_line].clone();
             *i = 0;
         } else {
-            self.error(line!(), "Code block not closed", "Expected `}` to close code block, but found end of file", &tokens[0].location);
+            let token = self.try_get_last_token(tokens);
+            self.error(line!(), "Code block not closed", "Expected `}` to close code block, but found end of file", &token.location);
             return BodyRegion { body: vec![] };
         }
 
@@ -1075,6 +1080,35 @@ impl Parser {
 
             if token.token_type == TokenType::RightArrow {
                 break;
+            } else if token.token_type == TokenType::Colon {
+                // the parser has to decide if this is variable declaration or a function declaration
+                // if the next token is an identifier and then the next after that is either a left parenthesis or a left angle bracket, then it's a function declaration
+                // otherwise it's a variable declaration
+                Self::inc(i); 
+
+                if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen || t.token_type == TokenType::LessThan) {
+                    // it's a function declaration
+                    unimplemented!("function declaration");
+                } else {
+                    // it's a variable declaration
+                    let variable = self.declaring_variable(tokens);
+                    if let Ok(var) = variable {
+                        if expr_stack.len() > 1 {
+                            self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
+                        }
+                        expr_stack.clear();
+                        expr_stack.push(Box::new(var));
+                    } else {
+                        self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression", &token.location);
+                    }
+                    if self.__curent_parsing_line >= self.lines.len() {
+                        break;
+                    }
+                    self.__curent_parsing_line += 1;
+                    *tokens = self.lines[self.__curent_parsing_line].clone();
+                    *i = Parser::SET_I_TO_ZERO;
+                    break;
+                }
             }
             else if token.token_type == TokenType::QuestionMark {
                 // ternary operator a ? b : c
@@ -1481,23 +1515,57 @@ impl Parser {
                     node: Box::new(NodeType::Discard(token.clone())),
                     token
                 }));
-            }
-            else if token.token_type == TokenType::Comma {
+            } else if token.token_type == TokenType::Break {
+                expr_stack.push(Box::new(ASTNode {
+                    token: token.clone(),
+                    node: Box::new(NodeType::Break(token.clone()))
+                }))
+            } else if token.token_type == TokenType::Continue {
+                expr_stack.push(Box::new(ASTNode {
+                    token: token.clone(),
+                    node: Box::new(NodeType::Continue(token.clone()))
+                }))
+            } else if token.token_type == TokenType::Return {
+                Self::inc(i);
+                let mut tokens_after_return = tokens[*i..].to_vec();
+                let return_node = self.get_entire_expression(&mut tokens_after_return);
+                expr_stack.push(Box::new(ASTNode {
+                    token: token.clone(),
+                    node: Box::new(NodeType::ReturnExpression(return_node))
+                }));
+            } else if token.token_type == TokenType::If {
+                expr_stack.push(Box::new(ASTNode {
+                    token: token.clone(),
+                    node: Box::new(NodeType::If(self.parse_conditional_statement(tokens, i))),
+                }))
+            } else if token.token_type == TokenType::While {
+                expr_stack.push(Box::new(ASTNode {
+                    token: token.clone(),
+                    node: Box::new(NodeType::While(self.parse_conditional_statement(tokens, i))),
+                }))
+            } else if token.token_type == TokenType::For {
+                expr_stack.push(Box::new(self.parse_for(tokens)));
+            } else if token.token_type == TokenType::Match {
+                expr_stack.push(Box::new(self.parse_match(tokens, i)));
+            } else if token.token_type == TokenType::Else {
+                self.error(line!(), "Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
+                return Box::new(ASTNode::err());
+            } else if token.token_type == TokenType::Comma {
                 self.error(line!(), "Unexpected token in expression", "Didn't expect this token in expression. Maybe you meant to use a comma in a tuple `(val1, val2)`, if that's so, put inside parentheises", &token.location);
                 return Box::new(ASTNode::err());
-            }
+            } 
             else {
                 self.error(line!(), "Unexpected token in expression", "Didn't expect this token in expression", &token.location);
                 return Box::new(ASTNode::err());
             }
 
-            if inc_i && *i != usize::MAX {
+            if inc_i && *i != Self::SET_I_TO_ZERO {
                 Self::inc(i);
-            } else if *i == usize::MAX {
+            } else if *i == Self::SET_I_TO_ZERO {
                 *i = 0;
             }
 
-            if is_1_expression && paran_index == 0 && ((last_was_ident && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen)) || !last_was_ident) && !(tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::QuestionMark) {
+            if is_1_expression && paran_index == 0 && ((last_was_ident && *i >= 1 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen)) || !last_was_ident) && !(tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::QuestionMark) {
                 break;
             }
         }
@@ -1710,6 +1778,7 @@ impl Parser {
                 else if until == Self::PARSING_FOR_CODE_BLOCK && tokens[*i].token_type != until_token {
                     let expression = self.get_expression(tokens, i, until);
                     parameters.push(expression);
+                    Self::inc(i);
                 }
                 else {
                     // error
