@@ -48,7 +48,7 @@ impl ErrorHandling {
         let pipe_colored = Self::colored_text(175, 175, 250, "|", true);
         let line_number_colored = Self::colored_text(175, 175, 250, &location.line.to_string(), true);
         
-        let line_marker = format!("  {}\n", pipe_colored);
+        let mut line_marker = "  ".to_string();
         let code_line = format!("{} {} {}\n", line_number_colored, pipe_colored, line_with_issue);
         
         let mut pointer_line = format!("  {}", pipe_colored);
@@ -62,8 +62,10 @@ impl ErrorHandling {
             padding_left -= left;
             left *= 10;
             pointer_line.insert_str(0, " ");
+            line_marker.insert_str(0, " ");
         }
-        
+        line_marker = format!("{}{}\n", line_marker, pipe_colored);
+                
         let pointer_line = format!("{}{}\n", pointer_line, pointer_position);
         
         let output = format!("{formatted_message}{line_marker}{code_line}{pointer_line}\n");

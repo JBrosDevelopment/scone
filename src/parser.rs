@@ -69,12 +69,12 @@ impl Parser {
     }
 
     fn inc(i: &mut usize) {
-        if i.checked_add(1).is_some() {
+        if *i != Parser::SET_I_TO_ZERO && i.checked_add(1).is_some() {
             *i += 1;
         }
     }
     fn dec(i: &mut usize) {
-        if *i != usize::MAX && i.checked_sub(1).is_some() {
+        if *i != Parser::SET_I_TO_ZERO && i.checked_sub(1).is_some() {
             *i -= 1;
         }
     }
@@ -85,7 +85,7 @@ impl Parser {
         while self.__curent_parsing_line < self.lines.len() {
             let mut tokens = self.lines[self.__curent_parsing_line].clone();
             if let Ok(node) = self.get_ast_node(&mut tokens) {
-                println!("{}", Self::node_expr_to_string(&node));
+                println!("{}", Self::node_expr_to_string(&node, 0));
                 ast.push(node);
                 println!();
             }
@@ -163,13 +163,7 @@ impl Parser {
     }
 
     fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>) -> Result<ASTNode, ()> {
-        let mut assign_index = -1;
-        for (index, token) in tokens.iter().enumerate() {
-            match token.token_type {
-                TokenType::Assign => { assign_index = index as i32; break; },
-                _ => {}
-            }
-        }
+        let assign_index = tokens.iter().position(|t| t.token_type == TokenType::Assign).map_or(-1, |i| i as i32);
 
         if assign_index != -1 {
             let lhs = tokens[0..assign_index as usize].to_vec();
@@ -595,7 +589,7 @@ impl Parser {
 
     fn function_call(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize, last_punc: Option<ScopeType>) -> ScopedIdentifier {
         let mut scope = scope;
-        Parser::dec(i);
+        Self::dec(i);
 
         let mut node_parameters: Vec<Box<ASTNode>> = vec![];
         let mut type_parameters: Vec<Box<ASTNode>> = vec![];
@@ -605,7 +599,7 @@ impl Parser {
             if next_token.token_type == TokenType::LessThan {
                 Self::inc(i);
                 type_parameters = self.get_type_parameters(tokens, i).parameters;
-                Parser::dec(i);
+                Self::dec(i);
             }
 
             if tokens.get(*i + 1).is_some() && tokens[*i + 1].token_type == TokenType::LParen {
@@ -664,13 +658,13 @@ impl Parser {
             scope
         }
         else {
-            //Parser::dec(i);
+            //Self::dec(i);
             scope
         }
     }
 
     fn scope_call(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ScopedIdentifier {
-        Parser::dec(i);
+        Self::dec(i);
 
         let mut last_punc = None;
         let (mut scope, valid_lt_as_type_parameter) = self.get_ident_scope(tokens, i, &mut last_punc); // `valid_lt_as_type_parameter`
@@ -700,7 +694,7 @@ impl Parser {
             scope = self.get_indexer_expression(tokens, Some(scope), i)
         }
 
-        Parser::dec(i);
+        Self::dec(i);
         return scope
     }
 
@@ -736,7 +730,7 @@ impl Parser {
             scope = self.get_indexer_expression(tokens, Some(scope), i)
         }
 
-        Parser::dec(i);
+        Self::dec(i);
         return scope
     }
     
@@ -819,7 +813,7 @@ impl Parser {
             }
         }
         else if !went_through_lbracket {
-            Parser::dec(i);
+            Self::dec(i);
         }
 
         ScopedIdentifier {
@@ -930,7 +924,7 @@ impl Parser {
             });
 
             if scope_is_empty {
-                Parser::dec(i);
+                Self::dec(i);
             }
             scope
         } else {
@@ -939,7 +933,7 @@ impl Parser {
                 *tokens = self.lines[self.__curent_parsing_line].clone();
                 *i = Parser::SET_I_TO_ZERO;
             } else if scope_is_empty {
-                Parser::dec(i);
+                Self::dec(i);
             }
             scope
         }
@@ -963,7 +957,7 @@ impl Parser {
         });
 
         if is_tuple {
-            *i = j - 1;
+            *i = j.checked_sub(1).unwrap_or(j);
         } else {
             self.__curent_parsing_line = current_line;
             *tokens = current_tokens;
@@ -1024,7 +1018,7 @@ impl Parser {
         self.get_expression(tokens, &mut __, Self::NORMAL_PARSING)
     }
 
-    const SET_I_TO_ZERO: usize = usize::MAX; // if `i` is equal to this, set `i` to 0 instead of incrementing
+    const SET_I_TO_ZERO: usize = usize::MAX - u8::MAX as usize; // if `i` is equal to this, set `i` to 0 instead of incrementing
 
     const NORMAL_PARSING: u8 = 0;
     const PARSRING_FOR_FUNCTION: u8 = 1;
@@ -1045,11 +1039,10 @@ impl Parser {
         let mut op_stack: Vec<Box<Token>> = Vec::new();
         let mut last_was_ident = false;
         let mut last_was_unary_operator: bool = false;
-        let mut paran_index = 0;
-        let mut is_1_expression = until == 0;
+        let mut is_1_expression = until == Self::NORMAL_PARSING;
         let start_index = *i;
         
-        if *i == Parser::SET_I_TO_ZERO {
+        if *i == Self::SET_I_TO_ZERO {
             is_1_expression = false;
             *i = 0;
         }
@@ -1060,20 +1053,20 @@ impl Parser {
 
             if until != 0 {
                 if Self::PARSRING_FOR_FUNCTION == until && Self::PARSING_FOR_FUNCTION_UNTIL.iter().any(|t| t == &token.token_type) {
-                    Parser::dec(i);
+                    Self::dec(i);
                     break;
                 } else if Self::PARSRING_FOR_INSIDE_PARENTHESIS == until && Self::PARSRING_FOR_INSIDE_PARENTHESIS_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
                 } else if Self::PARSRING_FOR_ARRAY == until && Self::PARSRING_FOR_ARRAY_UNTIL.iter().any(|t| t == &token.token_type) {
-                    Parser::dec(i);
+                    Self::dec(i);
                     break;
                 } else if Self::PARSRING_FOR_TERNARY == until && Self::PARSRING_FOR_TERNARY_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
                 } else if Self::PARSRING_FOR_OBJECT_INSTANTIATION == until && Self::PARSRING_FOR_OBJECT_INSTANTIATION_UNTIL.iter().any(|t| t == &token.token_type) {
-                    Parser::dec(i);
+                    Self::dec(i);
                     break;
                 } else if Self::PARSING_FOR_CODE_BLOCK == until && Self::PARSING_FOR_CODE_BLOCK_UNTIL.iter().any(|t| t == &token.token_type) {
-                    Parser::dec(i);
+                    Self::dec(i);
                     break;
                 }
             }
@@ -1082,21 +1075,28 @@ impl Parser {
                 break;
             } else if token.token_type == TokenType::Colon {
                 // the parser has to decide if this is variable declaration or a function declaration
-                // if the next token is an identifier and then the next after that is either a left parenthesis or a left angle bracket, then it's a function declaration
-                // otherwise it's a variable declaration
+                // if the next token is an identifier and then the next after that is either a left parenthesis or a left angle bracket, then it's a function declaration.
+                // else if the next token is an identifier and the next after that is an equal sign, then it's a variable declaration.
+                // else it's probobly apart of a ternary expression and should break out of the loop.
                 Self::inc(i); 
 
                 if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen || t.token_type == TokenType::LessThan) {
                     // it's a function declaration
                     unimplemented!("function declaration");
-                } else {
+                } else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Assign) {
                     // it's a variable declaration
+                    
+                    // remove any errors that occured before the variable declaration.
+                    self.output.messages.retain(|x| x.location.line != token.location.line);
+
+                    // parse the variable
                     let variable = self.declaring_variable(tokens);
                     if let Ok(var) = variable {
                         if expr_stack.len() > 1 {
                             self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
                         }
                         expr_stack.clear();
+                        op_stack.clear();
                         expr_stack.push(Box::new(var));
                     } else {
                         self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression", &token.location);
@@ -1107,6 +1107,9 @@ impl Parser {
                     self.__curent_parsing_line += 1;
                     *tokens = self.lines[self.__curent_parsing_line].clone();
                     *i = Parser::SET_I_TO_ZERO;
+                    break;
+                } else {
+                    Self::dec(i);
                     break;
                 }
             }
@@ -1121,9 +1124,9 @@ impl Parser {
                 let ternary = self.get_ternary(tokens, i, left_operand.clone());
 
                 if tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket || t.token_type == TokenType::RBrace) {
-                    Parser::dec(i);
+                    Self::dec(i);
                 }
-                Parser::dec(i);
+                Self::dec(i);
 
                 expr_stack.push(Box::new(ASTNode {
                     token: token.clone(),
@@ -1143,7 +1146,19 @@ impl Parser {
                             else if tokens[j].token_type == TokenType::GreaterThan {
                                 angle_bracket_level -= 1;
                                 if angle_bracket_level == 0 {
-                                    last_was_ident = tokens.get(j + 1).map_or(false, |t| t.token_type == TokenType::LParen || tokens[j + 1].token_type == TokenType::DoubleColon || tokens[j + 1].token_type == TokenType::Dot);
+                                    last_was_ident = tokens.get(j + 1).map_or(false, |t| 
+                                        t.token_type == TokenType::LParen || 
+                                        t.token_type == TokenType::DoubleColon || 
+                                        t.token_type == TokenType::Dot || 
+                                        { // is apart of variable declaration.
+                                            let position_of_colon = tokens.iter().position(|a| a.token_type == TokenType::Colon);
+                                            if let Some(pos) = position_of_colon {
+                                                pos > *i && tokens.get(pos + 2).map_or(false, |a| a.token_type == TokenType::Assign)
+                                            } else {
+                                                false
+                                            }
+                                        }
+                                    );
                                     break;
                                 }
                             }
@@ -1177,6 +1192,54 @@ impl Parser {
             else if token.token_type.is_operator() {
                 // To check for unary operators, the operator must be the first token in the expression, or the previous token must be an operator: `-0` or `0+-1`
                 let mut handle_as_operator = true;
+
+                // check if part of assignment
+                if until == Self::PARSING_FOR_CODE_BLOCK {
+                    if token.token_type == TokenType::Assign {
+                        let mut copy_op_stack = op_stack.clone();
+                        let mut copy_expr_stack = expr_stack.clone();
+                        let left = self.expression_stacks_to_ast_node(&mut copy_op_stack, &mut copy_expr_stack);
+                        let left = left.unwrap_or_else(|| {
+                            self.error(line!(), "Error in parsing left operandS", "Assignment operator must have a left operand: `a = b`", &token.location);
+                            Box::new(ASTNode::err())
+                        });
+                        
+                        Self::inc(i);
+                        let right = self.get_expression(tokens, i, Self::NORMAL_PARSING);
+    
+                        let assign = Assignment { left, right };
+                        
+                        if expr_stack.len() > 1 {
+                            self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
+                        }
+                        expr_stack.clear();
+                        op_stack.clear();
+                        expr_stack.push(Box::new(ASTNode{
+                            token: token.clone(),
+                            node: Box::new(NodeType::Assignment(assign))
+                        }));
+                        if self.__curent_parsing_line >= self.lines.len() {
+                            break;
+                        }
+                        self.__curent_parsing_line += 1;
+                        *tokens = self.lines[self.__curent_parsing_line].clone();
+                        *i = Parser::SET_I_TO_ZERO;
+                        break;
+                    }
+                    
+                }
+                // check if it is actually part of a variable declaration
+                if last_was_ident {
+                    let assign_position = tokens.iter().rposition(|t| t.token_type == TokenType::Assign);
+                    if let Some(position) = assign_position {
+                        if position > 2 && tokens.get(position - 1).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(position - 2).map_or(false, |t| t.token_type == TokenType::Colon) {
+                            // part of variable declaration: TYPE: NAME = VALUE
+                            *i = position - 2;
+                            continue;
+                        }
+                    }
+                }
+
                 if last_was_ident && token.token_type == TokenType::LessThan && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Identifier) {
                     // part of function call: function<TYPE>()
                     expr_stack.push(Box::new(ASTNode {
@@ -1190,39 +1253,30 @@ impl Parser {
                 }
                 else if token.token_type.is_unary_operator() && tokens.get(*i + 1).is_some().then(|| !tokens[*i + 1].token_type.is_operator()).unwrap_or(false) {
                     handle_as_operator = false;
-                    if *i == 0 || (is_1_expression && *i == start_index) {
+                    if (expr_stack.is_empty() || (is_1_expression && *i == start_index)) || (*i > 0 && tokens.get(*i - 1).is_some().then(|| tokens[*i - 1].token_type.is_operator() || tokens[*i - 1].token_type == TokenType::LParen || tokens[*i - 1].token_type == TokenType::LBracket || tokens[*i - 1].token_type == TokenType::Comma || tokens[*i - 1].token_type == TokenType::LBrace).unwrap_or(false)) {
                         last_was_unary_operator = false;
 
                         Self::inc(i);
                         let next_expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
-                        Parser::dec(i);
-
-                        let unary = UnaryExpression {
-                            operator: token.clone(),
-                            operand: next_expression.clone(),
-                        };
-
-                        expr_stack.push(Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::UnaryOperator(unary)),
-                        }));
-                    }
-                    else if tokens.get(*i - 1).is_some().then(|| tokens[*i - 1].token_type.is_operator() || tokens[*i - 1].token_type == TokenType::LParen || tokens[*i - 1].token_type == TokenType::LBracket || tokens[*i - 1].token_type == TokenType::Comma || tokens[*i - 1].token_type == TokenType::LBrace).unwrap_or(false) {
-                        last_was_unary_operator = false;
-
-                        Self::inc(i);
-                        let next_expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
-                        Parser::dec(i);
-
-                        let unary = UnaryExpression {
-                            operator: token.clone(),
-                            operand: next_expression.clone(),
-                        };
-
-                        expr_stack.push(Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::UnaryOperator(unary)),
-                        }));
+                        if let NodeType::VariableDeclaration(_) = next_expression.node.as_ref() {
+                            expr_stack.clear();
+                            op_stack.clear();
+                            expr_stack.push(next_expression);
+                            break;
+                        }
+                        else {
+                            Self::dec(i);
+    
+                            let unary = UnaryExpression {
+                                operator: token.clone(),
+                                operand: next_expression.clone(),
+                            };
+    
+                            expr_stack.push(Box::new(ASTNode {
+                                token: token.clone(),
+                                node: Box::new(NodeType::UnaryOperator(unary)),
+                            }));
+                        }
                     }
                     else {
                         handle_as_operator = true;
@@ -1231,7 +1285,7 @@ impl Parser {
                 else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::As || t.token_type == TokenType::Is) {
                     Self::inc(i);
                     let ty = self.get_type_idententifier(tokens, i);
-                    Parser::dec(i);
+                    Self::dec(i);
                     expr_stack.push(ty);
                 } 
 
@@ -1372,54 +1426,7 @@ impl Parser {
                 }
             }
             else if token.token_type == TokenType::RParen {
-                last_was_unary_operator = false;
-                paran_index -= 1;
-                while let Some(top_op) = op_stack.pop() {
-                    let right = expr_stack.pop().unwrap_or_else(|| {
-                        self.error(line!(), "Couldn't parse expression in parenthesis", "Right hand side of expression is empty", &token.location);
-                        return Box::new(ASTNode::err());
-                    });
-                    let left = expr_stack.pop().unwrap_or_else(|| {
-                        self.error(line!(), "Couldn't parse expression in parenthesis", "Left hand side of expression is empty", &token.location);
-                        return Box::new(ASTNode::err());
-                    });
-
-                    let node = Box::new(ASTNode {
-                        token: top_op.clone(),
-                        node: Box::new(NodeType::Operator(Expression{
-                            left,
-                            right,
-                            operator: top_op,
-                        })),
-                    });
-
-                    expr_stack.push(node);
-                }
-
-                if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
-                    // scope traversal
-                    Self::inc(i);
-                    let given_scope = ScopedIdentifier {
-                        scope: vec![Identifier {
-                            expression: expr_stack.pop().unwrap_or_else(|| {
-                                self.error(line!(), "Couldn't parse scope expression in parenthesis", "Expression is empty while trying to get scope", &token.location);
-                                return Box::new(ASTNode::err());
-                            }),
-                            scope_type: None,
-                            type_parameters: None
-                        }]
-                    };
-                    let scope = self.scope_call_with_scope(tokens, i, given_scope, Some(ScopeType::Dot));
-
-                    expr_stack.push(Box::new(ASTNode {
-                        token: tokens[*i - 1].clone(),
-                        node: Box::new(NodeType::ScopedExpression(scope)),
-                    }));
-                }
-
-                if paran_index < 0 {
-                    break;
-                }
+                break;
             }
             else if token.token_type == TokenType::LBracket {
                 if last_was_ident {
@@ -1452,7 +1459,8 @@ impl Parser {
                 }
             }
             else if token.token_type == TokenType::RBracket {
-                self.error(line!(), "Missing delimeter", "Expected opening bracket `[`", &tokens[*i].location);
+                //self.error(line!(), "Missing delimeter", "Expected opening bracket `[`", &tokens[*i].location);
+                break;
             }
             else if token.token_type == TokenType::LBrace {
                 if last_was_ident {
@@ -1482,7 +1490,8 @@ impl Parser {
                 }
             }
             else if token.token_type == TokenType::RBrace {
-                self.error(line!(), "Missing delimeter", "Expected opening brace `{`", &tokens[*i].location);
+                //self.error(line!(), "Missing delimeter", "Expected opening brace `{`", &tokens[*i].location);
+                break;
             }
             else if token.token_type.is_constant() {
                 last_was_unary_operator = false;
@@ -1527,8 +1536,7 @@ impl Parser {
                 }))
             } else if token.token_type == TokenType::Return {
                 Self::inc(i);
-                let mut tokens_after_return = tokens[*i..].to_vec();
-                let return_node = self.get_entire_expression(&mut tokens_after_return);
+                let return_node = self.get_expression(tokens, i, Self::NORMAL_PARSING);
                 expr_stack.push(Box::new(ASTNode {
                     token: token.clone(),
                     node: Box::new(NodeType::ReturnExpression(return_node))
@@ -1551,8 +1559,9 @@ impl Parser {
                 self.error(line!(), "Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
                 return Box::new(ASTNode::err());
             } else if token.token_type == TokenType::Comma {
-                self.error(line!(), "Unexpected token in expression", "Didn't expect this token in expression. Maybe you meant to use a comma in a tuple `(val1, val2)`, if that's so, put inside parentheises", &token.location);
-                return Box::new(ASTNode::err());
+                //self.error(line!(), "Unexpected token in expression", "Didn't expect this token in expression. Maybe you meant to use a comma in a tuple `(val1, val2)`, if that's so, put inside parentheises", &token.location);
+                //return Box::new(ASTNode::err());
+                break;
             } 
             else {
                 self.error(line!(), "Unexpected token in expression", "Didn't expect this token in expression", &token.location);
@@ -1563,10 +1572,6 @@ impl Parser {
                 Self::inc(i);
             } else if *i == Self::SET_I_TO_ZERO {
                 *i = 0;
-            }
-
-            if is_1_expression && paran_index == 0 && ((last_was_ident && *i >= 1 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen)) || !last_was_ident) && !(tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::QuestionMark) {
-                break;
             }
         }
 
@@ -1630,13 +1635,13 @@ impl Parser {
             }
         };
 
+        *inc_i = false;
         // check if body is code block or expression: `x => x + 1` or `x => { x + 1 }`
         let body = if tokens.get(*i + 1).is_some().then(|| tokens[*i + 1].token_type == TokenType::LBrace).unwrap_or(false) {
             // code block
             Self::inc(i);
             let block = self.get_code_block(tokens, i, true);
             
-            *inc_i = false;
             if *i + 1 >= tokens.len() && self.__curent_parsing_line + 1 < self.lines.len() {
                 self.__curent_parsing_line += 1;
                 *i = 0;
@@ -1646,75 +1651,12 @@ impl Parser {
             block
         } else {
             // expression
-            let mut lambda_tokens = vec![];
             Self::inc(i);
-            let mut parenthesis_level = 0;
-            let mut brace_level = 0;
-            let mut bracket_level = 0;
+            let expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
 
-            while self.__curent_parsing_line < self.lines.len() {
-                let mut done = false;
-                while *i < tokens.len() {
-                    match tokens[*i].token_type {
-                        TokenType::LParen => {
-                            parenthesis_level += 1;
-                            lambda_tokens.push(tokens[*i].clone());
-                        }
-                        TokenType::RParen => {
-                            parenthesis_level -= 1;
-                            lambda_tokens.push(tokens[*i].clone());
-                            if parenthesis_level <= 0 && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
-                                done = true;
-                                break;
-                            }
-                        }
-                        TokenType::LBrace => {
-                            brace_level += 1;
-                            lambda_tokens.push(tokens[*i].clone());
-                        }
-                        TokenType::RBrace => {
-                            brace_level -= 1;
-                            lambda_tokens.push(tokens[*i].clone());
-                            if brace_level <= 0  && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
-                                done = true;
-                                break;
-                            }
-                        }
-                        TokenType::LBracket => {
-                            bracket_level += 1;
-                            lambda_tokens.push(tokens[*i].clone());
-                        }
-                        TokenType::RBracket => {
-                            bracket_level -= 1;
-                            lambda_tokens.push(tokens[*i].clone());
-                            if bracket_level <= 0 && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBracket) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LBrace) && !tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Dot) {
-                                done = true;
-                                break;
-                            }
-                        }
-                        _ => {
-                            lambda_tokens.push(tokens[*i].clone());
-                        }
-                    }
-                    Self::inc(i);
-                }
-
-                if done {
-                    break;
-                }
-
-                self.__curent_parsing_line += 1;
-                if self.__curent_parsing_line >= self.lines.len() {
-                    break;
-                }
-                *tokens = self.lines[self.__curent_parsing_line].clone();
-                *i = 0;
-            }
-
-            let expression = self.get_entire_expression(&mut lambda_tokens);
             BodyRegion {
                 body: vec![Box::new(ASTNode {
-                    token: token.clone(),
+                    token,
                     node: Box::new(NodeType::ReturnExpression(expression)),
                 })]
             }
@@ -1752,7 +1694,7 @@ impl Parser {
 
         parameters.push(self.get_expression(tokens, i, until));
 
-        if tokens.get(*i).map_or(false, |x| x.token_type != TokenType::Comma) {
+        if tokens.get(*i).map_or(false, |x| x.token_type != TokenType::Comma) && (*i != 0 || (tokens.len() == 2 && tokens[1].token_type == until_token)) {
             Self::inc(i);
         }
         if *i == Parser::SET_I_TO_ZERO {
@@ -1778,7 +1720,10 @@ impl Parser {
                 else if until == Self::PARSING_FOR_CODE_BLOCK && tokens[*i].token_type != until_token {
                     let expression = self.get_expression(tokens, i, until);
                     parameters.push(expression);
-                    Self::inc(i);
+                    
+                    if *i != Parser::SET_I_TO_ZERO {
+                        Self::inc(i);
+                    } 
                 }
                 else {
                     // error
@@ -1826,7 +1771,7 @@ impl Parser {
 
     fn get_type_idententifier(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Box<ASTNode> {
         if let Some(first_token) = tokens.iter().skip(*i).map(|t| t.clone()).collect::<Vec<_>>().first() {
-            if first_token.token_type == TokenType::Identifier || first_token.token_type == TokenType::Auto {
+            if first_token.token_type == TokenType::Identifier {
                 if tokens.iter().skip(*i).len() == 1 {
                     return Box::new(ASTNode {
                         token: first_token.clone(),
@@ -2285,15 +2230,15 @@ impl Parser {
 
     #[allow(dead_code)]
     fn print_node(node: &ASTNode) {
-        println!("{}", Self::node_expr_to_string(node));
+        println!("{}", Self::node_expr_to_string(node, 0));
     }
 
-    fn node_expr_to_string(node: &ASTNode) -> String {
+    fn node_expr_to_string(node: &ASTNode, mut tab_level: usize) -> String {
         match *node.node {
             NodeType::VariableDeclaration(ref value) => {
-                let var_type = Self::node_expr_to_string(&value.var_type);
+                let var_type = Self::node_expr_to_string(&value.var_type, tab_level);
                 let var_name = value.var_name.value.clone();
-                let var_value = Self::node_expr_to_string(&value.var_value);
+                let var_value = Self::node_expr_to_string(&value.var_value, tab_level);
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 if value.description.is_some() {
                     format!("{}{}: {} = {} -> \"{}\"", access_modifiers, var_type, var_name, var_value, value.description.clone().unwrap().value)
@@ -2318,7 +2263,7 @@ impl Parser {
                     if let Some(type_parameters) = &ident.type_parameters {
                         let mut parameters = "".to_string();
                         for (index, param) in type_parameters.parameters.iter().enumerate() {
-                            parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), type_parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                            parameters += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), type_parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                         }
                         scope += format!("{}{}<{}>", scope_type, identifier, parameters).as_str();
                     }
@@ -2331,31 +2276,31 @@ impl Parser {
             NodeType::TupleDeclaration(ref value) => {
                 let mut tuple = "".to_string();
                 for (index, param) in value.parameters.iter().enumerate() {
-                    tuple += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    tuple += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("({})", tuple)
             }
             NodeType::Operator(ref value) => {
-                let left = Self::node_expr_to_string(&value.left);
-                let right = Self::node_expr_to_string(&value.right);
+                let left = Self::node_expr_to_string(&value.left, tab_level);
+                let right = Self::node_expr_to_string(&value.right, tab_level);
 
                 format!("({} {} {})", left, value.operator.value, right)
             }
             NodeType::UnaryOperator(ref value) => {
-                let operand = Self::node_expr_to_string(&value.operand);
+                let operand = Self::node_expr_to_string(&value.operand, tab_level);
 
                 format!("({}{})", value.operator.value, operand)
             }
             NodeType::FunctionCall(ref value) => {
                 let mut parameters = "".to_string();
                 for (index, param) in value.parameters.parameters.iter().enumerate() {
-                    parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    parameters += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 let mut type_parameters = "".to_string();
                 if value.type_parameters.is_some() {
                     type_parameters += "<";
                     for (index, param) in value.type_parameters.clone().unwrap().iter().enumerate() {
-                        type_parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                        type_parameters += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                     }
                     type_parameters += ">";
                 }
@@ -2373,18 +2318,18 @@ impl Parser {
                     if ident.type_parameters.is_some() && ident.type_parameters.clone().unwrap().parameters.len() > 0 {
                         type_parameters += "<";
                         for (index, param) in ident.type_parameters.clone().unwrap().parameters.iter().enumerate() {
-                            type_parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), ident.type_parameters.clone().unwrap().parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                            type_parameters += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), ident.type_parameters.clone().unwrap().parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                         }
                         type_parameters += ">";
                     }
-                    scope += format!("{}{}{}", scope_type, Self::node_expr_to_string(ident.expression.as_ref()), type_parameters).as_str();
+                    scope += format!("{}{}{}", scope_type, Self::node_expr_to_string(ident.expression.as_ref(), tab_level), type_parameters).as_str();
                 }
                 scope
             }
             NodeType::TupleExpression(ref value) => {
                 let mut tuple = "".to_string();
                 for (index, param) in value.parameters.iter().enumerate() {
-                    tuple += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    tuple += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("({})", tuple)
             }
@@ -2397,32 +2342,32 @@ impl Parser {
                 }
             }
             NodeType::TernaryOperator(ref value) => {
-                let condition = Self::node_expr_to_string(&value.condition);
-                let then = Self::node_expr_to_string(&value.then);
-                let else_then = Self::node_expr_to_string(&value.else_then);
+                let condition = Self::node_expr_to_string(&value.condition, tab_level);
+                let then = Self::node_expr_to_string(&value.then, tab_level);
+                let else_then = Self::node_expr_to_string(&value.else_then, tab_level);
 
                 format!("({} ? {} : {})", condition, then, else_then)
             }
             NodeType::ArrayExpression(ref value) => {
                 let mut array = "".to_string();
                 for (index, param) in value.parameters.iter().enumerate() {
-                    array += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    array += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("[{}]", array)
             }
             NodeType::Indexer(ref value) => {
-                let object = Self::node_expr_to_string(&value.object);
+                let object = Self::node_expr_to_string(&value.object, tab_level);
                 let mut index = "".to_string();
                 for (i, param) in value.index.iter().enumerate() {
-                    index += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.index.get(i + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    index += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.index.get(i + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("{}[{}]", object, index)
             }
             NodeType::ObjectInstantiation(ref value) => {
                 let mut object = "".to_string();
-                let object_type = Self::node_expr_to_string(&value.object_type);
+                let object_type = Self::node_expr_to_string(&value.object_type, tab_level);
                 for (index, param) in value.properties.iter().enumerate() {
-                    object += format!("{} = {}{}", param.name.value, Self::node_expr_to_string(&param.value).as_str(), value.properties.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    object += format!("{} = {}{}", param.name.value, Self::node_expr_to_string(&param.value, tab_level).as_str(), value.properties.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 if object.is_empty() {
                     format!("{} {{}}", object_type)
@@ -2433,41 +2378,43 @@ impl Parser {
             }
             NodeType::CodeBlock(ref value) => {
                 let mut body = "".to_string();
+                tab_level += 1;
                 for param in value.body.iter() {
-                    body += format!("{}{}", Self::node_expr_to_string(&param).as_str(), "; ").as_str();
+                    body += format!("{}{}{}", "    ".repeat(tab_level), Self::node_expr_to_string(&param, tab_level).as_str(), ";\n").as_str();
                 }
-                format!("{{ {}}}", body)
+                tab_level -= 1;
+                format!("{{\n{}{}}}", body, "    ".repeat(tab_level))
             }
             NodeType::ReturnExpression(ref value) => {
-                format!("return {}", Self::node_expr_to_string(&value))
+                format!("return {}", Self::node_expr_to_string(&value, tab_level))
             }
             NodeType::LambdaExpression(ref value) => {
                 let mut parameters = "".to_string();
                 for (index, param) in value.parameters.parameters.iter().enumerate() {
-                    parameters += format!("{}{}", Self::node_expr_to_string(param).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    parameters += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 let mut body = "".to_string();
                 for param in value.body.body.iter() {
-                    body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                    body += format!("{}; ", Self::node_expr_to_string(&param, tab_level).as_str()).as_str();
                 }
                 format!("({}) => {{ {}}}", parameters, body)
             }
             NodeType::Assignment(ref value) => {
-                format!("{} = {}", Self::node_expr_to_string(&value.left), Self::node_expr_to_string(&value.right))
+                format!("{} = {}", Self::node_expr_to_string(&value.left, tab_level), Self::node_expr_to_string(&value.right, tab_level))
             }
             NodeType::If(ref value) | NodeType::While(ref value) => {
-                let condition = Self::node_expr_to_string(&value.condition);
+                let condition = Self::node_expr_to_string(&value.condition, tab_level);
                 let mut body = "".to_string();
                 for param in value.body.body.iter() {
-                    body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                    body += format!("{}; ", Self::node_expr_to_string(&param, tab_level).as_str()).as_str();
                 }
                 let mut else_if_string = "".to_string();
                 if let Some(else_if) = value.else_if_regions.clone() {
                     for region in else_if.iter() {
-                        let condition = Self::node_expr_to_string(&region.condition);
+                        let condition = Self::node_expr_to_string(&region.condition, tab_level);
                         let mut body = "".to_string();
                         for param in region.body.body.iter() {
-                            body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                            body += format!("{}; ", Self::node_expr_to_string(&param, tab_level).as_str()).as_str();
                         }
                         let regional_if_name = region.is_while.then(|| "while").unwrap_or("if");
                         else_if_string += format!("\nelse {} {} {{ {} }}", regional_if_name, condition, body).as_str();
@@ -2478,7 +2425,7 @@ impl Parser {
                 if let Some(else_region) = value.else_region.clone() {
                     let mut body = "".to_string();
                     for param in else_region.body.iter() {
-                        body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                        body += format!("{}; ", Self::node_expr_to_string(&param, tab_level).as_str()).as_str();
                     }
                     else_string += format!("\nelse {{ {} }}", body).as_str();
                 }
@@ -2488,40 +2435,40 @@ impl Parser {
             }
             NodeType::ForEach(ref value) => {
                 let index = value.index_segment.clone().map_or("".to_string(), |t| t.value.clone());
-                let val = Self::node_expr_to_string(&value.iter_value);
-                let range = Self::node_expr_to_string(&value.iter_range);
+                let val = Self::node_expr_to_string(&value.iter_value, tab_level);
+                let range = Self::node_expr_to_string(&value.iter_range, tab_level);
 
                 let mut body = "".to_string();
                 for param in value.body.body.iter() {
-                    body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                    body += format!("{}; ", Self::node_expr_to_string(&param, tab_level).as_str()).as_str();
                 }
 
                 format!("for {}{} in {} {{ {} }}", value.index_segment.clone().map_or("".to_string(), |_| index + ", "), val, range, body)
             }
             NodeType::For(ref value) => {
                 let index = value.index_segment.clone().map_or("".to_string(), |t| t.value.clone());
-                let set = Self::node_expr_to_string(&value.set_segment);
-                let cond = Self::node_expr_to_string(&value.condition_segment);
-                let inc = Self::node_expr_to_string(&value.increment_segment);
+                let set = Self::node_expr_to_string(&value.set_segment, tab_level);
+                let cond = Self::node_expr_to_string(&value.condition_segment, tab_level);
+                let inc = Self::node_expr_to_string(&value.increment_segment, tab_level);
 
                 let mut body = "".to_string();
                 for param in value.body.body.iter() {
-                    body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                    body += format!("{}; ", Self::node_expr_to_string(&param, tab_level).as_str()).as_str();
                 }
 
                 format!("for {}{}, {}, {} {{ {} }}", value.index_segment.clone().map_or("".to_string(), |_| index + ", "), set, cond, inc, body)
             }
             NodeType::Match(ref value) => {
-                let expression = Self::node_expr_to_string(&value.match_value);
+                let expression = Self::node_expr_to_string(&value.match_value, tab_level);
                 let mut cases = "".to_string();
 
                 for case in value.match_cases.clone() {
-                    let mut c = Self::node_expr_to_string(&case.pattern);
+                    let mut c = Self::node_expr_to_string(&case.pattern, tab_level);
                     c += " => { ";
                     
                     let mut body = "".to_string();
                     for param in case.body.body.iter() {
-                        body += format!("{}; ", Self::node_expr_to_string(&param).as_str()).as_str();
+                        body += format!("{}; ", Self::node_expr_to_string(&param, tab_level).as_str()).as_str();
                     }
 
                     c += &body;

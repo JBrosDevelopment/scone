@@ -86,7 +86,6 @@ pub enum TokenType {
     LoadLib,
     Unsafe,
     Safe,
-    Auto,
 
     // constants
     BoolConstant,
@@ -297,7 +296,6 @@ impl Lexer {
                     "abstract" => Token::new(TokenType::Abstract, name.clone(), current_location.clone()),
                     "unsafe" => Token::new(TokenType::Unsafe, name.clone(), current_location.clone()),
                     "safe" => Token::new(TokenType::Safe, name.clone(), current_location.clone()),
-                    "auto" => Token::new(TokenType::Auto, name.clone(), current_location.clone()),
                     "_" => Token::new(TokenType::Underscore, name.clone(), current_location.clone()),
                     _ => Token::new(TokenType::Identifier, name.clone(), current_location.clone()),
                 };
