@@ -136,12 +136,12 @@ pub const DEBUGGING: bool = false;
 macro_rules! debug {
     ($obj:expr) => {
         if DEBUGGING {
-            println!("DEBUG: TRUE     FILE: {}     LINE: {}     OUT: {:#?}", file!(), line!(), $obj);
+            println!("DEBUG: TRUE     FILE: {}:{}     OUT: {:#?}", file!(), line!(), $obj);
         }
     };
     ($msg:expr, $obj:expr) => {
         if DEBUGGING {
-            println!("DEBUG: TRUE     FILE: {}     LINE: {}     MESSAGE: {}     OUT: {:#?}", file!(), line!(), $msg, $obj);
+            println!("DEBUG: TRUE     FILE: {}:{}     MESSAGE: {}     OUT: {:#?}", file!(), line!(), $msg, $obj);
         }
     };
 }

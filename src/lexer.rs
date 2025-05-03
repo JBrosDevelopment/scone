@@ -99,33 +99,41 @@ pub enum TokenType {
     EndOfLine,
     None
 }
+
+#[macro_export]
+macro_rules! operator_tokens {
+    () => {
+        TokenType::Plus |
+        TokenType::Dash |
+        TokenType::Star |
+        TokenType::Slash |
+        TokenType::Pipe |
+        TokenType::Carrot |
+        TokenType::Ampersand |
+        TokenType::Tilda |
+        TokenType::Modulas |
+        TokenType::Increment |
+        TokenType::Decrement |
+        TokenType::Equal |
+        TokenType::NotEqual |
+        TokenType::GreaterThan |
+        TokenType::GreaterThanOrEqual |
+        TokenType::LessThan |
+        TokenType::LessThanOrEqual |
+        TokenType::Assign |
+        TokenType::And |
+        TokenType::Or |
+        TokenType::RangeOperator |
+        TokenType::Not |
+        TokenType::Is |
+        TokenType::As
+    };
+}
+
 impl TokenType {
     pub fn is_operator(&self) -> bool {
         matches!(self,
-            TokenType::Plus |
-            TokenType::Dash |
-            TokenType::Star |
-            TokenType::Slash |
-            TokenType::Pipe |
-            TokenType::Carrot |
-            TokenType::Ampersand |
-            TokenType::Tilda |
-            TokenType::Modulas |
-            TokenType::Increment |
-            TokenType::Decrement |
-            TokenType::Equal |
-            TokenType::NotEqual |
-            TokenType::GreaterThan |
-            TokenType::GreaterThanOrEqual |
-            TokenType::LessThan |
-            TokenType::LessThanOrEqual |
-            TokenType::Assign |
-            TokenType::And |
-            TokenType::Or |
-            TokenType::RangeOperator |
-            TokenType::Not |
-            TokenType::Is |
-            TokenType::As
+            operator_tokens!()
         )
     }
     pub fn operator_assignable(&self) -> bool {
