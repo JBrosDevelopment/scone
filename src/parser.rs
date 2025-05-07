@@ -548,7 +548,6 @@ impl Parser {
         let mut else_region: Option<BodyRegion> = None;
         let mut else_if_regions: Option<Vec<Box<ConditionalRegion>>> = None;
 
-        Self::inc(i);
         while tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Else) {
             Self::inc(i);
             if tokens.get(*i).is_some() && (tokens[*i].token_type == TokenType::If || tokens[*i].token_type == TokenType::While) {
@@ -567,12 +566,9 @@ impl Parser {
                     else_if_regions: None,
                     is_while
                 }));
-
-                Self::inc(i);
             } else if else_region.is_none() {
                 // else
                 else_region = Some(self.get_code_block(tokens, i, false));
-                Self::inc(i);
             } else {
                 // double else
                 self.error(line!(), "Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[*i - 1].location);
@@ -1787,8 +1783,15 @@ impl Parser {
     fn get_type_idententifier(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, from_as_is_operators: bool) -> Box<ASTNode> {
         if let Some(first_token) = tokens.clone().get(*i) {
             let mut copy_tokens = tokens.clone();
-            if from_as_is_operators {
-                copy_tokens = tokens[..tokens.iter().position(|t| t.token_type == TokenType::LBrace || t.token_type == TokenType::RBrace || t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket).unwrap_or(tokens.len() - 1)].to_vec();
+            if from_as_is_operators { // if this is from an `as` or `is` operator, we need to find the type but not include any `{`, `}`, `)`, or `]`. For example: `if a is b {}`, we need to stop parsing the type at `{` because that starts the code block
+                copy_tokens = tokens[..tokens.iter().enumerate().skip(*i) // we don't want to stop parsing before the `i`, otherwise `} else if a is b {}` would stop parsing at the first `}` 
+                    .position(|(_, t)| t.token_type == TokenType::LBrace 
+                        || t.token_type == TokenType::RBrace 
+                        || t.token_type == TokenType::RParen 
+                        || t.token_type == TokenType::RBracket)
+                    .map(|pos| pos + *i) // adjust the positions to undo the `skip(*i)`
+                    .unwrap_or(tokens.len() - 1) // if none were found, than include the entire vector of tokens to parse
+                ].to_vec();
             }
             if first_token.token_type == TokenType::Identifier {
                 if copy_tokens.iter().skip(*i).len() == 1 {
@@ -2446,7 +2449,7 @@ impl Parser {
                         tab_level -= 1;
                         body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
                         let regional_if_name = region.is_while.then(|| "while").unwrap_or("if");
-                        else_if_string += format!("\nelse {} {} {}", regional_if_name, condition, body).as_str();
+                        else_if_string += format!("\n{}else {} {} {}", "    ".repeat(tab_level), regional_if_name, condition, body).as_str();
                     }
                 }
 
@@ -2459,7 +2462,7 @@ impl Parser {
                     }
                     tab_level -= 1;
                     body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
-                    else_string += format!("\nelse {}", body).as_str();
+                    else_string += format!("\n{}else {}", "    ".repeat(tab_level), body).as_str();
                 }
                 let if_name = value.is_while.then(|| "while").unwrap_or("if");
 
