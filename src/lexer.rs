@@ -21,8 +21,6 @@ pub enum TokenType {
     Ampersand,
     Tilda,
     Modulas,
-    Increment,
-    Decrement,
     Equal,
     NotEqual,
     GreaterThan,
@@ -33,7 +31,6 @@ pub enum TokenType {
     And,
     Or,
     Not,
-    RangeOperator,
     Hashtag,
     AtSymbol,
     
@@ -111,8 +108,6 @@ macro_rules! operator_tokens {
         TokenType::Ampersand |
         TokenType::Tilda |
         TokenType::Modulas |
-        TokenType::Increment |
-        TokenType::Decrement |
         TokenType::Equal |
         TokenType::NotEqual |
         TokenType::GreaterThan |
@@ -122,10 +117,10 @@ macro_rules! operator_tokens {
         TokenType::Assign |
         TokenType::And |
         TokenType::Or |
-        TokenType::RangeOperator |
         TokenType::Not |
         TokenType::Is |
-        TokenType::As
+        TokenType::As |
+        TokenType:: In
     };
 }
 
@@ -134,6 +129,9 @@ impl TokenType {
         matches!(self,
             operator_tokens!()
         )
+    }
+    pub fn operator_boolean(&self) -> bool {
+        matches!(self, TokenType::Equal | TokenType::NotEqual | TokenType::GreaterThan | TokenType::GreaterThanOrEqual | TokenType::LessThan | TokenType::LessThanOrEqual | TokenType::And | TokenType::Or | TokenType::Not | TokenType::Is | TokenType::As)
     }
     pub fn operator_assignable(&self) -> bool {
         matches!(self, TokenType::Plus | TokenType::Dash | TokenType::Star | TokenType::Slash | TokenType::Pipe | TokenType::Carrot | TokenType::Ampersand | TokenType::Modulas | TokenType::And | TokenType::Or)
@@ -538,8 +536,6 @@ impl Lexer {
                     current_location.advance(2);
                     i += 1;
                     self.error("Scone has no increment operator", "not a valid operator, use `+=` instead", &current_location);
-
-                    // tokens.push(Token::new(TokenType::Increment, "++".to_string(), current_location.clone()));
                 }
                 else if chars.get(i + 1) == Some(&'=') {
                     last_was_negatable_ability = 3;
@@ -555,11 +551,10 @@ impl Lexer {
             }
             else if c == '-' {
                 if chars.get(i + 1) == Some(&'-') {
-                    // INCREMENT is not allowed in scone
+                    // DECREMENT is not allowed in scone
                     current_location.advance(2);
                     i += 1;
                     self.error("Scone has no decrement operator", "not a valid operator, use `-=` instead", &current_location);
-                    //tokens.push(Token::new(TokenType::Decrement, "--".to_string(), current_location.clone()));
                 }
                 else if chars.get(i + 1) == Some(&'>') {
                     current_location.advance(2);

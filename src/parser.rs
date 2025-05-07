@@ -46,7 +46,7 @@ impl Parser {
     }
 
     pub fn error(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
-        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra errors
+        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra errors on the same line
             return;
         }
         if DEBUGGING {
@@ -56,17 +56,26 @@ impl Parser {
             self.output.error("parsing error", message, help, location);
         }
     }
-    pub fn warning(&mut self, message: &str, help: &str, location: &Location) {
-        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra warnings
+    pub fn warning(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
+        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra warnings on the same line
             return;
         }
-        self.output.warning("parsing warning", message, help, location);
+        if DEBUGGING {
+            self.output.warning("parsing warning", format!("[DEBUG {}:{}]: {}", file!(), debug_line, message).as_str(), help, location);
+        }
+        else {
+            self.output.warning("parsing warning", message, help, location);
+        }
     }
-    pub fn message(&mut self, message: &str, help: &str, location: &Location) {
-        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra messages
+    pub fn message(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
+        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra messages on the same line
             return;
         }
-        self.output.message("parsing message", message, help, location);
+        if DEBUGGING {
+            self.output.message("parsing message", format!("[DEBUG {}:{}]: {}", file!(), debug_line, message).as_str(), help, location);
+        } else {
+            self.output.message("parsing message", message, help, location);
+        }
     }
 
     fn inc(i: &mut usize) {
@@ -88,7 +97,6 @@ impl Parser {
             if let Ok(node) = self.get_ast_node(&mut tokens) {
                 println!("{}", Self::node_expr_to_string(&node, 0));
                 ast.push(node);
-                println!();
             }
             self.__curent_parsing_line += 1;
         }
@@ -99,6 +107,13 @@ impl Parser {
     fn get_ast_node(&mut self, tokens: &mut Vec<Box<Token>>) -> Result<ASTNode, ()> {
         if tokens.len() == 0 {
             return Err(());
+        }
+
+        match tokens[0].token_type {
+            TokenType::For => { // this is so that `for i = 0, i < 10, i += 1` doesn't parse as a variable assignment with the `=`
+                return Ok(*self.get_entire_expression(tokens));
+            }
+            _ => {}
         }
 
         // for matching function declarations `: a < b` and `: a ( b` as `type: name(paramters)` or `type: name<types>(parameters)`
@@ -123,7 +138,7 @@ impl Parser {
             let mut rhs = tokens[assign_index as usize + 1..].to_vec();
 
             if (lhs.len() == 1 && lhs[0].token_type == TokenType::Underscore) || (lhs.len() >= 2 && lhs[lhs.len() - 2].token_type == TokenType::Colon) {
-                return self.declaring_variable(tokens);
+                return self.declaring_variable(tokens, &mut 0, false);
             }
             else {
                 // assigning variable
@@ -163,11 +178,29 @@ impl Parser {
         return Ok(*self.get_entire_expression(tokens));
     }
 
-    fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>) -> Result<ASTNode, ()> {
-        let assign_index = tokens.iter().position(|t| t.token_type == TokenType::Assign).map_or(-1, |i| i as i32);
+    fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, is_in_for: bool) -> Result<ASTNode, ()> { // `tokens` fpr tokens to parse, `i` for current token index only used if `is_in_for` is true, `is_in_for` whether or not we are in a for loop
+        let starting_index: usize;
+        if is_in_for {
+            let position_of_for: i32 = tokens.iter().position(|t| t.token_type == TokenType::For).map_or(-1, |index| index as i32);
+            if position_of_for == -1 {
+                starting_index = 1;
+            } else {
+                if tokens.get((position_of_for + 1) as usize).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get((position_of_for + 2) as usize).map_or(false, |t| t.token_type == TokenType::Comma) {
+                    // for INDEXER, SET, CONDITION, INCREMENT {}
+                    starting_index = (position_of_for + 3) as usize;
+                } else {
+                    // for SET, CONDITION, INCREMENT {}
+                    starting_index = 1;
+                }
+            }
+        } else {
+            starting_index = 0;
+        }
+
+        let assign_index = tokens.iter().position(|t| t.token_type == TokenType::Assign).map_or(-1, |index| index as i32);
 
         if assign_index != -1 {
-            let lhs = tokens[0..assign_index as usize].to_vec();
+            let lhs = tokens[starting_index..assign_index as usize].to_vec();
             let mut rhs = tokens[assign_index as usize + 1..].to_vec();
 
             if lhs.len() == 1 && lhs[0].token_type == TokenType::Underscore {
@@ -197,7 +230,11 @@ impl Parser {
                 let mut type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
                 let var_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens, &mut 0, false);
 
-                let var_value: Box<ASTNode> = self.get_entire_expression(&mut rhs);
+                let var_value = if is_in_for {
+                    self.get_expression(tokens, i, Self::PARSING_FOR_FOR_LOOP_STATEMENT)
+                } else {
+                    self.get_entire_expression(&mut rhs)
+                };
 
                 let var_decl = VariableDeclaration {
                     access_modifier,
@@ -391,137 +428,117 @@ impl Parser {
         }
     }
 
-    fn parse_for_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, index_segment: Option<Box<Token>>, mut set_tokens: Vec<Box<Token>>, mut condition_tokens: Vec<Box<Token>>, mut increment_tokens: Vec<Box<Token>>) -> ForLoop {
-        let set_segment = Box::new(self.get_ast_node(&mut set_tokens).unwrap_or_else(|_| {
-            self.error(line!(), "Error with for loop set segment", "For loop does not have set segment. An example would be: `for i32: i = 0, i < 10, i += 1 { ... }`", &set_tokens[0].location);
-            ASTNode::err()
-        }));
-        let condition_segment = self.get_entire_expression(&mut condition_tokens);
-        let increment_segment = self.get_entire_expression(&mut increment_tokens);
-        let body = self.get_code_block(tokens, i, false);
-        
-        ForLoop {
-            index_segment,
-            set_segment,
-            condition_segment,
-            increment_segment,
-            body
-        }
-    }
-
-    fn parse_foreach_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, index_segment: Option<Box<Token>>, for_tokens: Vec<Box<Token>>) -> ForEachLoop {
-        let mut name_tokens = vec![];
-        let mut in_tokens = vec![];
-        
-        let mut in_has_happenend = false;
-        for token in for_tokens {
-            match token.token_type {
-                TokenType::In => in_has_happenend = true,
-                _ => {
-                    if in_has_happenend {
-                        in_tokens.push(token.clone());
-                    }
-                    else {
-                        name_tokens.push(token.clone());
-                    }
-                }
-            }
-        }
-
-        let iter_value = self.get_entire_expression(&mut name_tokens);
-        let iter_range = self.get_entire_expression(&mut in_tokens);
-
-        let body = self.get_code_block(tokens, i, false);
-
-        ForEachLoop {
-            iter_value,
-            iter_range,
-            index_segment,
-            body
-        }
-    }
-
     fn parse_for(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
         if tokens[0].token_type != TokenType::For {
             self.error(line!(), "Expected `for`", "Parser error, expected `for`", &tokens[0].location);
             return ASTNode::err();
         }
-
-        let mut segment_tokens = vec![vec![]];
-        let mut comma_index = 0;
-        let mut parenthesis_level = 0;
-        let mut bracket_level = 0;
-        let mut brace_level = 0;
-
+        let for_token = tokens[0].clone();
+        
         let mut i = 1;
-        while i < tokens.len() {
-            segment_tokens[comma_index].push(tokens[i].clone());
-            match tokens[i].token_type {
-                TokenType::LParen => parenthesis_level += 1,
-                TokenType::RParen => parenthesis_level -= 1,
-                TokenType::LBracket => bracket_level += 1,
-                TokenType::RBracket => bracket_level -= 1,
-                TokenType::LBrace => {
-                    brace_level += 1;
-                    if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 {
-                        segment_tokens[comma_index].pop();
-                        break;
-                    }
-                }
-                TokenType::RBrace => brace_level -= 1,
-                TokenType::Comma => {
-                    if parenthesis_level == 0 && bracket_level == 0 && brace_level == 0 {
-                        segment_tokens[comma_index].pop(); // remove the comma
-                        comma_index += 1;
-                        segment_tokens.push(vec![]);
-                    }
-                }
-                _ => {},
-            }
-            i += 1;
-        }
+        let segments = self.get_node_parameters(tokens, &mut i, Self::PARSING_FOR_STATEMENT);
+        let body = self.get_code_block(tokens, &mut i, false);
 
-        if segment_tokens.len() == 0 {
-            self.error(line!(), "Could not parse for statement", "No parameters were found for the for statement: `for X in Y { ... }` or `for VAR, CONDITION, INC { ... }`", &tokens[i].location);
+        if segments.len() == 0 {
+            self.error(line!(), "Could not parse for statement", "No parameters were found for the for statement: `for X in Y { ... }` or `for VAR, CONDITION, INC { ... }`", &for_token.location);
             return ASTNode::err();
-        } else if segment_tokens.len() == 1 {
+        } else if segments.len() == 1 || segments.len() == 2 {
             // for X in Y
-            let node = self.parse_foreach_statement(tokens, &mut i, None, segment_tokens[0].clone());
+            let mut index_segment = None;
+            if segments.len() == 2 {
+                if let NodeType::Identifier(ref v) = segments[0].node.as_ref() {
+                    index_segment = Some(v.clone());
+                } else {
+                    self.error(line!(), "Unable to parse `for` statement, incorrect indexer expression", "Expected a single identifier token as the indexer for the `for` statement: `for I, X in Y {}`", &for_token.location);
+                }
+            }
+
+            let iter_value;
+            let iter_range;
+            if let NodeType::Operator(ref in_expression) = segments[if segments.len() == 1 {0} else {1}].node.as_ref() {
+                iter_value = in_expression.left.clone();
+                iter_range = in_expression.right.clone();
+                if let NodeType::Identifier(_) = in_expression.left.node.as_ref() { } else {
+                    self.error(line!(), "Unable to parse `for` statement, incorrect value for iterator", "Expected a single identifier token as the iterator value for the `for` statement: `for VALUE in RANGE {}`", &in_expression.operator.location);
+                    return ASTNode::err();
+                }
+                if in_expression.operator.token_type != TokenType::In {
+                    self.error(line!(), "Unable to parse `for` statement, incorrect operator", "Expected an `in` operator for `for` statement: `for X in Y {}`", &in_expression.operator.location);
+                    return ASTNode::err();
+                } 
+            } else {
+                self.error(line!(), "Unable to parse `for` statement, incorrect operator", "Expected an `in` operator for `for` statement: `for X in Y {}`", &for_token.location);
+                return ASTNode::err();
+            }
+
+            let node = ForEachLoop { 
+                index_segment,
+                iter_value,
+                iter_range,
+                body
+            };
+
             return ASTNode { 
-                token: tokens[0].clone(), 
+                token: for_token.clone(), 
                 node: Box::new(NodeType::ForEach(node)) 
             };
-        } else if segment_tokens.len() == 2 {
-            // for index, X in Y
-            let index_token = if segment_tokens[0].len() != 1 {
-                self.error(line!(), "Could not parse for statement", "The first parameter of the for statement must be a single identifier: `for index, X in Y { ... }`", &tokens[i].location);
-                None
+        } else if segments.len() == 3 || segments.len() == 4 {
+            let mut index_segment = None;
+            if segments.len() == 4 {
+                if let NodeType::Identifier(ref v) = segments[0].node.as_ref() {
+                    index_segment = Some(v.clone());
+                } else {
+                    self.error(line!(), "Unable to parse `for` statement, incorrect indexer expression", "Expected a single identifier token as the indexer for the `for` statement: `for INDEX, SET, CONDITION, INCREMENT {}`", &for_token.location);
+                }
+            }
+            let start = if segments.len() == 3 {0} else {1};
+
+            let set_segment;
+            let condition_segment;
+            let increment_segment;
+            if let NodeType::VariableDeclaration(_) = segments[start].node.as_ref() {
+                set_segment = segments[start].clone();
             } else {
-                Some(segment_tokens[0][0].clone())
-            };
-            let node = self.parse_foreach_statement(tokens, &mut i, index_token, segment_tokens[1].clone());
-            return ASTNode { 
-                token: tokens[0].clone(), 
-                node: Box::new(NodeType::ForEach(node)) 
-            };
-        } else if segment_tokens.len() == 3 {
-            // for VAR, CONDITION, INC
-            let node = self.parse_for_statement(tokens, &mut i, None, segment_tokens[0].clone(), segment_tokens[1].clone(), segment_tokens[2].clone());
-            return ASTNode { 
-                token: tokens[0].clone(), 
-                node: Box::new(NodeType::For(node)) 
-            };
-        } else if segment_tokens.len() == 4 {
-            // for index, VAR, CONDITION, INC
-            let index_token = if segment_tokens[0].len() != 1 {
-                self.error(line!(), "Could not parse for statement", "The first parameter of the for statement must be a single identifier: `for index, X in Y { ... }`", &tokens[i].location);
-                None
+                self.error(line!(), "Unable to parse `for` statement, incorrect set expression", "Expected a variable declaration for the set segment for the `for` statement: `for i32: i = 0, i < 10, i += 1 {}`", &for_token.location);
+                return ASTNode::err();
+            }
+            if let NodeType::Operator(ref v) = segments[start + 1].node.as_ref() {
+                if !v.operator.token_type.operator_boolean() {
+                    self.error(line!(), "Unable to parse `for` statement, incorrect condition expression", "Expected a valid expression for the condition segment for the `for` statement: `for i32: i = 0, i < 10, i += 1 {}`", &for_token.location);
+                    return ASTNode::err();
+                }
+                condition_segment = segments[start + 1].clone();
             } else {
-                Some(segment_tokens[0][0].clone())
+                self.error(line!(), "Unable to parse `for` statement, incorrect condition expression", "Expected a valid expression for the condition segment for the `for` statement: `for i32: i = 0, i < 10, i += 1 {}`", &for_token.location);
+                return ASTNode::err();
+            }
+            if let NodeType::Operator(ref v) = segments[start + 2].node.as_ref() {
+                if v.operator.token_type != TokenType::Assign {
+                    self.error(line!(), "Unable to parse `for` statement, incorrect increment expression", "Expected a assignment expression for the increment segment for the `for` statement: `for i32: i = 0, i < 10, i += 1 {}`", &for_token.location);
+                    return ASTNode::err();
+                }
+                increment_segment = Box::new(ASTNode { 
+                    token: v.operator.clone(), 
+                    node: Box::new(NodeType::Assignment(Assignment { 
+                        left: v.left.clone(), 
+                        right: v.right.clone() 
+                    })) 
+                });
+            } else {
+                self.error(line!(), "Unable to parse `for` statement, incorrect increment expression", "Expected a assignment expression for the increment segment for the `for` statement: `for i32: i = 0, i < 10, i += 1 {}`", &for_token.location);
+                return ASTNode::err();
+            }
+
+            let node = ForLoop { 
+                index_segment,
+                condition_segment,
+                increment_segment,
+                set_segment,
+                body
             };
-            let node = self.parse_for_statement(tokens, &mut i, index_token, segment_tokens[1].clone(), segment_tokens[2].clone(), segment_tokens[3].clone());
+
             return ASTNode { 
-                token: tokens[0].clone(), 
+                token: for_token.clone(), 
                 node: Box::new(NodeType::For(node)) 
             };
         } else {
@@ -650,7 +667,7 @@ impl Parser {
         }
     }
 
-    fn scope_call(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ScopedIdentifier {
+    fn scope_call(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, is_in_statement: bool) -> ScopedIdentifier {
         Self::dec(i);
 
         let mut last_punc = None;
@@ -663,7 +680,7 @@ impl Parser {
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LessThan) && valid_lt_as_type_parameter {
             scope = self.function_call(tokens, Some(scope), i, last_punc)
         }
-        else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
+        else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) && !is_in_statement {
             scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc)
         }
         else if tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Identifier) && !tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
@@ -778,7 +795,7 @@ impl Parser {
         }
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Dot) {
             *i += 2;
-            let call = self.scope_call(tokens, i);
+            let call = self.scope_call(tokens, i, false);
             let mut push = vec![];
             for (i, c) in call.scope.iter().enumerate() {
                 if i == 0 {
@@ -1023,6 +1040,8 @@ impl Parser {
     const PARSING_FOR_STATEMENT: u8 = 7;
     const PARSING_FOR_STATEMENT_UNTIL: [TokenType; 1] = [TokenType::LBrace];
     const PARSING_FOR_SCOPING: u8 = 8;
+    const PARSING_FOR_FOR_LOOP_STATEMENT: u8 = 9;
+    const PARSING_FOR_FOR_LOOP_STATEMENT_UNTIL: [TokenType; 1] = [TokenType::Comma];
 
     fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Box<ASTNode> {
         let mut expr_stack: Vec<Box<ASTNode>> = Vec::new();
@@ -1062,7 +1081,9 @@ impl Parser {
                     break;
                 } else if Self::PARSING_FOR_SCOPING == until && matches!(&token.token_type, operator_tokens!() | TokenType::LBrace) {
                     break;
-                }
+                } else if Self::PARSING_FOR_FOR_LOOP_STATEMENT == until && Self::PARSING_FOR_FOR_LOOP_STATEMENT_UNTIL.iter().any(|t| t == &token.token_type) {
+                    break;
+                } 
             }
 
             if token.token_type == TokenType::Colon {
@@ -1081,8 +1102,13 @@ impl Parser {
                     // remove any errors that occured before the variable declaration.
                     self.output.messages.retain(|x| x.location.line != token.location.line);
 
+                    // is apart of a for loop: for i32: i = 0, ..., ... {}
+                    let is_in_for = tokens.iter().take(*i).any(|t| t.token_type == TokenType::For);
+
                     // parse the variable
-                    let variable = self.declaring_variable(tokens);
+                    Self::inc(i); // is on `=`
+                    Self::inc(i); // is on first token of expression
+                    let variable = self.declaring_variable(tokens, i, is_in_for);
                     if let Ok(var) = variable {
                         if expr_stack.len() > 1 {
                             self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
@@ -1093,12 +1119,14 @@ impl Parser {
                     } else {
                         self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression", &token.location);
                     }
-                    if self.__curent_parsing_line >= self.lines.len() {
-                        break;
+                    if !is_in_for {
+                        if self.__curent_parsing_line >= self.lines.len() {
+                            break;
+                        }
+                        self.__curent_parsing_line += 1;
+                        *tokens = self.lines[self.__curent_parsing_line].clone();
+                        *i = Parser::SET_I_TO_ZERO;
                     }
-                    self.__curent_parsing_line += 1;
-                    *tokens = self.lines[self.__curent_parsing_line].clone();
-                    *i = Parser::SET_I_TO_ZERO;
                     break;
                 } else {
                     Self::dec(i);
@@ -1232,7 +1260,7 @@ impl Parser {
                     // part of function call: function<TYPE>()
                     expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i))),
+                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
                     }));
                     handle_as_operator = false;
                 }
@@ -1317,7 +1345,7 @@ impl Parser {
                     // scope traversal
                     expr_stack.push(Box::new(ASTNode {
                         token: tokens[if *i >= 1 { *i - 1 } else { *i }].clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i))),
+                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
                     }));
                 }
                 else {
@@ -1330,7 +1358,7 @@ impl Parser {
                     // scope traversal
                     expr_stack.push(Box::new(ASTNode {
                         token: tokens[if *i >= 1 { *i - 1 } else { *i }].clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i))),
+                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
                     }));
                 }
                 else {
@@ -1344,7 +1372,7 @@ impl Parser {
                     // part of function call
                     expr_stack.push(Box::new(ASTNode {
                         token: tokens[*i - 1].clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i))),
+                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
                     }));
                 }
                 else {
@@ -1652,9 +1680,10 @@ impl Parser {
         let until_token = match until {
             Self::PARSING_FOR_FUNCTION => TokenType::RParen,
             Self::PARSING_FOR_ARRAY => TokenType::RBracket,
+            Self::PARSING_FOR_STATEMENT => TokenType::LBrace,
             Self::PARSING_FOR_OBJECT_INSTANTIATION | Self::PARSING_FOR_CODE_BLOCK => TokenType::RBrace,
             _  => { 
-                self.error(line!(), "Parsing error", "Internal parsing error, caused when invalid argument was passed while trying to get node parameters in `Parser::get_node_parameters`. Expected a valid `until` argument. Try using `PARSING_FOR_FUNCTION`, `PARSING_FOR_ARRAY`, or `PARSING_FOR_OBJECT_INSTANTIATION`", &tokens[*i].location);
+                self.error(line!(), "INTERNAL ERROR", "Internal parsing error, caused when invalid argument was passed while trying to get node parameters in `Parser::get_node_parameters`. Expected a valid `until` argument. Try using `PARSING_FOR_FUNCTION`, `PARSING_FOR_ARRAY`, `PARSING_FOR_STATEMENT`, `PARSING_FOR_CODE_BLOCK`, or `PARSING_FOR_OBJECT_INSTANTIATION`", &tokens[*i].location);
                 return vec![];
             }
         };
@@ -1667,13 +1696,13 @@ impl Parser {
 
         let mut parameters = vec![];
 
-        if until != Self::PARSING_FOR_OBJECT_INSTANTIATION && until != Self::PARSING_FOR_CODE_BLOCK {
+        if until != Self::PARSING_FOR_OBJECT_INSTANTIATION && until != Self::PARSING_FOR_CODE_BLOCK && until != Self::PARSING_FOR_STATEMENT {
             Self::inc(i);
         }
-
+        
         parameters.push(self.get_expression(tokens, i, until));
 
-        if tokens.get(*i).map_or(false, |x| x.token_type != TokenType::Comma) && (*i != 0 || (tokens.len() == 2 && tokens[1].token_type == until_token)) {
+        if until != Self::PARSING_FOR_STATEMENT && tokens.get(*i).map_or(false, |x| x.token_type != TokenType::Comma) && (*i != 0 || (tokens.len() == 2 && tokens[1].token_type == until_token)) {
             Self::inc(i);
         }
         if *i == Parser::SET_I_TO_ZERO {
@@ -1720,7 +1749,7 @@ impl Parser {
                 
                 if *i == Parser::SET_I_TO_ZERO {
                     *i = 0;
-                } else if *i != 0 {
+                } else if until != Self::PARSING_FOR_STATEMENT && *i != 0 {
                     Self::inc(i);
                 }
             }
