@@ -1,4 +1,6 @@
-for a in b {
+[a is b[]]
+
+/*for a in b {
 
 }
 

@@ -1758,13 +1758,16 @@ impl Parser {
         if let Some(first_token) = tokens.clone().get(*i) {
             let mut copy_tokens = tokens.clone();
             if from_as_is_operators { // if this is from an `as` or `is` operator, we need to find the type but not include any `{`, `}`, `)`, or `]`. For example: `if a is b {}`, we need to stop parsing the type at `{` because that starts the code block
-                copy_tokens = tokens[..tokens.iter().enumerate().skip(*i) // we don't want to stop parsing before the `i`, otherwise `} else if a is b {}` would stop parsing at the first `}` 
-                    .position(|(_, t)| t.token_type == TokenType::LBrace 
+                let tokens_skipped_i: Vec<_> = tokens.iter().skip(*i).collect(); // we don't want to stop parsing before the `i`, otherwise `} else if a is b {}` would stop parsing at the first `}` 
+                copy_tokens = tokens[..tokens_skipped_i.iter().enumerate()
+                    .position(|(index, t)| t.token_type == TokenType::LBrace 
                         || t.token_type == TokenType::RBrace 
-                        || t.token_type == TokenType::RParen 
-                        || t.token_type == TokenType::RBracket)
+                        || t.token_type == TokenType::RParen
+                        // check if token is `]`, and if the token before it wasn't `[`. This is so this will get caught: `[a is b]` and this won't: `a is b[]`
+                        || (t.token_type == TokenType::RBracket && index > 0 && !tokens_skipped_i.get(index - 1).map_or(false, |y| y.token_type == TokenType::LBracket))
+                        )
                     .map(|pos| pos + *i) // adjust the positions to undo the `skip(*i)`
-                    .unwrap_or(tokens.len() - 1) // if none were found, than include the entire vector of tokens to parse
+                    .unwrap_or(tokens.len()) // if none were found, than include the entire vector of tokens to parse
                 ].to_vec();
             }
             if first_token.token_type == TokenType::Identifier {

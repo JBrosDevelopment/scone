@@ -449,3 +449,54 @@ a{ b = c{ d = e{}.h }.i }.j;
     Widget::Button { text = "Click", onClick = handler() }.text.length();
     a{ b = c{ d = e{}.h }.i }.j;
 }
+
+
+if true {
+    a;
+    if false {
+        if a {
+            if b {
+                if c {
+                    s;
+                    if d {
+                        if e {
+                            f;
+                        } else {
+                            g;
+                        }
+                    } else {
+                        h;
+                    }
+                } else {
+
+                }
+            }
+        }
+    } else if true {
+        // do something
+    } else {
+        // do something else
+    }
+} else if false {
+    // do something else if
+} else {
+    // do something else
+}
+
+{
+    brace_level = (brace_level - 1); 
+    if (brace_level == 0) {
+        cases_lines_tokens[comma_count][semicolon_count].pop();
+        done = true; 
+        if (((*i) >= 1) && tokens.get(((*i) - 1)).map_or(false, (t) => { return (t.token_type == TokenType::Comma); })) {
+            cases_lines_tokens.pop(); 
+            patterns.pop();  
+        } 
+        break;  
+    }
+    else if ((brace_level == 1) && self.lines.get((self.__curent_parsing_line + 1)).map_or(false, (l) => { return l.get(0).map_or(false, (t) => { return (((t.token_type != TokenType::Comma) && (t.token_type != TokenType::LBrace)) && (t.token_type != TokenType::RBrace)); }); })) {
+        comma_count = (comma_count + 1); 
+        semicolon_count = 0; 
+        has_arrow_happened = false;  
+    } 
+}
