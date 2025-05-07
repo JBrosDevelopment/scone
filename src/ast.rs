@@ -54,7 +54,7 @@ pub enum NodeType {
     FunctionDeclaration(FunctionDeclaration),
     ClassDeclaration(ClassDeclaration),
     StructDeclaration(StructDeclaration),
-    InterfaceDeclaration(InterfaceDeclaration),
+    TraitDeclaration(TraitDeclaration),
     EnumDeclaration(EnumDeclaration),
 }
 
@@ -160,7 +160,6 @@ pub struct VariableDeclaration {
     pub var_type: Box<ASTNode>,
     pub var_name: Box<Token>,
     pub var_value: Box<ASTNode>,
-    pub description: Option<Box<Token>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -169,7 +168,6 @@ pub struct FunctionDeclaration {
     pub parameters: DefinedNodeParameters,
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: Option<BodyRegion>,
-    pub description: Option<Box<Token>>,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
 
@@ -177,7 +175,6 @@ pub struct FunctionDeclaration {
 pub struct ClassDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
-    pub description: Option<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
@@ -186,16 +183,14 @@ pub struct ClassDeclaration {
 pub struct StructDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
-    pub description: Option<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct InterfaceDeclaration {
+pub struct TraitDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
-    pub description: Option<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
@@ -203,7 +198,6 @@ pub struct InterfaceDeclaration {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct EnumDeclaration {
     pub name: Box<Token>,
-    pub description: Option<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Option<Vec<AccessModifier>>,
 }
@@ -353,5 +347,4 @@ pub struct LambdaExpression {
 pub struct TypeDefinition {
     pub left: Box<ASTNode>,
     pub right: Box<ASTNode>,
-    pub description: Option<Box<Token>>,
 }

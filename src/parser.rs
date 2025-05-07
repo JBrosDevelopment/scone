@@ -194,16 +194,6 @@ impl Parser {
                     accessing_end_index += 1;
                 }
 
-                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                // NEED TO REDO DESCRIPTIONS //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                /*let description: Option<Box<Token>> = rhs.iter().position(|x| x.token_type == TokenType::RightArrow).and_then(|arrow_index| rhs.get(arrow_index + 1).cloned());
-                if let Some(des) = description.clone() {
-                    if des.token_type != TokenType::StringConstant {
-                        self.error(line!(), "variable description must be a string", "Description must be a string. Try placing quotes arounf it", &des.location);
-                    }
-                }*/
-
                 let mut type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
                 let var_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens, &mut 0, false);
 
@@ -212,7 +202,6 @@ impl Parser {
                 let var_decl = VariableDeclaration {
                     access_modifier,
                     var_name: var_name.clone(),
-                    description: None,
                     var_value,
                     var_type,
                 };
@@ -1076,9 +1065,7 @@ impl Parser {
                 }
             }
 
-            if token.token_type == TokenType::RightArrow {
-                break;
-            } else if token.token_type == TokenType::Colon {
+            if token.token_type == TokenType::Colon {
                 // the parser has to decide if this is variable declaration or a function declaration
                 // if the next token is an identifier and then the next after that is either a left parenthesis or a left angle bracket, then it's a function declaration.
                 // else if the next token is an identifier and the next after that is an equal sign, then it's a variable declaration.
@@ -1117,28 +1104,25 @@ impl Parser {
                     Self::dec(i);
                     break;
                 }
-            }
-            else if token.token_type == TokenType::QuestionMark {
-                // ternary operator a ? b : c
-
-                let left_operand = expr_stack.pop().unwrap_or_else(|| {
-                    self.error(line!(), "Ternary operator has no left operand", "Ternary operator must have a left operand: `a ? b : c`", &token.location);
-                    return Box::new(ASTNode::err());
-                });
-                
-                let ternary = self.get_ternary(tokens, i, left_operand.clone(), until == Self::PARSING_FOR_STATEMENT);
-
-                if *i > 0 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket || t.token_type == TokenType::RBrace) {
-                    Self::dec(i);
-                }
-                Self::dec(i);
-
-                expr_stack.push(Box::new(ASTNode {
+            } else if token.token_type.is_constant() {
+                last_was_unary_operator = false;
+                let mut node = Box::new(ASTNode {
                     token: token.clone(),
-                    node: Box::new(ternary),
-                }));
-            }
-            else if token.token_type == TokenType::Identifier {
+                    node: Box::new(NodeType::None),
+                });
+
+                if let Ok(constant_type) = Self::constant_type(&token) {
+                    node.node = Box::new(NodeType::Constant(ConstantNode {
+                        value: token.clone(),
+                        constant_type,
+                    }));
+                } else {
+                    self.error(line!(), "Could not parse constant", "Couldn't decide type from constant", &token.location);
+                    return Box::new(ASTNode::err());
+                }
+
+                expr_stack.push(node);
+            } else if token.token_type == TokenType::Identifier {
                 last_was_unary_operator = false;
                 if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || (tokens[*i + 1].token_type == TokenType::LBrace && (until != Self::PARSING_FOR_STATEMENT && until != Self::PARSING_FOR_SCOPING)) || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LessThan) && !(until != 0 && (until == Self::PARSING_FOR_FUNCTION && Self::PARSING_FOR_FUNCTION_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type) || until == Self::PARSING_FOR_INSIDE_PARENTHESIS && Self::PARSING_FOR_INSIDE_PARENTHESIS_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type))) {
                     if tokens[*i + 1].token_type == TokenType::LessThan {
@@ -1193,8 +1177,7 @@ impl Parser {
                     });
                     expr_stack.push(node);
                 }
-            }
-            else if token.token_type.is_operator() {
+            } else if token.token_type.is_operator() {
                 // To check for unary operators, the operator must be the first token in the expression, or the previous token must be an operator: `-0` or `0+-1`
                 let mut handle_as_operator = true;
 
@@ -1328,8 +1311,7 @@ impl Parser {
                     }
                     op_stack.push(token.clone());
                 }
-            }
-            else if token.token_type == TokenType::DoubleColon {
+            } else if token.token_type == TokenType::DoubleColon {
                 last_was_unary_operator = false;
                 if last_was_ident {
                     // scope traversal
@@ -1342,8 +1324,7 @@ impl Parser {
                     self.error(line!(), "Expected identifier before double colon", "Expected identifier before double colon: `IDENT::IDENT`", &token.location);
                 }
                 last_was_ident = false;
-            }
-            else if token.token_type == TokenType::Dot {
+            } else if token.token_type == TokenType::Dot {
                 last_was_unary_operator = false;
                 if last_was_ident {
                     // scope traversal
@@ -1356,8 +1337,7 @@ impl Parser {
                     self.error(line!(), "Expected identifier before dot", "Expected a correct expression before scoping: `expression.member`", &token.location);
                 }
                 last_was_ident = false;
-            }
-            else if token.token_type == TokenType::LParen {
+            } else if token.token_type == TokenType::LParen {
                 last_was_unary_operator = false;
                 if last_was_ident {
                     last_was_ident = false;
@@ -1429,11 +1409,9 @@ impl Parser {
                         }
                     }
                 }
-            }
-            else if token.token_type == TokenType::RParen {
+            } else if token.token_type == TokenType::RParen {
                 break;
-            }
-            else if token.token_type == TokenType::LBracket {
+            } else if token.token_type == TokenType::LBracket {
                 if last_was_ident {
                     // indexing
                     let temp_scope = ScopedIdentifier {
@@ -1462,12 +1440,10 @@ impl Parser {
                         node: Box::new(NodeType::ScopedExpression(array_expression)),
                     }));
                 }
-            }
-            else if token.token_type == TokenType::RBracket {
+            } else if token.token_type == TokenType::RBracket {
                 //self.error(line!(), "Missing delimeter", "Expected opening bracket `[`", &tokens[*i].location);
                 break;
-            }
-            else if token.token_type == TokenType::LBrace {
+            } else if token.token_type == TokenType::LBrace {
                 if last_was_ident {
                     let expr_token = tokens[*i].clone();
                     let obj_instantiation = self.get_object_instantiation(tokens, None, i, None);
@@ -1493,31 +1469,29 @@ impl Parser {
                         }
                     }
                 }
-            }
-            else if token.token_type == TokenType::RBrace {
+            } else if token.token_type == TokenType::RBrace {
                 //self.error(line!(), "Missing delimeter", "Expected opening brace `{`", &tokens[*i].location);
                 break;
-            }
-            else if token.token_type.is_constant() {
-                last_was_unary_operator = false;
-                let mut node = Box::new(ASTNode {
-                    token: token.clone(),
-                    node: Box::new(NodeType::None),
-                });
+            } else if token.token_type == TokenType::QuestionMark {
+                // ternary operator a ? b : c
 
-                if let Ok(constant_type) = Self::constant_type(&token) {
-                    node.node = Box::new(NodeType::Constant(ConstantNode {
-                        value: token.clone(),
-                        constant_type,
-                    }));
-                } else {
-                    self.error(line!(), "Could not parse constant", "Couldn't decide type from constant", &token.location);
+                let left_operand = expr_stack.pop().unwrap_or_else(|| {
+                    self.error(line!(), "Ternary operator has no left operand", "Ternary operator must have a left operand: `a ? b : c`", &token.location);
                     return Box::new(ASTNode::err());
-                }
+                });
+                
+                let ternary = self.get_ternary(tokens, i, left_operand.clone(), until == Self::PARSING_FOR_STATEMENT);
 
-                expr_stack.push(node);
-            }
-            else if token.token_type == TokenType::DoubleArrow {
+                if *i > 0 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket || t.token_type == TokenType::RBrace) {
+                    Self::dec(i);
+                }
+                Self::dec(i);
+
+                expr_stack.push(Box::new(ASTNode {
+                    token: token.clone(),
+                    node: Box::new(ternary),
+                }));
+            } else if token.token_type == TokenType::DoubleArrow {
                 let lambda = self.get_lambda(tokens, i, &mut expr_stack, &mut inc_i);
 
                 expr_stack.push(Box::new(ASTNode {
@@ -2265,12 +2239,7 @@ impl Parser {
                 let var_name = value.var_name.value.clone();
                 let var_value = Self::node_expr_to_string(&value.var_value, tab_level);
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
-                if value.description.is_some() {
-                    format!("{}{}: {} = {} -> \"{}\"", access_modifiers, var_type, var_name, var_value, value.description.clone().unwrap().value)
-                }
-                else {
-                    format!("{}{}: {} = {}", access_modifiers, var_type, var_name, var_value)
-                }
+                format!("{}{}: {} = {}", access_modifiers, var_type, var_name, var_value)
             }
             NodeType::TypeIdentifier(ref value) => {
                 let array = value.is_array.then(|| "[]").unwrap_or("");

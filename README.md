@@ -7,20 +7,21 @@ Its syntax takes inspiration from Rust, C, and Java, aiming to be **familiar**, 
 - Clean, familiar syntax (inspired by Rust, C, and Java)
 - Operator overloading
 - Type inference
-- Interfaces and traits (like `ToString`)
-- Aliased constructors for intuitive object creation
+- Traits (like `ToString`)
 - Strong typing with explicit type declarations
+- Call tagged `crumb` functions without scoping when creating an instance of a class or struct
 
 ## Example Code
 
 ```rust
-pub class Color <- ToString -> "Example of a color class" {
-    u8: R = 0 -> "Red color value (0 - 255)";
-    u8: G = 0 -> "Green color value (0 - 255)";
-    u8: B = 0 -> "Blue color value (0 - 255)";
+pub class Color -> ToString {
+    u8: R = 0;
+    u8: G = 0;
+    u8: B = 0;
 
-    #! alias
-    Color::new(u8: r, u8: g, u8: b) -> "Creates a color object with given RGB values" {
+    #! crumb
+    #! description "Creates a color object with given RGB values"
+    Color::new(u8: r, u8: g, u8: b) {
         Color {
             R = r,
             G = g,
@@ -28,7 +29,8 @@ pub class Color <- ToString -> "Example of a color class" {
         }
     }
 
-    Color::white() -> "Creates a white color object" {
+    #! description "Creates a white color object"
+    Color::white() {
         Color {
             R = 255,
             G = 255,
@@ -36,7 +38,8 @@ pub class Color <- ToString -> "Example of a color class" {
         }
     }
 
-    Color::op_add(Color: color1, Color: color2) -> "Operator overload for adding two colors" {
+    #! description "Operator overload for adding two colors" 
+    Color::op_add(Color: color1, Color: color2) {
         Color {
             R = color1.R + color2.R,
             G = color1.G + color2.G,
@@ -44,7 +47,8 @@ pub class Color <- ToString -> "Example of a color class" {
         }
     }
 
-    string: to_string() -> "Implementation of the ToString interface" {
+    #! "Implementation of the ToString trait"
+    string: to_string() {
         format("Color: R: {}, G: {}, B: {}", R, G, B)
     }
 }
@@ -53,7 +57,7 @@ void: main() {
     // Create a new Color object with default values
     Color: color1 = Color {};
 
-    // The alias tag allows the compiler to infer the `new` function
+    // The crumb tag allows the compiler to infer the `new` function
     Color: color2 = new(255, 255, 255);
 
     // Accessing a static method that returns a white Color object

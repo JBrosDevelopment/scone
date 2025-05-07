@@ -1,58 +1,11 @@
-if true {
-    a;
-    if false {
-        if a {
-            if b {
-                if c {
-                    s;
-                    if d {
-                        if e {
-                            f;
-                        } else {
-                            g;
-                        }
-                    } else {
-                        h;
-                    }
-                } else {
+for a in b {
 
-                }
-            }
-        }
-    } else if true {
-        // do something
-    } else {
-        // do something else
-    }
-} else if false {
-    // do something else if
-} else {
-    // do something else
-}
-
-// some real code to use as testing
-/*{
-    brace_level = (brace_level - 1); 
-    if (brace_level == 0) {
-        cases_lines_tokens[comma_count][semicolon_count].pop();
-        done = true; 
-        if (((*i) >= 1) && tokens.get(((*i) - 1)).map_or(false, (t) => { return (t.token_type == TokenType::Comma); })) {
-            cases_lines_tokens.pop(); 
-            patterns.pop();  
-        } 
-        break;  
-    }
-    else if ((brace_level == 1) && self.lines.get((self.__curent_parsing_line + 1)).map_or(false, (l) => { return l.get(0).map_or(false, (t) => { return (((t.token_type != TokenType::Comma) && (t.token_type != TokenType::LBrace)) && (t.token_type != TokenType::RBrace)); }); })) {
-        comma_count = (comma_count + 1); 
-        semicolon_count = 0; 
-        has_arrow_happened = false;  
-    } 
 }
 
 
 ;// TODO:
 // use "library"; // keyword for library imports
-// #! alias // for compiler: shorthand for instantiation of class
+// #! crumb // for compiler: shorthand used when instantiating a class
 // #! def NAME = VALUE // for compiler: define compile time constants
 // #! def ADD(x, y) x + y // define function
 // #! once NAME // for compiler if not defined, then define. For files
@@ -62,9 +15,10 @@ if true {
 // #! allow WARNING_OR_ERROR
 // #! warn WARNING_OR_ERROR
 // #! error WARNING_OR_ERROR
-// u0: add(u8: a, u8: b) -> "example" { }
+// u0: add(u8: a, u8: b) { }
 // string: to_string() => "Obj [" + name.to_string() + "]";
-// enum Files -> "description" { File1 = 0, File2 -> "1" }
-// class Color -> "color class" { }
-// struct Pixel { }
-// typedef (u8, u8, u8) <- Color -> "description";
+// typedef (u8, u8, u8) -> Color;
+// enum Files { File1 = 0, File2 }
+// class Color -> Traits { }
+// struct Pixel -> Extends { }
+// trait Number { }

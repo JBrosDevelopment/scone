@@ -52,7 +52,6 @@ pub enum TokenType {
     DoubleColon,
     DollarSign,
     RightArrow,
-    LeftArrow,
     DoubleArrow,
     Shabang,
     QuestionMark,
@@ -70,7 +69,7 @@ pub enum TokenType {
     Struct,
     Enum,
     Use,
-    Interface,
+    Trait,
     In,
     As,
     Is,
@@ -288,7 +287,7 @@ impl Lexer {
                     "struct" => Token::new(TokenType::Struct, name.clone(), current_location.clone()),
                     "enum" => Token::new(TokenType::Enum, name.clone(), current_location.clone()),
                     "use" => Token::new(TokenType::Use, name.clone(), current_location.clone()),
-                    "interface" => Token::new(TokenType::Interface, name.clone(), current_location.clone()),
+                    "trait" => Token::new(TokenType::Trait, name.clone(), current_location.clone()),
                     "in" => Token::new(TokenType::In, name.clone(), current_location.clone()),
                     "as" => Token::new(TokenType::As, name.clone(), current_location.clone()),
                     "is" => Token::new(TokenType::Is, name.clone(), current_location.clone()),
@@ -600,11 +599,6 @@ impl Lexer {
                     last_was_negatable_ability = 3;
                     current_location.advance(2);
                     tokens.push(Token::new(TokenType::LessThanOrEqual, "<=".to_string(), current_location.clone()));
-                    i += 1;
-                }
-                else if chars.get(i + 1) == Some(&'-') {
-                    current_location.advance(2);
-                    tokens.push(Token::new(TokenType::LeftArrow, "<-".to_string(), current_location.clone()));
                     i += 1;
                 }
                 else {
