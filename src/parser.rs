@@ -269,47 +269,10 @@ impl Parser {
         return (condition, body);
     }
 
-    fn parse_match_case(&mut self, mut pattern_tokens: Vec<Box<Token>>, mut case_lines: Vec<Vec<Box<Token>>>, err_token: &Box<Token>) -> MatchCase {
-        let err = MatchCase{ body: BodyRegion { body: vec![] }, pattern: Box::new(ASTNode::err()) };
-
-        let pattern = self.get_entire_expression(&mut pattern_tokens);
-
-        if case_lines.len() < 1 {
-            self.error(line!(), "Incorrect match case grammer", "Expected match case body to have either a single line, or a braced body: `EXPR => LINE,` or `EXPR => { BODY }`", &err_token.location);
-            return err
-        } else if case_lines[0].len() < 1 {
-            self.error(line!(), "Incorrect match case grammer", "Expected match case body to have either a single line, or a braced body: `EXPR => LINE,` or `EXPR => { BODY }`", &err_token.location);
-            return err
-        }
-
-        let body = if case_lines[0][0].token_type == TokenType::LBrace {
-            // body { }
-            let temp_lines = self.lines.clone();
-            let temp_index = self.__curent_parsing_line;
-
-            let tokens = &mut case_lines[0].clone();
-            self.lines = case_lines;
-            self.__curent_parsing_line = 0;
-            let returns = self.get_code_block(tokens, &mut 0, false);
-
-            self.lines = temp_lines;
-            self.__curent_parsing_line = temp_index;
-            
-            returns
-        } else {
-            // line 
-            if case_lines.len() > 1 {
-                self.error(line!(), "Incorrect match case grammer, expected single line", "Expected match case to have a single line or a body: `EXPR => LINE,` or `EXPR => { BODY }`", &case_lines[0][0].location);
-                return err;
-            }
-            BodyRegion {
-                body: vec![self.get_entire_expression(&mut case_lines[0])]
-            }
-        };
-
-        MatchCase {
-            pattern,
-            body
+    fn parse_match_case(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> MatchCase {
+        MatchCase { 
+            pattern: self.get_expression(tokens, i, Self::PARSING_FOR_MATCH_CASE), 
+            body: self.get_expression(tokens, i, Self::PARSING_FOR_MATCH_STATEMENT)
         }
     }
 
@@ -320,103 +283,59 @@ impl Parser {
         }
         let original_token = tokens[*i].clone();
 
-        Self::inc(i);
-        let match_value = self.get_expression(tokens, i, Self::NORMAL_PARSING);
+        Self::inc(i); // skip `match`
+        let match_value = self.get_expression(tokens, i, Self::PARSING_FOR_STATEMENT);
+        Self::inc(i); // skip `{`
 
-        let mut brace_level = 0;
-        let mut parenthesis_level = 0;
-        let mut bracket_level = 0;
-        
-        let mut comma_count = 0;
-        let mut semicolon_count = 0;
-        let mut patterns = vec![vec![]]; // cases [ patterns [ ] ]
-        let mut cases_lines_tokens = vec![vec![vec![]]]; // cases [ lines [ tokens [ ] ] ]
-        let mut has_arrow_happened = false;
+        if *i <= tokens.len() && self.__curent_parsing_line <= self.lines.len() {
+            self.__curent_parsing_line += 1;
+            *tokens = self.lines[self.__curent_parsing_line].clone();
+            *i = 0;
+        }
+
+        let first_expression = self.parse_match_case(tokens, i);
+        let mut match_cases: Vec<MatchCase> = vec![first_expression];
+        Self::inc(i);
+
         let mut done = false;
         while self.__curent_parsing_line < self.lines.len() {
             while *i < tokens.len() {
-                if has_arrow_happened {
-                    cases_lines_tokens[comma_count][semicolon_count].push(tokens[*i].clone());
-                } else {
-                    patterns[comma_count].push(tokens[*i].clone());
+                //debug!(tokens[*i]);
+                if tokens[*i].token_type == TokenType::RBrace {
+                    // ends
+                    Self::inc(i);
+                    done = true;
+                    break;
                 }
-                match tokens[*i].token_type {
-                    TokenType::LParen => parenthesis_level += 1,
-                    TokenType::RParen => parenthesis_level -= 1,
-                    TokenType::LBracket => bracket_level += 1,
-                    TokenType::RBracket => bracket_level -= 1,
-                    TokenType::LBrace => { 
-                        if brace_level == 0 {
-                            patterns[comma_count].pop();
-                        }
-                        brace_level += 1;
-                    },
-                    TokenType::RBrace => {
-                        brace_level -= 1;
-                        if brace_level == 0 {
-                            cases_lines_tokens[comma_count][semicolon_count].pop();
-                            done = true; 
-                            // allow for: `match A { case B => C, }` *NOTICE* comma at the end
-                            // if last token was a comma, remove it from the last case
-                            if *i >= 1 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Comma) {
-                                cases_lines_tokens.pop(); 
-                                patterns.pop();
-                            }
-                            break;
-                        } else if brace_level == 1 && self.lines.get(self.__curent_parsing_line + 1).map_or(false, |l| l.get(0).map_or(false, |t| t.token_type != TokenType::Comma && t.token_type != TokenType::LBrace && t.token_type != TokenType::RBrace)) { 
-                            // check the next line if it has a comma, if it does, let the comma split it, otherwise split by `}`
-                            comma_count += 1;
-                            semicolon_count = 0;
-                            has_arrow_happened = false;
-                            patterns.push(vec![]);
-                            cases_lines_tokens.push(vec![vec![]]);
-                        }
-                    },
-                    TokenType::Comma => {
-                        if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 {
-                            cases_lines_tokens[comma_count][semicolon_count].pop();
-                            comma_count += 1;
-                            semicolon_count = 0;
-                            has_arrow_happened = false;
-                            patterns.push(vec![]);
-                            cases_lines_tokens.push(vec![vec![]]);
-                        } 
-                    },
-                    TokenType::DoubleArrow => {
-                        if brace_level == 1 && parenthesis_level == 0 && bracket_level == 0 {
-                            has_arrow_happened = true;
-                            patterns[comma_count].pop();
-                            semicolon_count = 0;
-                        }
-                    }
-                    _ => { }
+                else if tokens[*i].token_type == TokenType::Comma {
+                    // add to stack
+                    Self::inc(i);
+                    let case = self.parse_match_case(tokens, i);
+                    match_cases.push(case);
                 }
-                Self::inc(i);
+                else {
+                    debug!("ERR?", tokens[*i]);
+                    done = true;
+                    break;
+                }
+                
+                if *i == Parser::SET_I_TO_ZERO {
+                    *i = 0;
+                } else if *i != 0 {
+                    Self::inc(i);
+                }
             }
 
             if done {
                 break;
             }
-
+            
             self.__curent_parsing_line += 1;
             if self.__curent_parsing_line >= self.lines.len() {
                 break;
             }
-            if has_arrow_happened {
-                semicolon_count += 1;
-                cases_lines_tokens[comma_count].push(vec![]);
-            }
             *i = 0;
             *tokens = self.lines[self.__curent_parsing_line].clone();
-        }
-        
-        if cases_lines_tokens.len() == 1 && cases_lines_tokens[0].len() == 1 && cases_lines_tokens[0][0].len() == 0 {
-            cases_lines_tokens = vec![];
-        }
-
-        let mut match_cases = vec![];
-        for index in 0..cases_lines_tokens.len() {
-            match_cases.push(self.parse_match_case(patterns[index].clone(), cases_lines_tokens[index].clone(), &original_token));
         }
 
         ASTNode {
@@ -1042,6 +961,9 @@ impl Parser {
     const PARSING_FOR_SCOPING: u8 = 8;
     const PARSING_FOR_FOR_LOOP_STATEMENT: u8 = 9;
     const PARSING_FOR_FOR_LOOP_STATEMENT_UNTIL: [TokenType; 1] = [TokenType::Comma];
+    const PARSING_FOR_MATCH_CASE: u8 = 10;
+    const PARSING_FOR_MATCH_CASE_UNTIL: [TokenType; 1] = [TokenType::DoubleArrow];
+    const PARSING_FOR_MATCH_STATEMENT: u8 = Self::PARSING_FOR_OBJECT_INSTANTIATION;
 
     fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Box<ASTNode> {
         let mut expr_stack: Vec<Box<ASTNode>> = Vec::new();
@@ -1083,7 +1005,10 @@ impl Parser {
                     break;
                 } else if Self::PARSING_FOR_FOR_LOOP_STATEMENT == until && Self::PARSING_FOR_FOR_LOOP_STATEMENT_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
-                } 
+                } else if Self::PARSING_FOR_MATCH_CASE == until && Self::PARSING_FOR_MATCH_CASE_UNTIL.iter().any(|t| t == &token.token_type) {
+                    Self::inc(i);
+                    break;
+                }
             }
 
             if token.token_type == TokenType::Colon {
@@ -2503,27 +2428,21 @@ impl Parser {
             NodeType::Match(ref value) => {
                 let expression = Self::node_expr_to_string(&value.match_value, tab_level);
                 tab_level += 1;
-                let mut cases = "    ".repeat(tab_level);
+                let mut cases = "".to_string();
 
                 for case in value.match_cases.clone() {
-                    let mut c = Self::node_expr_to_string(&case.pattern, tab_level);
+                    let mut c = "\n".to_string();
+
+                    c += "    ".repeat(tab_level).as_str();
+                    c += Self::node_expr_to_string(&case.pattern, tab_level).as_str();
                     c += " => ";
-                    
-                    let mut body = "".to_string();
-                    tab_level += 1;
-                    for param in case.body.body.iter() {
-                        body += format!("{}{}{}", "    ".repeat(tab_level), Self::node_expr_to_string(&param, tab_level).as_str(), ";\n").as_str();
-                    }
-                    tab_level -= 1;
-                    body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
+                    c += Self::node_expr_to_string(&case.body, tab_level).as_str();
 
-                    c += &body;
-
-                    cases = format!("{}{}\n{}", cases, c, "    ".repeat(tab_level));
+                    cases = format!("{}{}", cases, c);
                 }
 
                 tab_level -= 1;
-                format!("match {} {{ {} \n{}}}", expression, cases, "    ".repeat(tab_level))
+                format!("match {} {{{}\n{}}}", expression, cases, "    ".repeat(tab_level))
             }
             NodeType::Discard(_) => {
                 "_".to_string()

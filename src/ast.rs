@@ -282,7 +282,7 @@ pub struct MatchRegion {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct MatchCase {
     pub pattern: Box<ASTNode>,
-    pub body: BodyRegion,
+    pub body: Box<ASTNode>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

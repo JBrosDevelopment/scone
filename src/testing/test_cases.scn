@@ -500,3 +500,26 @@ if true {
         has_arrow_happened = false;  
     } 
 }
+
+match a.b(c => d.e, f + g).h().i {
+    1 | 2 => a.b(c => d.e, f + g).h,
+    _ => {
+        hello.world = 1 + 2;
+        match a.b(c => d.e, f + g).h {
+            1 | 2 => a.b(c => d.e, f + g).h,
+            _ => {
+                hello.world = 1 + 2;
+                match a.b(c => d.e, f + g).h {
+                    1 | 2 => a.b(c => d.e, f + g).h,
+                    _ => {
+                        hello.world = 1 + 2;
+                        match a.b(c => d.e, f + g).h {
+                            1 | 2 => a.b(c => d.e, f + g).h,
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

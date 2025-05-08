@@ -1,72 +1,23 @@
-if a {
-    Thing[]: things = [];
-    for c in things.colors.iter().filter(x => x.is_good()).collect() {
-        Thing: t = Thing {};
-        t.color.red = c.red;
-        t.color.green = c.green;
-        t.color.blue = c.blue;
-        t.color.alpha = c.alpha;
-        t.name = "COLOR";
-        for x in things {
-            if x.color.red == c.red && x.color.green == c.green && x.color.blue == c.blue && x.color.alpha == c.alpha {
-                t.name = "COLOR | " + x.name.to_string();
-                break;
+match a.b(c => d.e, f + g).h().i {
+    1 | 2 => a.b(c => d.e, f + g).h,
+    _ => {
+        hello.world = 1 + 2;
+        match a.b(c => d.e, f + g).h {
+            1 | 2 => a.b(c => d.e, f + g).h,
+            _ => {
+                hello.world = 1 + 2;
+                match a.b(c => d.e, f + g).h {
+                    1 | 2 => a.b(c => d.e, f + g).h,
+                    _ => {
+                        hello.world = 1 + 2;
+                        match a.b(c => d.e, f + g).h {
+                            1 | 2 => a.b(c => d.e, f + g).h,
+                            _ => {}
+                        }
+                    }
+                }
             }
         }
-        things.push(t);
-    }
-} else if b {
-    Thing[]: things = [];
-    for index, c in things.colors.iter().filter(x => x.is_good()).collect() {
-        Thing: t = Thing {};
-        t.color.red = c.red;
-        t.color.green = c.green;
-        t.color.blue = c.blue;
-        t.color.alpha = c.alpha;
-        t.name = "COLOR " + index.to_string();
-        for x in things {
-            if x.color.red == c.red && x.color.green == c.green && x.color.blue == c.blue && x.color.alpha == c.alpha {
-                t.name = "COLOR | " + x.name.to_string();
-                break;
-            }
-        }
-        things.push(t);
-    }
-} else if c {
-    Thing[]: things = [];
-    Color[]: colors = things.colors.iter().filter(x => x.is_good()).collect();
-    for usize: i = 0, i < colors.len(), i += 1 {
-        Thing: t = Thing {};
-        t.color.red = colors[i].red;
-        t.color.green = colors[i].green;
-        t.color.blue = colors[i].blue;
-        t.color.alpha = colors[i].alpha;
-        t.name = "COLOR";
-        for x in things {
-            if x.color.red == c.red && x.color.green == c.green && x.color.blue == c.blue && x.color.alpha == c.alpha {
-                t.name = "COLOR | " + x.name.to_string();
-                break;
-            }
-        }
-        things.push(t);
-    }
-} else {
-    Thing[]: things = [];
-    Color[]: colors = things.colors.iter().filter(x => x.is_good()).collect();
-    for index, usize: i = 1, i < colors.len(), i += 1 {
-        Thing: t = Thing {};
-        t.color.red = colors[i].red;
-        t.color.green = colors[i].green;
-        t.color.blue = colors[i].blue;
-        t.color.alpha = colors[i].alpha;
-        t.name = "COLOR " + index.to_string();
-        for x in things {
-            if x.color.red == c.red && x.color.green == c.green && x.color.blue == c.blue && x.color.alpha == c.alpha {
-                t.name = "COLOR | " + x.name.to_string();
-                break;
-            }
-        }
-        things.push(t);
     }
 }
 
