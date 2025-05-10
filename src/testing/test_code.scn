@@ -1,26 +1,9 @@
-match a.b(c => d.e, f + g).h().i {
-    1 | 2 => a.b(c => d.e, f + g).h,
-    _ => {
-        hello.world = 1 + 2;
-        match a.b(c => d.e, f + g).h {
-            1 | 2 => a.b(c => d.e, f + g).h,
-            _ => {
-                hello.world = 1 + 2;
-                match a.b(c => d.e, f + g).h {
-                    1 | 2 => a.b(c => d.e, f + g).h,
-                    _ => {
-                        hello.world = 1 + 2;
-                        match a.b(c => d.e, f + g).h {
-                            1 | 2 => a.b(c => d.e, f + g).h,
-                            _ => {}
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
+use "iostream";
 
+i32*: number = 0;
+std::cout("Enter a number: ");
+std::cin(&number);
+std::cout("You entered: " + number + std::endl);
 
 ;// TODO:
 // use "library"; // keyword for library imports

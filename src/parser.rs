@@ -94,24 +94,36 @@ impl Parser {
 
         while self.__curent_parsing_line < self.lines.len() {
             let mut tokens = self.lines[self.__curent_parsing_line].clone();
-            if let Ok(node) = self.get_ast_node(&mut tokens) {
-                println!("{}", Self::node_expr_to_string(&node, 0));
-                ast.push(node);
-            }
+            let node = self.get_ast_node(&mut tokens);
+            
+            println!("{}", Self::node_expr_to_string(&node, 0));
+            ast.push(node);
+            
             self.__curent_parsing_line += 1;
         }
 
         ast
     }
 
-    fn get_ast_node(&mut self, tokens: &mut Vec<Box<Token>>) -> Result<ASTNode, ()> {
+    fn get_ast_node(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
         if tokens.len() == 0 {
-            return Err(());
+            return ASTNode::err();
         }
 
         match tokens[0].token_type {
             TokenType::For => { // this is so that `for i = 0, i < 10, i += 1` doesn't parse as a variable assignment with the `=`
-                return Ok(*self.get_entire_expression(tokens));
+                return *self.get_entire_expression(tokens);
+            }
+            TokenType::Use => {
+                if tokens.len() != 2 {
+                    self.error(line!(), "Error parsing `use` statement", "`use` statement must have exactly one argument", &tokens[0].location);
+                    return ASTNode::err();
+                }
+                let name = tokens[1].clone();
+                return ASTNode {
+                    node: Box::new(NodeType::Use(name)),
+                    token: tokens[0].clone(),
+                };
             }
             _ => {}
         }
@@ -152,33 +164,33 @@ impl Parser {
                         token: lhs[0].clone(),
                         node: Box::new(NodeType::Assignment(Assignment { left, right }))
                     };
-                    return Ok(ASTNode {
+                    return ASTNode {
                         token: lhs[0].clone(),
                         node: Box::new(NodeType::ReturnExpression(Box::new(assign)))
-                    });
+                    };
                 }
                 else {
                     let left = self.get_entire_expression(&mut lhs);
                     let right = self.get_entire_expression(&mut rhs);
 
                     let assign = Assignment { left, right };
-                    return Ok(ASTNode{
+                    return ASTNode{
                         token: lhs[0].clone(),
                         node: Box::new(NodeType::Assignment(assign))
-                    });
+                    };
                 }
             }
         }
 
         if is_declaring_func == 3 { // declaring function
-            return Err(());
+            return ASTNode::err();
         }
 
         // anything else
-        return Ok(*self.get_entire_expression(tokens));
+        return *self.get_entire_expression(tokens);
     }
 
-    fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, is_in_for: bool) -> Result<ASTNode, ()> { // `tokens` fpr tokens to parse, `i` for current token index only used if `is_in_for` is true, `is_in_for` whether or not we are in a for loop
+    fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, is_in_for: bool) -> ASTNode { // `tokens` fpr tokens to parse, `i` for current token index only used if `is_in_for` is true, `is_in_for` whether or not we are in a for loop
         let starting_index: usize;
         if is_in_for {
             let position_of_for: i32 = tokens.iter().position(|t| t.token_type == TokenType::For).map_or(-1, |index| index as i32);
@@ -242,16 +254,16 @@ impl Parser {
                     var_value,
                     var_type,
                 };
-                return Ok(ASTNode {
+                return ASTNode {
                     token: var_name.clone(),
                     node: Box::new(NodeType::VariableDeclaration(var_decl)),
-                });
+                };
             }
 
-            return Ok(*self.get_entire_expression(tokens));
+            return *self.get_entire_expression(tokens);
         }
         else {
-            return Err(());
+            return ASTNode::err();
         }
     }
 
@@ -1034,13 +1046,13 @@ impl Parser {
                     Self::inc(i); // is on `=`
                     Self::inc(i); // is on first token of expression
                     let variable = self.declaring_variable(tokens, i, is_in_for);
-                    if let Ok(var) = variable {
+                    if variable != ASTNode::err() {
                         if expr_stack.len() > 1 {
                             self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
                         }
                         expr_stack.clear();
                         op_stack.clear();
-                        expr_stack.push(Box::new(var));
+                        expr_stack.push(Box::new(variable));
                     } else {
                         self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression", &token.location);
                     }
@@ -1181,7 +1193,7 @@ impl Parser {
                     }
                 }
 
-                if last_was_ident && token.token_type == TokenType::LessThan && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Identifier) {
+                if last_was_ident && token.token_type == TokenType::LessThan && tokens.get(*i - 1).map_or(false, |t: &Box<Token>| t.token_type == TokenType::Identifier) {
                     // part of function call: function<TYPE>()
                     expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
@@ -1206,7 +1218,9 @@ impl Parser {
                             break;
                         }
                         else {
-                            Self::dec(i);
+                            if !matches!(until, Self::PARSING_FOR_FUNCTION | Self::PARSING_FOR_ARRAY | Self::PARSING_FOR_OBJECT_INSTANTIATION | Self::PARSING_FOR_CODE_BLOCK | Self::PARSING_FOR_MATCH_CASE) {
+                                Self::dec(i);
+                            }
     
                             let unary = UnaryExpression {
                                 operator: token.clone(),
@@ -2446,6 +2460,9 @@ impl Parser {
             }
             NodeType::Discard(_) => {
                 "_".to_string()
+            }
+            NodeType::Use(ref value) => {
+                format!("use \"{}\"", value.value)
             }
             _ => {
                 node.token.value.clone()
