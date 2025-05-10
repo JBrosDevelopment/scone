@@ -128,64 +128,6 @@ impl Parser {
             _ => {}
         }
 
-        // for matching function declarations `: a < b` and `: a ( b` as `type: name(paramters)` or `type: name<types>(parameters)`
-        // 0 = not declaring, 1 = declaring, 2 = found identifier, 3 = found `(` or `<` and that means declaring function.
-        let mut is_declaring_func = 0;
-
-        let mut assign_index = -1;
-        for (index, token) in tokens.iter().enumerate() {
-            match token.token_type {
-                TokenType::Assign => { assign_index = index as i32; break; },
-                TokenType::Colon => is_declaring_func = 1,
-                TokenType::Identifier => if is_declaring_func == 1 { is_declaring_func = 2 } else { is_declaring_func = 0 },
-                TokenType::LParen => if is_declaring_func == 2 { is_declaring_func = 3 } else { is_declaring_func = 0 },
-                TokenType::LessThan => if is_declaring_func == 2 { is_declaring_func = 3 } else { is_declaring_func = 0 },
-                TokenType::LBrace => break,
-                _ => is_declaring_func = 0
-            }
-        }
-
-        if assign_index != -1 {
-            let mut lhs = tokens[0..assign_index as usize].to_vec();
-            let mut rhs = tokens[assign_index as usize + 1..].to_vec();
-
-            if (lhs.len() == 1 && lhs[0].token_type == TokenType::Underscore) || (lhs.len() >= 2 && lhs[lhs.len() - 2].token_type == TokenType::Colon) {
-                return self.declaring_variable(tokens, &mut 0, false);
-            }
-            else {
-                // assigning variable
-                let mut tokens_after_return = lhs[1..].to_vec();
-
-                if lhs.get(0).map_or(false, |t| t.token_type == TokenType::Return) {
-                    let left = self.get_entire_expression(&mut tokens_after_return);
-                    let right = self.get_entire_expression(&mut rhs);
-
-                    let assign = ASTNode {
-                        token: lhs[0].clone(),
-                        node: Box::new(NodeType::Assignment(Assignment { left, right }))
-                    };
-                    return ASTNode {
-                        token: lhs[0].clone(),
-                        node: Box::new(NodeType::ReturnExpression(Box::new(assign)))
-                    };
-                }
-                else {
-                    let left = self.get_entire_expression(&mut lhs);
-                    let right = self.get_entire_expression(&mut rhs);
-
-                    let assign = Assignment { left, right };
-                    return ASTNode{
-                        token: lhs[0].clone(),
-                        node: Box::new(NodeType::Assignment(assign))
-                    };
-                }
-            }
-        }
-
-        if is_declaring_func == 3 { // declaring function
-            return ASTNode::err();
-        }
-
         // anything else
         return *self.get_entire_expression(tokens);
     }
@@ -1152,9 +1094,9 @@ impl Parser {
                 let mut handle_as_operator = true;
 
                 // check if part of assignment
-                if until == Self::PARSING_FOR_CODE_BLOCK {
+                if !matches!(until, Self::PARSING_FOR_STATEMENT | Self::PARSING_FOR_OBJECT_INSTANTIATION) {
                     if token.token_type == TokenType::Assign {
-                        let mut copy_op_stack = op_stack.clone();
+                        let mut copy_op_stack: Vec<Box<Token>> = op_stack.clone();
                         let mut copy_expr_stack = expr_stack.clone();
                         let left = self.expression_stacks_to_ast_node(&mut copy_op_stack, &mut copy_expr_stack);
                         let left = left.unwrap_or_else(|| {
@@ -1184,7 +1126,6 @@ impl Parser {
                         *i = Parser::SET_I_TO_ZERO;
                         break;
                     }
-                    
                 }
                 // check if it is actually part of a variable declaration
                 if last_was_ident {
