@@ -1,22 +1,22 @@
-use "iostream";
-
-i32*: number = 0;
-std::cout("Enter a number: ");
-std::cin(&number);
-std::cout("You entered: " + number + std::endl);
+#! allow WARNING_OR_ERROR
+#! warn WARNING_OR_ERROR
+#! error WARNING_OR_ERROR
+#! deprecated 
+#! crumb
+#! if ARGUMENT
+#! ifn ARGUMENT
+#! elif ARGUMENT
+#! else
+#! ifndef NAME
+#! ifdef NAME
+#! def NAME -> VALUE
+#! def ADD(x, y) -> x + y 
+#! undef NAME
+#! once NAME 
+#! def NAME
+#! unknown message
 
 ;// TODO:
-// use "library"; // keyword for library imports
-// #! crumb // for compiler: shorthand used when instantiating a class
-// #! def NAME = VALUE // for compiler: define compile time constants
-// #! def ADD(x, y) x + y // define function
-// #! once NAME // for compiler if not defined, then define. For files
-// #! ifndef NAME // spceific compile time if
-// #! if ARGUMENT // if statement for compiler
-// #! deprecated 
-// #! allow WARNING_OR_ERROR
-// #! warn WARNING_OR_ERROR
-// #! error WARNING_OR_ERROR
 // u0: add(u8: a, u8: b) { }
 // string: to_string() => "Obj [" + name.to_string() + "]";
 // typedef (u8, u8, u8) -> Color;

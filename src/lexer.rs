@@ -231,6 +231,8 @@ impl Lexer {
         let chars: Vec<char> = self.output.full_code.chars().collect::<Vec<char>>();
         let mut current_location: Location = Location::new(1, 1, 0);
 
+        let mut is_in_shabang_line = false;
+
         // if the last token was `(`  `{`  `[`  `,`  `..`  `OPERATORS`, `END_OF_LINE`6
         // set to 3 if true, so that it can go down every time it finds a new token
         // finds it at `3`, finds negative at `2` moves to `-1` if found, and number at `1`
@@ -252,6 +254,10 @@ impl Lexer {
             else if c == '\n' {
                 current_location.advance_line();
                 last_was_negatable_ability = 3;
+                if is_in_shabang_line {
+                    is_in_shabang_line = false;
+                    tokens.push(Token::new(TokenType::EndOfLine, "\n".to_string(), current_location.clone()));
+                }
             }
             else if c == ';' {
                 current_location.advance(1);
@@ -340,6 +346,7 @@ impl Lexer {
                 if chars.get(i + 1) == Some(&'!') {
                     current_location.advance(1);
                     tokens.push(Token::new(TokenType::Shabang, "#!".to_string(), current_location.clone()));
+                    is_in_shabang_line = true;
                     i += 1;
                 }
                 else {

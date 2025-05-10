@@ -46,6 +46,7 @@ pub enum NodeType {
     IsCheck(Expression),
     CodeBlock(BodyRegion),
     Discard(Box<Token>),
+    Shabang(ShabangType),
     
     // declare
     TypeDefinition(TypeDefinition),
@@ -347,4 +348,25 @@ pub struct LambdaExpression {
 pub struct TypeDefinition {
     pub left: Box<ASTNode>,
     pub right: Box<ASTNode>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub enum ShabangType {
+    Allow(Box<Token>),
+    Warning(Box<Token>),
+    Err(Box<Token>),
+    Depricated,
+    Crumb,
+    If(Box<ASTNode>),
+    IfNot(Box<ASTNode>),
+    ElseIf(Box<ASTNode>),
+    Else,
+    EndIf,
+    IfNotDefined(Box<Token>),
+    IfDefined(Box<Token>),
+    Define(Box<ASTNode>, Box<ASTNode>),
+    Undef(Box<Token>),
+    Once(Box<Token>),
+    DefineFile(Box<Token>),
+    Other(Vec<Box<Token>>),
 }

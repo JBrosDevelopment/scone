@@ -976,6 +976,8 @@ impl Parser {
     const PARSING_FOR_MATCH_CASE: u8 = 10;
     const PARSING_FOR_MATCH_CASE_UNTIL: [TokenType; 1] = [TokenType::DoubleArrow];
     const PARSING_FOR_MATCH_STATEMENT: u8 = Self::PARSING_FOR_OBJECT_INSTANTIATION;
+    const PARSING_FOR_SHABANG: u8 = 11;
+    const PARSING_FOR_SHABANG_UNTIL: [TokenType; 1] = [TokenType::RightArrow];
 
     fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Box<ASTNode> {
         let mut expr_stack: Vec<Box<ASTNode>> = Vec::new();
@@ -1018,6 +1020,9 @@ impl Parser {
                 } else if Self::PARSING_FOR_FOR_LOOP_STATEMENT == until && Self::PARSING_FOR_FOR_LOOP_STATEMENT_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
                 } else if Self::PARSING_FOR_MATCH_CASE == until && Self::PARSING_FOR_MATCH_CASE_UNTIL.iter().any(|t| t == &token.token_type) {
+                    Self::inc(i);
+                    break;
+                } else if Self::PARSING_FOR_SHABANG == until && Self::PARSING_FOR_SHABANG_UNTIL.iter().any(|t| t == &token.token_type) {
                     Self::inc(i);
                     break;
                 }
@@ -1504,6 +1509,135 @@ impl Parser {
             } else if token.token_type == TokenType::Else {
                 self.error(line!(), "Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
                 return Box::new(ASTNode::err());
+            } else if token.token_type == TokenType::Shabang {
+                if *i != 0 {
+                    self.error(line!(), "Unexpected Shabang token", "Shabang must be at the start of a line: `#! ...`", &token.location);
+                    return Box::new(ASTNode::err());
+                }
+                Self::inc(i);
+                if tokens.len() == 1 {
+                    self.error(line!(), "Unexpected Shabang token", "Shabang doesn't have any content: `#! ...`", &token.location);
+                    return Box::new(ASTNode::err());
+                }
+                match tokens[1].value.to_lowercase().as_str() {
+                    "crumb" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Crumb))
+                        });
+                    }
+                    "deprecated" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Depricated))
+                        });
+                    }
+                    "else" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Else)),
+                        });
+                    }
+                    "endif" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::EndIf)),
+                        });
+                    }
+                    _ => {
+                        if tokens.len() == 2 {
+                            return Box::new(ASTNode {
+                                token: token.clone(),
+                                node: Box::new(NodeType::Shabang(ShabangType::Other(tokens.iter().skip(1).map(|t| t.clone()).collect()))),
+                            });
+                        } 
+                    }
+                }
+                
+                match tokens[1].value.to_lowercase().as_str() {
+                    "allow" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Allow(tokens[2].clone()))),
+                        });
+                    }
+                    "warn" | "warning" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Warning(tokens[2].clone()))),
+                        });
+                    }
+                    "err" | "error" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Err(tokens[2].clone()))),
+                        });
+                    }
+                    "ifndef" | "ifndefine" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::IfNotDefined(tokens[2].clone()))),
+                        });
+                    }
+                    "ifdef" | "ifdefine" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::IfDefined(tokens[2].clone()))),
+                        });
+                    }
+                    "once" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Once(tokens[2].clone()))),
+                        });
+                    }
+                    "define" | "def" if tokens.len() == 3 => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::DefineFile(tokens[2].clone()))),
+                        });
+                    }
+                    "define" | "def" => {
+                        Self::inc(i);
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Define(self.get_expression(tokens, i, Self::PARSING_FOR_SHABANG), self.get_expression(tokens, i, Self::NORMAL_PARSING)))),
+                        });
+                    }
+                    "if" => {
+                        Self::inc(i);
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::If(self.get_expression(tokens, i, Self::NORMAL_PARSING)))),
+                        });
+                    }
+                    "ifn" => {
+                        Self::inc(i);
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::IfNot(self.get_expression(tokens, i, Self::NORMAL_PARSING)))),
+                        });
+                    }
+                    "elif" | "elseif" => {
+                        Self::inc(i);
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::ElseIf(self.get_expression(tokens, i, Self::NORMAL_PARSING)))),
+                        });
+                    }
+                    "undef" => {
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Undef(tokens[2].clone()))),
+                        });
+                    }
+                    _ => { 
+                        return Box::new(ASTNode {
+                            token: token.clone(),
+                            node: Box::new(NodeType::Shabang(ShabangType::Other(tokens.iter().skip(1).map(|t| t.clone()).collect()))),
+                        });
+                    }
+                }
             } else if token.token_type == TokenType::Comma {
                 //self.error(line!(), "Unexpected token in expression", "Didn't expect this token in expression. Maybe you meant to use a comma in a tuple `(val1, val2)`, if that's so, put inside parentheises", &token.location);
                 //return Box::new(ASTNode::err());
@@ -2463,6 +2597,27 @@ impl Parser {
             }
             NodeType::Use(ref value) => {
                 format!("use \"{}\"", value.value)
+            }
+            NodeType::Shabang(ref value) => {
+                match value {
+                    ShabangType::Allow(t) => format!("#! allow {}", t.value),
+                    ShabangType::Warning(t) => format!("#! warning {}", t.value),
+                    ShabangType::Err(t) => format!("#! err {}", t.value),
+                    ShabangType::Depricated => "#! depricated".to_string(),
+                    ShabangType::Crumb => "#! crumb".to_string(),
+                    ShabangType::If(node) => format!("#! if {}", Self::node_expr_to_string(node, tab_level)),
+                    ShabangType::IfNot(node) => format!("#! ifn {}", Self::node_expr_to_string(node, tab_level)),
+                    ShabangType::ElseIf(node) => format!("#! elif {}", Self::node_expr_to_string(node, tab_level)),
+                    ShabangType::Else => "#! else".to_string(),
+                    ShabangType::EndIf => "#! endif".to_string(),
+                    ShabangType::IfNotDefined(token) => format!("#! ifndef {}", token.value),
+                    ShabangType::IfDefined(token) => format!("#! ifdef {}", token.value),
+                    ShabangType::Define(node, value) => format!("#! def {} -> {}", Self::node_expr_to_string(node, tab_level), Self::node_expr_to_string(value, tab_level)),
+                    ShabangType::Undef(token) => format!("#! undef {}", token.value),
+                    ShabangType::Once(token) => format!("#! once {}", token.value),
+                    ShabangType::DefineFile(token) => format!("#! define file {}", token.value),
+                    ShabangType::Other(tokens) => format!("#! {}", tokens.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" ")),
+                }
             }
             _ => {
                 node.token.value.clone()

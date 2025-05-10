@@ -602,3 +602,22 @@ i32*: number = 0;
 std::cout("Enter a number: ");
 std::cin(&number);
 std::cout("You entered: " + number + std::endl);
+
+
+#! allow WARNING_OR_ERROR
+#! warn WARNING_OR_ERROR
+#! error WARNING_OR_ERROR
+#! deprecated 
+#! crumb
+#! if ARGUMENT
+#! ifn ARGUMENT
+#! elif ARGUMENT
+#! else
+#! ifndef NAME
+#! ifdef NAME
+#! def NAME -> VALUE
+#! def ADD(x, y) -> x + y 
+#! undef NAME
+#! once NAME 
+#! def NAME
+#! unknown message
