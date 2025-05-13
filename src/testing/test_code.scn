@@ -1,4 +1,7 @@
-
+const priv a: b<C is (This && That) || There, T, G is A>(a: b, c<d>: e = f) {
+    d;
+    return f;
+}
 
 ;// TODO:
 // u0: add(u8: a, u8: b) { }

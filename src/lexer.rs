@@ -125,6 +125,9 @@ macro_rules! operator_tokens {
 }
 
 impl TokenType {
+    pub fn is_access_modifier(&self) -> bool {
+        matches!(self, TokenType::Pub | TokenType::Priv | TokenType::Virtual | TokenType::Override | TokenType::Abstract | TokenType::Extern | TokenType::Unsafe | TokenType::Safe | TokenType::Const | TokenType::Static)
+    }
     pub fn is_operator(&self) -> bool {
         matches!(self,
             operator_tokens!()

@@ -209,6 +209,64 @@ impl Parser {
         }
     }
 
+    fn declaring_function(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ASTNode {        
+        Self::dec(i); // move `i` to `:`
+        let before_colon: Vec<Box<Token>> = tokens.iter().take(*i).map(|t| t.clone()).collect(); // get tokens before `:`
+        
+        Self::inc(i);
+        let name: Box<Token> = tokens[*i].clone();
+
+        let mut access_modifier: Vec<AccessModifier> = Vec::new();
+        let mut start_of_type = 0;
+        for token in before_colon.iter() {
+            match token.token_type {
+                TokenType::Pub => access_modifier.push(AccessModifier::Public),
+                TokenType::Priv => access_modifier.push(AccessModifier::Private),
+                TokenType::Override => access_modifier.push(AccessModifier::Override),
+                TokenType::Virtual => access_modifier.push(AccessModifier::Virtual),
+                TokenType::Static => access_modifier.push(AccessModifier::Static),
+                TokenType::Const => access_modifier.push(AccessModifier::Const),
+                TokenType::Extern => access_modifier.push(AccessModifier::Extern),
+                TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
+                _ => break
+            }
+            start_of_type += 1;
+        }
+        
+        let mut type_tokens = before_colon[start_of_type..].to_vec();
+        
+        let return_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens, &mut 0, false);
+        Self::inc(i); // skip name
+
+        let type_parameters: Option<AnonymousTypeParameters> = if tokens[*i].token_type == TokenType::LessThan { // has type parameters
+            Some(self.get_anonymous_type_parameters(tokens, i))
+        } else {
+            None
+        };
+
+        let parameters: Vec<DefinedNodeParameter> = self.get_defined_node_parameters(tokens, i);
+        
+        let body = if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
+            Some(self.get_code_block(tokens, i, false))
+        } else {
+            None
+        };
+
+        let function = FunctionDeclaration {
+            access_modifier,
+            return_type,
+            name: name.clone(),
+            type_parameters,
+            parameters,
+            body,
+        };
+
+        return ASTNode {
+            token: name.clone(),
+            node: Box::new(NodeType::FunctionDeclaration(function)),
+        };
+    }
+
     fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, BodyRegion) {
         if tokens[*i].token_type != TokenType::If && tokens[*i].token_type != TokenType::While { 
             self.error(line!(), "Expected `if` or `while`", "Parser error, expected `if` or `while`", &tokens[*i].location);
@@ -920,6 +978,8 @@ impl Parser {
     const PARSING_FOR_MATCH_STATEMENT: u8 = Self::PARSING_FOR_OBJECT_INSTANTIATION;
     const PARSING_FOR_SHABANG: u8 = 11;
     const PARSING_FOR_SHABANG_UNTIL: [TokenType; 1] = [TokenType::RightArrow];
+    const PARSING_FOR_TYPE_CONSTRAINT: u8 = 12;
+    const PARSING_FOR_TYPE_CONSTRAINT_UNTIL: [TokenType; 2] = [TokenType::Comma, TokenType::GreaterThan];
 
     fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Box<ASTNode> {
         let mut expr_stack: Vec<Box<ASTNode>> = Vec::new();
@@ -967,10 +1027,22 @@ impl Parser {
                 } else if Self::PARSING_FOR_SHABANG == until && Self::PARSING_FOR_SHABANG_UNTIL.iter().any(|t| t == &token.token_type) {
                     Self::inc(i);
                     break;
+                } else if Self::PARSING_FOR_TYPE_CONSTRAINT == until && Self::PARSING_FOR_TYPE_CONSTRAINT_UNTIL.iter().any(|t| t == &token.token_type) {
+                    Self::dec(i);
+                    break;
                 }
             }
 
-            if token.token_type == TokenType::Colon {
+            if token.token_type == TokenType::Colon || token.token_type.is_access_modifier() {
+                if token.token_type.is_access_modifier() {
+                    // set `i` equal to the `:` to match the `token.token_type == TokenType::Colon` match
+                    if let Some(index) = tokens.iter().skip(*i).position(|x| x.token_type == TokenType::Colon) {
+                        *i = index + *i;
+                    } else {
+                        self.error(line!(), "Unexpected token", "Didn't expect an access modifier here. Expects a declaration", &token.location);
+                    }
+                }
+
                 // the parser has to decide if this is variable declaration or a function declaration
                 // if the next token is an identifier and then the next after that is either a left parenthesis or a left angle bracket, then it's a function declaration.
                 // else if the next token is an identifier and the next after that is an equal sign, then it's a variable declaration.
@@ -979,7 +1051,24 @@ impl Parser {
 
                 if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen || t.token_type == TokenType::LessThan) {
                     // it's a function declaration
-                    unimplemented!("function declaration");
+                    
+                    // remove any errors that occured before the variable declaration.
+                    self.output.messages.retain(|x| x.location.line != token.location.line);
+
+                    let function = self.declaring_function(tokens, i);
+                    if function != ASTNode::err() {
+                        if expr_stack.len() > 1 {
+                            self.error(line!(), "Function declaration error", "Unable to parse funcion declaration, there is more than one expression in type declaration", &token.location);
+                        }
+                        expr_stack.clear();
+                        op_stack.clear();
+                        expr_stack.push(Box::new(function));
+                    } else {
+                        self.error(line!(), "Function declaration error", "Unable to parse function declaration", &token.location);
+                    }
+
+                    break;
+
                 } else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::Assign) {
                     // it's a variable declaration
                     
@@ -2273,6 +2362,114 @@ impl Parser {
         return false;
     }
 
+    fn get_anonymous_type_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> AnonymousTypeParameters {
+        Self::inc(i); // skip the `<`
+        
+        let mut parameters = vec![];
+        let mut last_was_comma = true;
+        while *i < tokens.len() && tokens[*i].token_type != TokenType::GreaterThan {
+            let token = tokens[*i].clone();
+            match token.token_type {
+                TokenType::Comma => {
+                    if last_was_comma {
+                        self.error(line!(), "Error getting type parameters", "Consecutive commas found. Expected: `<type, type, type>`", &token.location);
+                        return AnonymousTypeParameters { parameters };
+                    }
+                    last_was_comma = true;
+                }
+                TokenType::Identifier => {
+                    if !last_was_comma {
+                        self.error(line!(), "Error getting type parameters", "Expected comma between type parameters. Expected: `<type, type, type>`", &token.location);
+                        return AnonymousTypeParameters { parameters };
+                    }
+                    last_was_comma = false;
+
+                    if tokens[*i + 1].token_type == TokenType::Is {
+                        Self::inc(i);
+                        Self::inc(i);
+                        let constraints = self.get_expression(tokens, i, Self::PARSING_FOR_TYPE_CONSTRAINT);
+                        parameters.push(AnonymousType {
+                            name: token.clone(),
+                            constraints: Some(constraints)
+                        });
+                    } else {
+                        parameters.push(AnonymousType {
+                            name: token.clone(),
+                            constraints: None
+                        });
+                    }
+                }
+                _ => {
+                    self.error(line!(), "Error getting type parameters", "Expected identifier after comma. Expected: `<type, type, type>`", &token.location);
+                    return AnonymousTypeParameters { parameters };
+                }
+            }
+            Self::inc(i);
+        }
+
+        Self::inc(i); // skip the `>`
+        AnonymousTypeParameters { parameters }
+    }
+
+    fn get_defined_node_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Vec<DefinedNodeParameter> {
+        let error_token = tokens[*i].clone();
+        Self::inc(i); // skip the `(`
+        
+        let mut parameters = vec![];
+        
+        while *i < tokens.len() && tokens[*i].token_type != TokenType::RParen {
+            // first get the type
+            // go through tokens until `:`
+            let mut type_tokens = vec![];
+            while *i < tokens.len() && tokens[*i].token_type != TokenType::Colon {
+                type_tokens.push(tokens[*i].clone());
+                Self::inc(i);
+            }
+            let ty = self.get_type_idententifier(&mut type_tokens, &mut 0, false);
+
+            // next is the name
+            Self::inc(i);
+            let name = tokens[*i].clone();
+            Self::inc(i);
+
+            // check if next token is `=`, if so skip it and get the value
+            let default_value;
+            if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Assign) {
+                Self::inc(i);
+                // next is the value
+                default_value = Some(self.get_expression(tokens, i, Self::PARSING_FOR_FUNCTION));
+                Self::inc(i);
+            } else {
+                default_value = None;
+            }
+
+            parameters.push(DefinedNodeParameter { name, ty, default_value });
+
+            // check if next token is `,` or `)` 
+            if let Some(nt) = tokens.get(*i) {
+                match nt.token_type {
+                    TokenType::Comma => {
+                        Self::inc(i);
+                        continue;
+                    }
+                    TokenType::RParen => {
+                        Self::inc(i); 
+                        break;
+                    }
+                    _ => {
+                        self.error(line!(), "Error parsing defined node parameters", "Expected next token to be `,` or `)`", &nt.location);
+                        break;
+                    }
+                }
+            } else {
+                self.error(line!(), "Error parsing defined node parameters", "Expect next token to be `,` or `)`", if *i - 1 < tokens.len() { tokens.get(*i - 1).map_or(&error_token.location, |t| &t.location) } else { &error_token.location});
+                break;
+            }
+        } 
+
+        parameters
+    }
+
     #[allow(dead_code)]
     fn print_node(node: &ASTNode) {
         println!("{}", Self::node_expr_to_string(node, 0));
@@ -2559,6 +2756,57 @@ impl Parser {
                     ShabangType::DefineFile(token) => format!("#! define file {}", token.value),
                     ShabangType::Other(tokens) => format!("#! {}", tokens.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" ")),
                 }
+            }
+            NodeType::FunctionDeclaration(ref value) => {
+                let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
+                let ty = Self::node_expr_to_string(&value.return_type, tab_level);
+                let name = value.name.value.clone();
+                let mut generics = "".to_string();
+                if value.type_parameters.is_some() {
+                    generics += "<";
+
+                    for anonymous in value.type_parameters.clone().unwrap().parameters.iter() {
+                        generics += &anonymous.name.value;
+                        if anonymous.constraints.is_some() {
+                            generics += " is ";
+                            generics += &Self::node_expr_to_string(&anonymous.constraints.clone().unwrap(), tab_level);
+                        }
+                        
+                        if anonymous != value.type_parameters.clone().unwrap().parameters.last().unwrap() {
+                            generics += ", ";
+                        }
+                    }
+
+                    generics += ">";
+                } 
+                
+                let mut parameters = "(".to_string();
+                for param in value.parameters.iter() {
+                    parameters += &Self::node_expr_to_string(&param.ty, tab_level);
+                    parameters += ": ";
+                    parameters += &param.name.value;
+
+                    if param.default_value.is_some() {
+                        parameters += " = ";
+                        parameters += &Self::node_expr_to_string(&param.default_value.clone().unwrap(), tab_level);
+                    }
+
+                    if param != value.parameters.last().unwrap() {
+                        parameters += ", ";
+                    }
+                }
+                parameters += ")";
+
+                let mut body = "".to_string();
+                if value.body.is_some() {
+                    tab_level += 1;
+                    for param in value.body.clone().unwrap().body.iter() {
+                        body += format!("{}{}{}", "    ".repeat(tab_level), Self::node_expr_to_string(&param, tab_level).as_str(), ";\n").as_str();
+                    }
+                    tab_level -= 1;
+                    body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level))
+                } 
+                format!("{}{}: {}{}{}{}", access_modifiers, ty, name, generics, parameters, body)
             }
             _ => {
                 node.token.value.clone()

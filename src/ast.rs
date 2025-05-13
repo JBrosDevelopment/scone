@@ -91,7 +91,9 @@ pub enum AccessModifier {
     Abstract,
     Static,
     Const,
-    Extern
+    Extern,
+    Safe,
+    Unsafe
 }
 impl AccessModifier {
     pub fn to_string(&self) -> String {
@@ -105,6 +107,8 @@ impl AccessModifier {
             AccessModifier::Static => "static".to_string(),
             AccessModifier::Const => "const".to_string(),
             AccessModifier::Extern => "extern".to_string(),
+            AccessModifier::Safe => "safe".to_string(),
+            AccessModifier::Unsafe => "unsafe".to_string(),
         }
     }
     
@@ -130,10 +134,10 @@ pub struct NodeParameters {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct DefinedNodeParameters {
-    pub types: Vec<Box<ASTNode>>,
-    pub names: Vec<Box<ASTNode>>,
-    pub values: Vec<Option<Box<ASTNode>>>
+pub struct DefinedNodeParameter {
+    pub ty: Box<ASTNode>,
+    pub name: Box<Token>,
+    pub default_value: Option<Box<ASTNode>>
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -165,11 +169,12 @@ pub struct VariableDeclaration {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct FunctionDeclaration {
-    pub return_type: Box<NodeType>,
-    pub parameters: DefinedNodeParameters,
+    pub name: Box<Token>,
+    pub return_type: Box<ASTNode>,
+    pub parameters: Vec<DefinedNodeParameter>,
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: Option<BodyRegion>,
-    pub access_modifier: Option<Vec<AccessModifier>>,
+    pub access_modifier: Vec<AccessModifier>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -206,7 +211,7 @@ pub struct EnumDeclaration {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct AnonymousType {
     pub name: Box<Token>,
-    pub constraints: Option<ASTNode>
+    pub constraints: Option<Box<ASTNode>>
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
