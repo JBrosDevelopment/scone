@@ -325,8 +325,13 @@ impl Parser {
                     let case = self.parse_match_case(tokens, i);
                     match_cases.push(case);
                 }
+                else if matches!(tokens[*i].token_type, TokenType::Identifier | TokenType::Underscore) {
+                    // add to stack
+                    let case = self.parse_match_case(tokens, i);
+                    match_cases.push(case);
+                }
                 else {
-                    debug!("ERR?", tokens[*i]);
+                    //debug!("ERR?", tokens[*i]);
                     done = true;
                     break;
                 }
@@ -522,7 +527,7 @@ impl Parser {
         }
     }
 
-    fn function_call(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize, last_punc: Option<ScopeType>) -> ScopedIdentifier {
+    fn function_call(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize, last_punc: Option<ScopeType>, is_in_statement: bool) -> ScopedIdentifier {
         let mut scope = scope;
         Self::dec(i);
 
@@ -588,7 +593,7 @@ impl Parser {
             scope
         }
         else if tokens.get(*i).is_some() && tokens[*i].token_type == TokenType::LBracket { // is indexing
-            scope = self.get_indexer_expression(tokens, Some(scope), i);
+            scope = self.get_indexer_expression(tokens, Some(scope), i, is_in_statement);
             Self::inc(i);
             scope
         }
@@ -606,10 +611,10 @@ impl Parser {
         Self::inc(i);
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LParen) {
-            scope = self.function_call(tokens, Some(scope), i, last_punc)
+            scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LessThan) && valid_lt_as_type_parameter {
-            scope = self.function_call(tokens, Some(scope), i, last_punc)
+            scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) && !is_in_statement {
             scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc)
@@ -626,28 +631,28 @@ impl Parser {
         }
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
-            scope = self.get_indexer_expression(tokens, Some(scope), i)
+            scope = self.get_indexer_expression(tokens, Some(scope), i, is_in_statement)
         }
 
         Self::dec(i);
         return scope
     }
 
-    fn scope_call_with_scope(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, mut scope: ScopedIdentifier, last_punc: Option<ScopeType>) -> ScopedIdentifier {
+    fn scope_call_with_scope(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, mut scope: ScopedIdentifier, last_punc: Option<ScopeType>, is_in_statement: bool) -> ScopedIdentifier {
         Self::inc(i);
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LParen) {
-            scope = self.function_call(tokens, Some(scope), i, last_punc)
+            scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LessThan) {
-            scope = self.function_call(tokens, Some(scope), i, last_punc)
+            scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
             scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc)
         }
         else if tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Dot) && tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) && (tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LParen) || tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::LessThan)) {
             Self::inc(i);
-            scope = self.function_call(tokens, Some(scope), i, last_punc)
+            scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) && !tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
             scope.scope.push(Identifier {
@@ -662,7 +667,7 @@ impl Parser {
         }
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
-            scope = self.get_indexer_expression(tokens, Some(scope), i)
+            scope = self.get_indexer_expression(tokens, Some(scope), i, is_in_statement)
         }
 
         Self::dec(i);
@@ -683,7 +688,7 @@ impl Parser {
         })
     }
     
-    fn get_indexer_expression(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize) -> ScopedIdentifier {
+    fn get_indexer_expression(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize, is_in_statement: bool) -> ScopedIdentifier {
         let array_nodes = self.get_node_parameters(tokens, i, Self::PARSING_FOR_ARRAY);
 
         if scope.is_none() {
@@ -721,12 +726,12 @@ impl Parser {
         scope.scope.push(identifier);
 
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
-            scope = self.get_indexer_expression(tokens, Some(scope), i);
+            scope = self.get_indexer_expression(tokens, Some(scope), i, is_in_statement);
             went_through_lbracket = true;
         }
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Dot) {
             *i += 2;
-            let call = self.scope_call(tokens, i, false);
+            let call = self.scope_call(tokens, i, is_in_statement);
             let mut push = vec![];
             for (i, c) in call.scope.iter().enumerate() {
                 if i == 0 {
@@ -798,9 +803,10 @@ impl Parser {
         *i = 0;
 
         let raw_properties = self.get_node_parameters(tokens, i, Self::PARSING_FOR_OBJECT_INSTANTIATION);
-        
+
         let mut properties = vec![];
         for p in raw_properties {
+            if ASTNode::err() == *p { continue; }
             if let NodeType::Operator(ref value) = *p.node {
                 if value.operator.token_type == TokenType::Assign {
                     if let NodeType::Identifier(ref name) = *value.left.node {
@@ -1363,7 +1369,7 @@ impl Parser {
                             };
                             Self::inc(i);
 
-                            let scope = self.scope_call_with_scope(tokens, i, tuple_scope, Some(ScopeType::Dot));
+                            let scope = self.scope_call_with_scope(tokens, i, tuple_scope, Some(ScopeType::Dot), until == Self::PARSING_FOR_STATEMENT);
 
                             expr_stack.push(Box::new(ASTNode {
                                 token: tokens[*i - 1].clone(),
@@ -1399,7 +1405,7 @@ impl Parser {
                                 }],
                             };
 
-                            let scope = self.scope_call_with_scope(tokens, i, parenthesis_scope, Some(ScopeType::Dot));
+                            let scope = self.scope_call_with_scope(tokens, i, parenthesis_scope, Some(ScopeType::Dot), until == Self::PARSING_FOR_STATEMENT);
 
                             expr_stack.push(Box::new(ASTNode {
                                 token: tokens[*i - 1].clone(),
@@ -1427,7 +1433,7 @@ impl Parser {
                             type_parameters: None
                         }]
                     };
-                    let indexing_expresion = self.get_indexer_expression(tokens, Some(temp_scope), i);
+                    let indexing_expresion = self.get_indexer_expression(tokens, Some(temp_scope), i, until == Self::PARSING_FOR_STATEMENT);
                     expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
                         node: Box::new(NodeType::ScopedExpression(indexing_expresion)),
@@ -1902,26 +1908,37 @@ impl Parser {
                     .unwrap_or(tokens.len()) // if none were found, than include the entire vector of tokens to parse
                 ].to_vec();
             }
-            if first_token.token_type == TokenType::Identifier {
+            if matches!(first_token.token_type, TokenType::Identifier | TokenType::Ampersand) {               
+                let mut is_ptr_or_ref = vec![];
+                while copy_tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Ampersand) {
+                    is_ptr_or_ref.push(TypeMemoryModifier::Ref);
+                    *i += 1;
+                }
+
                 if copy_tokens.iter().skip(*i).len() == 1 {
                     if copy_tokens.len() != tokens.len() {
                         Self::inc(i);
                     }
+                    let token = copy_tokens.get(*i);
+                    if token.is_none() {
+                        self.error(line!(), "Expected type", "Parser error, expected type", &first_token.location);
+                    }
+                    let token = token.unwrap();
                     return Box::new(ASTNode {
-                        token: first_token.clone(),
+                        token: token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(ScopedType {
                             scope: vec![TypeIdentifier {
-                                name: first_token.clone(),
+                                name: token.clone(),
                                 type_parameters: None,
                                 scope_type: None,
                             }],
                             is_array: false,
-                            is_ptr_or_ref: vec![],
+                            is_ptr_or_ref,
                         }))
                     });
                 }
-                else if copy_tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot || t.token_type == TokenType::LessThan || t.token_type == TokenType::LBracket || t.token_type == TokenType::Star || t.token_type == TokenType::Ampersand) {
-                    let scope_and_types = self.get_scoped_typed(&mut copy_tokens, i);
+                if copy_tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot || t.token_type == TokenType::LessThan || t.token_type == TokenType::LBracket || t.token_type == TokenType::Star || t.token_type == TokenType::Ampersand) {
+                    let scope_and_types = self.get_scoped_typed(&mut copy_tokens, i, is_ptr_or_ref);
                     return Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(scope_and_types)),
@@ -2060,16 +2077,13 @@ impl Parser {
         all_tokens
     }
 
-    fn get_scoped_typed(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ScopedType {
+    fn get_scoped_typed(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, mut is_ptr_or_ref: Vec<TypeMemoryModifier>) -> ScopedType {
         let scope = self.get_type_scope(tokens, i);
         let is_array = self.next_is_array_for_type(tokens, i);
-        let mut is_ptr_or_ref = vec![];
 
         while *i < tokens.len() {
             if tokens[*i].token_type == TokenType::Star {
-                is_ptr_or_ref.push(TypeSuffix::Ptr);
-            } else if tokens[*i].token_type == TokenType::Ampersand {
-                is_ptr_or_ref.push(TypeSuffix::Ref);
+                is_ptr_or_ref.push(TypeMemoryModifier::Ptr);
             } else {
                 break;
             }
@@ -2487,10 +2501,15 @@ impl Parser {
             NodeType::TypeIdentifier(ref value) => {
                 let array = value.is_array.then(|| "[]").unwrap_or("");
                 let mut pointer = "".to_string();
-                for suffix in value.is_ptr_or_ref.iter() {
-                    pointer += match suffix {
-                        TypeSuffix::Ptr => "*",
-                        TypeSuffix::Ref => "&",
+                let mut reference = "".to_string();
+                for modifier in value.is_ptr_or_ref.iter() {
+                    match modifier {
+                        TypeMemoryModifier::Ptr => {
+                            pointer += "*";
+                        },
+                        TypeMemoryModifier::Ref => {
+                            reference += "&";
+                        },
                     };
                 }
                 let mut scope = "".to_string();
@@ -2508,7 +2527,7 @@ impl Parser {
                         scope += format!("{}{}", scope_type, identifier).as_str();
                     }
                 }
-                format!("{}{}{}", scope, array, pointer)
+                format!("{}{}{}{}", reference, scope, array, pointer)
             }
             NodeType::TupleDeclaration(ref value) => {
                 let mut tuple = "".to_string();
@@ -2806,7 +2825,7 @@ impl Parser {
                     tab_level -= 1;
                     body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level))
                 } 
-                format!("{}{}: {}{}{}{}", access_modifiers, ty, name, generics, parameters, body)
+                format!("{}{}: {}{}{} {}", access_modifiers, ty, name, generics, parameters, body)
             }
             _ => {
                 node.token.value.clone()

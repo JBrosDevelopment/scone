@@ -68,7 +68,7 @@ impl ErrorHandling {
                 
         let pointer_line = format!("{}{}\n", pointer_line, pointer_position);
         
-        let output = format!("{formatted_message}{line_marker}{code_line}{pointer_line}\n");
+        let output = format!("{formatted_message}{line_marker}{code_line}{pointer_line}");
         
         Message {
             output,
@@ -96,6 +96,11 @@ impl ErrorHandling {
         format!("{}{}\x1B[38;2;{};{};{}m{}\x1B[0m", bold_code, "\x1B[38;2", r, g, b, text)
     }
     pub fn print_messages(&self) {
+        if self.messages.len() == 0 {
+            return;
+        }
+
+        println!("\n");
         for message in self.messages().iter() {
             println!("{}", message.output);
         }
