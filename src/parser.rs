@@ -2,6 +2,8 @@
 // remove all unwrapping and replace with error handling
 // go over and make sure no unneciary cloning is happening
 
+use std::vec;
+
 use crate::lexer::{Token, TokenType, Location};
 use crate::operator_tokens;
 
@@ -245,9 +247,27 @@ impl Parser {
         };
 
         let parameters: Vec<DefinedNodeParameter> = self.get_defined_node_parameters(tokens, i);
+        if parameters.len() == 0 {
+            Self::inc(i);
+        }
         
         let body = if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
             Some(self.get_code_block(tokens, i, false))
+        } else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::DoubleArrow) {
+            Self::inc(i);
+            let mut expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
+
+            if let NodeType::ReturnExpression(_) = expression.node.as_ref() {
+            } else {
+                let old = expression.clone();
+                expression = Box::new(ASTNode {
+                    token: old.token.clone(),
+                    node: Box::new(NodeType::ReturnExpression(old))
+                });
+            }
+            Some(BodyRegion {
+                body: vec![expression],
+            })
         } else {
             None
         };
@@ -730,7 +750,8 @@ impl Parser {
             went_through_lbracket = true;
         }
         if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Dot) {
-            *i += 2;
+            Self::inc(i);
+            Self::inc(i);
             let call = self.scope_call(tokens, i, is_in_statement);
             let mut push = vec![];
             for (i, c) in call.scope.iter().enumerate() {
@@ -1912,7 +1933,7 @@ impl Parser {
                 let mut is_ptr_or_ref = vec![];
                 while copy_tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Ampersand) {
                     is_ptr_or_ref.push(TypeMemoryModifier::Ref);
-                    *i += 1;
+                    Self::inc(i);
                 }
 
                 if copy_tokens.iter().skip(*i).len() == 1 {
@@ -2365,7 +2386,8 @@ impl Parser {
     fn next_is_array_for_type(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> bool {
         if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBracket) {
             if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::RBracket) {
-                *i += 2;
+                Self::inc(i);
+                Self::inc(i);
                 return true;
             }
             else {

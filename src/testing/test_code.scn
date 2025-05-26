@@ -1,33 +1,7 @@
-pub ASTNode: get_ast_node(Parser: self, &Vec<Box<Token>>: tokens){
-    if tokens.len() == 0 {
-        return ASTNode::err();
-    }
-
-    match tokens[0].token_type {
-        TokenType::For => { // this is so that `for i = 0, i < 10, i += 1` doesn't parse as a variable assignment with the `=`
-            return *self.get_entire_expression(tokens);
-        }
-        TokenType::Use => {
-            if tokens.len() != 2 {
-                self.error(line(), "Error parsing `use` statement", "`use` statement must have exactly one argument", &tokens[0].location);
-                return ASTNode::err();
-            }
-            Box<Token>: name = tokens[1].clone();
-            return ASTNode {
-                node = Box::new(NodeType::Use(name)),
-                token = tokens[0].clone(),
-            };
-        }
-        _ => {}
-    }
-
-    // anything else
-    return *self.get_entire_expression(tokens);
-}
+u8: add(u8: a, u8: b) { }
+string: to_string() => "Obj [" + name.to_string() + "]";
 
 ;// TODO:
-// u0: add(u8: a, u8: b) { }
-// string: to_string() => "Obj [" + name.to_string() + "]";
 // typedef (u8, u8, u8) -> Color;
 // enum Files { File1 = 0, File2 }
 // class Color -> Traits { }
