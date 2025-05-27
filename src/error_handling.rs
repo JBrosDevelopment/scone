@@ -100,7 +100,6 @@ impl ErrorHandling {
             return;
         }
 
-        println!("\n");
         for message in self.messages().iter() {
             println!("{}", message.output);
         }

@@ -79,9 +79,9 @@ pub enum TokenType {
     Abstract,
     Extern,
     Match,
-    LoadLib,
     Unsafe,
     Safe,
+    TypeDef,
 
     // constants
     BoolConstant,
@@ -306,10 +306,10 @@ impl Lexer {
                     "override" => Token::new(TokenType::Override, name.clone(), current_location.clone()),
                     "match" => Token::new(TokenType::Match, name.clone(), current_location.clone()),
                     "extern" => Token::new(TokenType::Extern, name.clone(), current_location.clone()),
-                    "loadlib" => Token::new(TokenType::LoadLib, name.clone(), current_location.clone()),
                     "abstract" => Token::new(TokenType::Abstract, name.clone(), current_location.clone()),
                     "unsafe" => Token::new(TokenType::Unsafe, name.clone(), current_location.clone()),
                     "safe" => Token::new(TokenType::Safe, name.clone(), current_location.clone()),
+                    "typedef" => Token::new(TokenType::TypeDef, name.clone(), current_location.clone()),
                     "_" => Token::new(TokenType::Underscore, name.clone(), current_location.clone()),
                     _ => Token::new(TokenType::Identifier, name.clone(), current_location.clone()),
                 };

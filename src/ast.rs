@@ -57,6 +57,7 @@ pub enum NodeType {
     StructDeclaration(StructDeclaration),
     TraitDeclaration(TraitDeclaration),
     EnumDeclaration(EnumDeclaration),
+    TypeDef(TypeDefDeclaration),
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -309,7 +310,7 @@ pub struct TypeIdentifier {
 pub struct ScopedType {
     pub scope: Vec<TypeIdentifier>,
     pub is_ptr_or_ref: Vec<TypeMemoryModifier>,
-    pub is_array: bool,
+    pub is_array: Vec<Vec<Box<ASTNode>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -374,4 +375,10 @@ pub enum ShabangType {
     Once(Box<Token>),
     DefineFile(Box<Token>),
     Other(Vec<Box<Token>>),
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct TypeDefDeclaration {
+    pub name: Box<Token>,
+    pub type_definition: Box<ASTNode>,
 }

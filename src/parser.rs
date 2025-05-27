@@ -15,7 +15,7 @@ use crate::debug;
 pub fn parse(tokens: Vec<Token>, file: &String, code: &String) -> Vec<ASTNode> {
     let mut parser = Parser::new(Some(file.clone()), code.clone(), tokens);
     parser.generate_ast();
-
+    
     parser.output.print_messages();
     parser.ast
 }
@@ -127,11 +127,44 @@ impl Parser {
                     token: tokens[0].clone(),
                 };
             }
+            TokenType::TypeDef => {
+                return self.get_typedef(tokens);
+            }
             _ => {}
         }
 
         // anything else
         return *self.get_entire_expression(tokens);
+    }
+
+    fn get_typedef(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
+        if tokens.len() < 4 {
+            self.error(line!(), "Error parsing `typedef` statement", "`typedef` statement must have two arguments: `typedef TYPE: NAME`", &tokens[0].location);
+            return ASTNode::err();
+        }
+
+        let mut i = 1;
+        let mut tokens_until_colon = tokens.iter().take_while(|t| t.token_type != TokenType::Colon).cloned().collect();
+        let type_definition  = self.get_type_idententifier(&mut tokens_until_colon, &mut i, false);
+
+        i = tokens.iter().position(|t| t.token_type == TokenType::Colon).unwrap_or_else(|| {
+            self.error(line!(), "Error parsing `typedef` statement", "Expected `typedef` statement to have a colon: `typedef TYPE: NAME`", &tokens[0].location);
+            return tokens.len() - 2;
+        }) + 1;
+        let name = tokens[i].clone();
+
+        if tokens.len() != i + 1 {
+            self.error(line!(), "Error parsing `typedef` statement", "Incorrect syntax for `typedef` statement: `typedef TYPE: NAME`", &tokens[0].location);
+            return ASTNode::err();
+        }
+
+        ASTNode {
+            token: tokens[0].clone(),
+            node: Box::new(NodeType::TypeDef(TypeDefDeclaration { 
+                name,
+                type_definition 
+            })),
+        }
     }
 
     fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, is_in_for: bool) -> ASTNode { // `tokens` fpr tokens to parse, `i` for current token index only used if `is_in_for` is true, `is_in_for` whether or not we are in a for loop
@@ -1829,7 +1862,7 @@ impl Parser {
 
         let mut parameters = vec![];
 
-        if until != Self::PARSING_FOR_OBJECT_INSTANTIATION && until != Self::PARSING_FOR_CODE_BLOCK && until != Self::PARSING_FOR_STATEMENT {
+        if until == Self::PARSING_FOR_ARRAY || until == Self::PARSING_FOR_FUNCTION {
             Self::inc(i);
         }
         
@@ -1954,7 +1987,7 @@ impl Parser {
                                 type_parameters: None,
                                 scope_type: None,
                             }],
-                            is_array: false,
+                            is_array: vec![],
                             is_ptr_or_ref,
                         }))
                     });
@@ -2410,19 +2443,14 @@ impl Parser {
         return scope
     }
 
-    fn next_is_array_for_type(&mut self, tokens: &Vec<Box<Token>>, i: &mut usize) -> bool {
-        if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBracket) {
-            if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::RBracket) {
-                Self::inc(i);
-                Self::inc(i);
-                return true;
-            }
-            else {
-                self.error(line!(), "Error setting type parameters", "Expected type to be array, but only `[` was given with no closing `]`. Expected: `type[]`", &tokens[*i].location);
-                return false;
-            }
+    fn next_is_array_for_type(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Vec<Vec<Box<ASTNode>>> {
+        let mut arrays = vec![];
+        while tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBracket) {
+            //Self::inc(i);
+            let parameters = self.get_node_parameters(tokens, i, Self::PARSING_FOR_ARRAY);
+            arrays.push(parameters);
         }
-        return false;
+        return arrays;
     }
 
     fn get_anonymous_type_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> AnonymousTypeParameters {
@@ -2548,7 +2576,14 @@ impl Parser {
                 format!("{}{}: {} = {}", access_modifiers, var_type, var_name, var_value)
             }
             NodeType::TypeIdentifier(ref value) => {
-                let array = value.is_array.then(|| "[]").unwrap_or("");
+                let mut array = "".to_string();
+                for array_full in value.is_array.clone() {
+                    array += "[";
+                    for (index, param) in array_full.iter().enumerate() {
+                        array += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), array_full.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    }
+                    array += "]";
+                }
                 let mut pointer = "".to_string();
                 let mut reference = "".to_string();
                 for modifier in value.is_ptr_or_ref.iter() {
@@ -2875,6 +2910,11 @@ impl Parser {
                     body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level))
                 } 
                 format!("{}{}: {}{}{} {}", access_modifiers, ty, name, generics, parameters, body)
+            }
+            NodeType::TypeDef(ref value) => {
+                let expression = Self::node_expr_to_string(&value.type_definition, tab_level);
+                let name = value.name.value.clone();
+                format!("typedef {}: {}", expression, name)
             }
             _ => {
                 node.token.value.clone()

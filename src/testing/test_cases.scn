@@ -703,3 +703,19 @@ if char::is_alphabetic(c.clone()) || c == '_' {
     tokens.push(new_token);
     i -= 1;
 }
+
+Box<Token>: try_get_last_token(&Vec<Box<Token>>: tokens) {
+    i32: catch = 0;
+    i32: current_line = self.__curent_parsing_line;
+    Token: token = tokens.get(0);
+    while token.is_none() {
+        current_line -= 1;
+        token = self.lines[current_line].get(0);
+
+        catch += 1;
+        if catch > 100 {
+            break;
+        }
+    }
+    return token.unwrap_or(&Box::new(Token::new_empty())).clone();
+}
