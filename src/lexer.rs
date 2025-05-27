@@ -332,11 +332,32 @@ impl Lexer {
                         number.push(chars[i]);
                         i += 1;
                     } else if chars[i] == '.' && one_dot == false {
+                        if !chars.get(i + 1).is_some_and(|x| x.is_numeric()) {
+                            break;
+                        }
                         number.push('.');
                         one_dot = true;
                         i += 1;
-                    }
-                    else {
+                    } else if chars[i] == '_' {
+                        number.push('_');
+                        i += 1;
+                    } else if chars[i] == 'f' || chars[i] == 'u' || chars[i] == 'i' {
+                        let type_c = chars[i];
+                        let mut j = i + 1;
+                        let mut adds = String::new();
+                        while chars.get(j).is_some_and(|x| x.is_numeric()) {
+                            adds.push(chars[j]);
+                            j += 1;
+                        }
+                        if j != i + 1 {
+                            number.push(type_c);
+                            number.push_str(&adds);
+                            i = j;
+                            one_dot = true;
+                        } else {
+                            break;
+                        }
+                    } else {
                         break;
                     }
                 }

@@ -1,25 +1,10 @@
-use "error_handling";
-use "lexer";
-use "ast";
-use "parser";
+false.a;
+"hi".b;
+'!'.c;
+1_f32.d;
+1.e;
+1.0.f;
 
-
-void: main() {
-    string: path = "src/testing/test_code.scn".to_string();
-    string: code = std::fs::read_to_string(&path).unwrap();
-    
-    // lexer
-    Token[]: tokens = lexer::lex(&code, &path);
-    
-    string: json = serde_json::to_string_pretty(&tokens).unwrap();
-    std::fs::write("src/testing/lexer.out.json", json).unwrap();
-
-    // parser    
-    ASTNode[]: ast = parser::parse(tokens, &path, &code);
-
-    string: fmt_json = serde_json::to_string_pretty(&ast).unwrap();
-    std::fs::write("src/testing/parser.out.json", fmt_json).unwrap();
-}
 
 ;// TODO:
 // typedef (u8, u8, u8) -> Color;
