@@ -361,7 +361,7 @@ pub enum ShabangType {
     Allow(Box<Token>),
     Warning(Box<Token>),
     Err(Box<Token>),
-    Depricated,
+    Deprecated,
     Crumb,
     If(Box<ASTNode>),
     IfNot(Box<ASTNode>),

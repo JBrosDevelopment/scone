@@ -1622,7 +1622,7 @@ impl Parser {
                     "deprecated" => {
                         return Box::new(ASTNode {
                             token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Depricated))
+                            node: Box::new(NodeType::Shabang(ShabangType::Deprecated))
                         });
                     }
                     "else" => {
@@ -2844,7 +2844,7 @@ impl Parser {
                     ShabangType::Allow(t) => format!("#! allow {}", t.value),
                     ShabangType::Warning(t) => format!("#! warning {}", t.value),
                     ShabangType::Err(t) => format!("#! err {}", t.value),
-                    ShabangType::Depricated => "#! depricated".to_string(),
+                    ShabangType::Deprecated => "#! deprecated".to_string(),
                     ShabangType::Crumb => "#! crumb".to_string(),
                     ShabangType::If(node) => format!("#! if {}", Self::node_expr_to_string(node, tab_level)),
                     ShabangType::IfNot(node) => format!("#! ifn {}", Self::node_expr_to_string(node, tab_level)),
