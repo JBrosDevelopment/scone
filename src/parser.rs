@@ -1142,14 +1142,18 @@ impl Parser {
                 if let Ok(constant_type) = Self::constant_type(&token) {
                     node.node = Box::new(NodeType::Constant(ConstantNode {
                         value: token.clone(),
-                        constant_type,
+                        constant_type: constant_type.clone(),
                     }));
+
+                    if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::Dot) {
+                        last_was_ident = true;
+                    } else {
+                        expr_stack.push(node);
+                    }
                 } else {
                     self.error(line!(), "Could not parse constant", "Couldn't decide type from constant", &token.location);
                     return Box::new(ASTNode::err());
                 }
-
-                expr_stack.push(node);
             } else if token.token_type == TokenType::Identifier {
                 last_was_unary_operator = false;
                 if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || (tokens[*i + 1].token_type == TokenType::LBrace && (until != Self::PARSING_FOR_STATEMENT && until != Self::PARSING_FOR_SCOPING)) || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LessThan) && !(until != 0 && (until == Self::PARSING_FOR_FUNCTION && Self::PARSING_FOR_FUNCTION_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type) || until == Self::PARSING_FOR_INSIDE_PARENTHESIS && Self::PARSING_FOR_INSIDE_PARENTHESIS_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type))) {
@@ -2213,6 +2217,32 @@ impl Parser {
         while *i < tokens.len() {
             let token = tokens[*i].clone();
             match token.token_type {
+                TokenType::StringConstant | TokenType::CharConstant | TokenType::NumberConstant | TokenType::BoolConstant if first_token => {
+                    if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::Dot) {
+                        *last_punc = Some(ScopeType::Dot);
+                    } else if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::DoubleColon) {
+                        self.error(line!(), "Scope has incorrect type", "Expected or `.` before identifier and after constant. Constants are instances and cannot use `::` directly after them to scope", &token.location);
+                    } else {
+                        self.error(line!(), "Scope has incorrect type", "Expected or `.` before identifier and after constant. Use `.` to separate scope levels.", &token.location);
+                    }
+                    Self::inc(i);
+                    Self::inc(i);
+                    scope.scope.push(Identifier { 
+                        expression: Box::new(ASTNode { 
+                            token: token.clone(), 
+                            node: Box::new(NodeType::Constant(ConstantNode {
+                                constant_type: Self::constant_type(&token).unwrap_or_else(|_| {
+                                    self.error(line!(), "Error getting constant type", "Could not parse constant. This may be because of invalid type in number. As an example of valid number typing: `100_f32`", &token.location);
+                                    ConstantType::Bool
+                                }),
+                                value: token.clone()
+                            })) 
+                        }), 
+                        scope_type: None, 
+                        type_parameters: None 
+                    });
+                    return (scope, true);
+                }
                 TokenType::DoubleColon => {
                     Self::inc(i);
                     if last_punc.is_some() || first_token {
