@@ -1306,7 +1306,6 @@ impl Parser {
                 else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::As || t.token_type == TokenType::Is) {
                     Self::inc(i);
                     let ty = self.get_type_idententifier(tokens, i, true);
-                    Self::dec(i);
                     expr_stack.push(ty);
                 } 
 
@@ -1941,12 +1940,10 @@ impl Parser {
                 }
 
                 if copy_tokens.iter().skip(*i).len() == 1 {
-                    if copy_tokens.len() != tokens.len() {
-                        Self::inc(i);
-                    }
                     let token = copy_tokens.get(*i);
                     if token.is_none() {
                         self.error(line!(), "Expected type", "Parser error, expected type", &first_token.location);
+                        return Box::new(ASTNode::err());
                     }
                     let token = token.unwrap();
                     return Box::new(ASTNode {

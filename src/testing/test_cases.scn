@@ -621,3 +621,85 @@ std::cout("You entered: " + number + std::endl);
 #! once NAME 
 #! def NAME
 #! unknown message
+
+false.a;
+"hi".b;
+'!'.c;
+1_f32.d;
+1.e;
+1.0.f;
+
+use "error_handling";
+use "lexer";
+use "ast";
+use "parser";
+
+
+void: main() {
+    string: path = "src/testing/test_code.scn".to_string();
+    string: code = std::fs::read_to_string(&path).unwrap();
+    
+    // lexer
+    Token[]: tokens = lexer::lex(&code, &path);
+    
+    string: json = serde_json::to_string_pretty(&tokens).unwrap();
+    std::fs::write("src/testing/lexer.out.json", json).unwrap();
+
+    // parser    
+    ASTNode[]: ast = parser::parse(tokens, &path, &code);
+
+    string: fmt_json = serde_json::to_string_pretty(&ast).unwrap();
+    std::fs::write("src/testing/parser.out.json", fmt_json).unwrap();
+}
+
+
+if char::is_alphabetic(c.clone()) || c == '_' {
+    string: name = String::new();
+
+    while i < chars.len() {
+        if char::is_alphanumeric(chars[i]) || char::is_numeric(chars[i]) || chars[i] == '_' {
+            name.push(chars[i]);
+            i += 1;
+        } else {
+            break;
+        }
+    }
+
+    current_location.advance(name.len() as i32);
+
+    Token: new_token = match name.as_str() {
+        "true" | "false" => Token::new(TokenType::BoolConstant, name.clone(), current_location.clone()),
+        "return" => Token::new(TokenType::Return, name.clone(), current_location.clone()),
+        "if" => Token::new(TokenType::If, name.clone(), current_location.clone()),
+        "else" => Token::new(TokenType::Else, name.clone(), current_location.clone()),
+        "for" => Token::new(TokenType::For, name.clone(), current_location.clone()),
+        "while" => Token::new(TokenType::While, name.clone(), current_location.clone()),
+        "break" => Token::new(TokenType::Break, name.clone(), current_location.clone()),
+        "continue" => Token::new(TokenType::Continue, name.clone(), current_location.clone()),
+        "class" => Token::new(TokenType::Class, name.clone(), current_location.clone()),
+        "struct" => Token::new(TokenType::Struct, name.clone(), current_location.clone()),
+        "enum" => Token::new(TokenType::Enum, name.clone(), current_location.clone()),
+        "use" => Token::new(TokenType::Use, name.clone(), current_location.clone()),
+        "trait" => Token::new(TokenType::Trait, name.clone(), current_location.clone()),
+        "in" => Token::new(TokenType::In, name.clone(), current_location.clone()),
+        "as" => Token::new(TokenType::As, name.clone(), current_location.clone()),
+        "is" => Token::new(TokenType::Is, name.clone(), current_location.clone()),
+        "const" => Token::new(TokenType::Const, name.clone(), current_location.clone()),
+        "static" => Token::new(TokenType::Static, name.clone(), current_location.clone()),
+        "pub" => Token::new(TokenType::Pub, name.clone(), current_location.clone()),
+        "priv" => Token::new(TokenType::Priv, name.clone(), current_location.clone()),
+        "virtual" => Token::new(TokenType::Virtual, name.clone(), current_location.clone()),
+        "override" => Token::new(TokenType::Override, name.clone(), current_location.clone()),
+        "match" => Token::new(TokenType::Match, name.clone(), current_location.clone()),
+        "extern" => Token::new(TokenType::Extern, name.clone(), current_location.clone()),
+        "loadlib" => Token::new(TokenType::LoadLib, name.clone(), current_location.clone()),
+        "abstract" => Token::new(TokenType::Abstract, name.clone(), current_location.clone()),
+        "unsafe" => Token::new(TokenType::Unsafe, name.clone(), current_location.clone()),
+        "safe" => Token::new(TokenType::Safe, name.clone(), current_location.clone()),
+        "_" => Token::new(TokenType::Underscore, name.clone(), current_location.clone()),
+        _ => Token::new(TokenType::Identifier, name.clone(), current_location.clone()),
+    };
+
+    tokens.push(new_token);
+    i -= 1;
+}
