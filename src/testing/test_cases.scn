@@ -719,3 +719,22 @@ Box<Token>: try_get_last_token(&Vec<Box<Token>>: tokens) {
     }
     return token.unwrap_or(&Box::new(Token::new_empty())).clone();
 }
+
+pub class A<B, C is D> -> E, F, G {
+    H: I = J;
+    K: L(M: N) {
+        O
+    }
+}
+struct Color {
+    u8: R = 0;
+    u8: B = 0;
+    u8: G = 0;
+    u8: A = 0;
+
+    //#! crumb
+    //#! description "A color with red, green, blue, and alpha channels."
+    static Color: new(r: u8, g: u8, b: u8, a: u8) {
+        Color { R = r, G = g, B = b, A = a }
+    }
+}

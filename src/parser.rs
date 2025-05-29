@@ -133,8 +133,123 @@ impl Parser {
             _ => {}
         }
 
+        if tokens.iter().any(|t| t.token_type == TokenType::Class || t.token_type == TokenType::Struct) {
+            return self.get_class_or_struct(tokens);
+        }
+
         // anything else
         return *self.get_entire_expression(tokens);
+    }
+
+    fn get_class_or_struct(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
+        let mut access_modifier: Vec<AccessModifier> = Vec::new();
+        let mut start_of_name = 0;
+        for token in tokens.iter() {
+            match token.token_type {
+                TokenType::Pub => access_modifier.push(AccessModifier::Public),
+                TokenType::Priv => access_modifier.push(AccessModifier::Private),
+                TokenType::Override => access_modifier.push(AccessModifier::Override),
+                TokenType::Virtual => access_modifier.push(AccessModifier::Virtual),
+                TokenType::Static => access_modifier.push(AccessModifier::Static),
+                TokenType::Const => access_modifier.push(AccessModifier::Const),
+                TokenType::Extern => access_modifier.push(AccessModifier::Extern),
+                TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
+                TokenType::Safe => access_modifier.push(AccessModifier::Safe),
+                TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
+                _ => break
+            }
+            start_of_name += 1;
+        }
+
+        
+        let mut i = start_of_name;
+        let class_or_struct_token = tokens.get(i).cloned().unwrap_or_else(|| {
+            self.error(line!(), "Error parsing class or struct", "Expected either `class` or `struct`", &tokens[start_of_name].location);
+            Box::new(Token::new_empty())
+        });
+        let class_or_struct = if class_or_struct_token.token_type == TokenType::Class { "class" } else { "struct" };
+        
+        Self::inc(&mut i);
+        let name = tokens.get(i).cloned().unwrap_or_else(|| {
+            self.error(line!(), format!("Error parsing {}", class_or_struct).as_str(), format!("Expected a name for the {A}: `{A} NAME {{ ... }}`", A = class_or_struct).as_str(), &tokens[start_of_name].location);
+            Box::new(Token::new_empty())
+        });
+        
+        Self::inc(&mut i);
+        let type_parameters: Option<AnonymousTypeParameters> = if tokens.get(i).is_some_and(|t| t.token_type == TokenType::LessThan) { // has type parameters
+            Some(self.get_anonymous_type_parameters(tokens, &mut i))
+        } else {
+            None
+        };
+
+        let extends = if tokens.get(i).is_some_and(|t| t.token_type == TokenType::RightArrow) {
+            Self::inc(&mut i);
+
+            let mut extends = vec![];
+            let mut last_was_comma = true;
+            for token in tokens.iter().skip(i) {
+                if token.token_type == TokenType::LBrace {
+                    break;
+                }
+                if !matches!(token.token_type, TokenType::Comma | TokenType::Identifier) {
+                    self.error(line!(), format!("Error parsing traits extensions for {}", class_or_struct).as_str(), format!("Unexpected token while parsing traits for {A}. Expects `{{`, `,`, or `IDENTIFIER`, but got `{B}`: `{A} NAME -> EXTENDS, TRAITS {{ ... }}`", A = class_or_struct, B = token.value).as_str(), &tokens[start_of_name].location);
+                } 
+                if last_was_comma && token.token_type == TokenType::Comma {
+                    self.error(line!(), format!("Error parsing traits extensions for {}", class_or_struct).as_str(), format!("Two commas in a row while parsing traits for {A}: `{A} NAME -> EXTENDS, TRAITS {{ ... }}`", A = class_or_struct).as_str(), &tokens[start_of_name].location);
+                }
+                if !last_was_comma && token.token_type != TokenType::Comma {
+                    self.error(line!(), format!("Error parsing traits extensions for {}", class_or_struct).as_str(), format!("Missing a comma while parsing traits for {A}: `{A} NAME -> EXTENDS, TRAITS {{ ... }}`", A = class_or_struct).as_str(), &tokens[start_of_name].location);
+                }
+
+                if last_was_comma && token.token_type == TokenType::Identifier {
+                    extends.push(token.clone());
+                    last_was_comma = false;
+                }
+                if !last_was_comma && token.token_type == TokenType::Comma {
+                    last_was_comma = true;
+                } 
+            }
+            extends
+        } else {
+            vec![]
+        };
+
+        Self::inc(&mut i);
+        let body = self.get_code_block(tokens, &mut i, false);
+        
+        for thing in body.body.clone() {
+            if let NodeType::FunctionDeclaration(_) = thing.node.as_ref() {
+            }
+            else if let NodeType::VariableDeclaration(_) = thing.node.as_ref() {
+            } 
+            else {
+                self.error(line!(), format!("Error while parsing {} body", class_or_struct).as_str(), format!("Expected only a function or variable declaration for {A}: `{A} NAME {{ TYPE: NAME = VALUEl; TYPE: NAME() {{ ... }} }}`", A = class_or_struct).as_str(), &thing.token.location);
+            }
+        }
+
+        if class_or_struct_token.token_type == TokenType::Class {
+            return ASTNode {
+                node: Box::new(NodeType::ClassDeclaration(ClassDeclaration {
+                    access_modifier,
+                    name,
+                    type_parameters,
+                    extends,
+                    body
+                })),
+                token: class_or_struct_token.clone(),
+            };
+        } else {
+            return ASTNode {
+                node: Box::new(NodeType::StructDeclaration(StructDeclaration {
+                    access_modifier,
+                    name,
+                    type_parameters,
+                    extends,
+                    body
+                })),
+                token: class_or_struct_token.clone(),
+            };
+        }
     }
 
     fn get_typedef(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
@@ -289,7 +404,8 @@ impl Parser {
         }
         
         let body = if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) {
-            Some(self.get_code_block(tokens, i, false))
+            let last_is_return = return_type.token.value != "void";
+            Some(self.get_code_block(tokens, i, last_is_return))
         } else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::DoubleArrow) {
             Self::inc(i);
             let mut expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
@@ -3015,6 +3131,72 @@ impl Parser {
                 tab_level -= 1;
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
                 format!("enum {}: {}", name, body)
+            }
+            NodeType::ClassDeclaration(ref value) => {
+                let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
+                let name = value.name.value.clone();
+                let mut generics = "".to_string();
+                if value.type_parameters.is_some() {
+                    generics += "<";
+                    for anonymous in value.type_parameters.clone().unwrap().parameters.iter() {
+                        generics += &anonymous.name.value;
+                        if anonymous.constraints.is_some() {
+                            generics += " is ";
+                            generics += &Self::node_expr_to_string(&anonymous.constraints.clone().unwrap(), tab_level);
+                        }
+                        if anonymous != value.type_parameters.clone().unwrap().parameters.last().unwrap() {
+                            generics += ", ";
+                        }
+                    }
+                    generics += ">";
+                }
+                let mut extends = "".to_string();
+                if value.extends.len() > 0 {
+                    extends += "-> ";
+                    extends += &value.extends.iter().map(|x| x.value.clone()).collect::<Vec<String>>().join(", ");
+                }
+                let mut body = "".to_string();
+                tab_level += 1;
+                for param in value.body.body.iter() {
+                    body += format!("{}{};\n", "    ".repeat(tab_level), Self::node_expr_to_string(param, tab_level)).as_str();
+                }
+                tab_level -= 1;
+                body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
+
+                format!("{}class {}{} {} {}", access_modifiers, name, generics, extends, body)
+            }
+            NodeType::StructDeclaration(ref value) => {
+                let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
+                let name = value.name.value.clone();
+                let mut generics = "".to_string();
+                if value.type_parameters.is_some() {
+                    generics += "<";
+                    for anonymous in value.type_parameters.clone().unwrap().parameters.iter() {
+                        generics += &anonymous.name.value;
+                        if anonymous.constraints.is_some() {
+                            generics += " is ";
+                            generics += &Self::node_expr_to_string(&anonymous.constraints.clone().unwrap(), tab_level);
+                        }
+                        if anonymous != value.type_parameters.clone().unwrap().parameters.last().unwrap() {
+                            generics += ", ";
+                        }
+                    }
+                    generics += ">";
+                }
+                let mut extends = "".to_string();
+                if value.extends.len() > 0 {
+                    extends += "-> ";
+                    extends += &value.extends.iter().map(|x| x.value.clone()).collect::<Vec<String>>().join(", ");
+                }
+                let mut body = "".to_string();
+                tab_level += 1;
+                for param in value.body.body.iter() {
+                    body += format!("{}{};\n", "    ".repeat(tab_level), Self::node_expr_to_string(param, tab_level)).as_str();
+                }
+                tab_level -= 1;
+                body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
+
+                format!("{}struct {}{} {} {}", access_modifiers, name, generics, extends, body)
             }
             _ => {
                 node.token.value.clone()

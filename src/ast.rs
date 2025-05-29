@@ -185,6 +185,7 @@ pub struct ClassDeclaration {
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: BodyRegion,
     pub access_modifier: Vec<AccessModifier>,
+    pub extends: Vec<Box<Token>>
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -193,6 +194,7 @@ pub struct StructDeclaration {
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: BodyRegion,
     pub access_modifier: Vec<AccessModifier>,
+    pub extends: Vec<Box<Token>>
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

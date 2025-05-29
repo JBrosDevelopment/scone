@@ -1,26 +1,65 @@
-enum Directories {
-    Root = 0b1,
-    Home = 0b01,
-    Documents = 0b001,
-    Downloads = 0b0001,
-    Pictures = 0b00001,
-    Music = 0b000001,
-    Videos = 0b0000001,
-    None,
+pub class Color -> ToString {
+    u8: R = 0;
+    u8: G = 0;
+    u8: B = 0;
+
+//    #! crumb
+//    #! description "Creates a color object with given RGB values"
+    static Color: new(u8: r, u8: g, u8: b) {
+        Color {
+            R = r,
+            G = g,
+            B = b
+        }
+    }
+
+//    #! description "Creates a white color object"
+    static Color: white() {
+        Color {
+            R = 255,
+            G = 255,
+            B = 255
+        }
+    }
+
+//    #! description "Operator overload for adding two colors" 
+    static Color: op_add(Color: color1, Color: color2) {
+        Color {
+            R = color1.R + color2.R,
+            G = color1.G + color2.G,
+            B = color1.B + color2.B
+        }
+    }
+
+//    #! "Implementation of the ToString trait"
+    string: to_string() {
+        format("Color: R: {}, G: {}, B: {}", R, G, B)
+    }
 }
-enum Answers {
-    Yes,
-    No,
-    Maybe,
-    Unknown
+
+void: main() {
+    // Create a new Color object with default values
+    Color: color1 = Color {};
+
+    // The crumb tag allows the compiler to infer the `new` function
+    Color: color2 = new(255, 255, 255);
+
+    // Accessing a static method that returns a white Color object
+    Color: white = Color::white();
+
+    // Calling an instance method (implements ToString)
+    print(color2.to_string());
+
+    // Type inference with `auto`
+    auto: red = color2.R; 
+
+    // Operator overloading
+    Color: color3 = color1 + color2;
 }
 
 ;// TODO:
-// enum Files { File1 = 0, File2 }
-// class Color -> Traits { }
-// struct Pixel -> Extends { }
+// trait Number { }
 
 // i need to update the parser to handle these differently. I also need to handle these in lexer and make it switch it out when it matches
 //#! define PI 3.14;
 //#! define ADD(a, b) a + b;
-// trait Number { }
