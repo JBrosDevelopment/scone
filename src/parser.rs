@@ -137,8 +137,107 @@ impl Parser {
             return self.get_class_or_struct(tokens);
         }
 
+        if tokens.iter().any(|t| t.token_type == TokenType::Trait) {
+            return self.get_trait(tokens);
+        }
+
         // anything else
         return *self.get_entire_expression(tokens);
+    }
+
+    fn get_trait(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
+        let mut access_modifier: Vec<AccessModifier> = Vec::new();
+        let mut start_of_name = 0;
+        for token in tokens.iter() {
+            match token.token_type {
+                TokenType::Pub => access_modifier.push(AccessModifier::Public),
+                TokenType::Priv => access_modifier.push(AccessModifier::Private),
+                TokenType::Override => access_modifier.push(AccessModifier::Override),
+                TokenType::Virtual => access_modifier.push(AccessModifier::Virtual),
+                TokenType::Static => access_modifier.push(AccessModifier::Static),
+                TokenType::Const => access_modifier.push(AccessModifier::Const),
+                TokenType::Extern => access_modifier.push(AccessModifier::Extern),
+                TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
+                TokenType::Safe => access_modifier.push(AccessModifier::Safe),
+                TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
+                _ => break
+            }
+            start_of_name += 1;
+        }
+
+        let mut i = start_of_name;
+        if tokens.get(i).is_some_and(|t| t.token_type != TokenType::Trait) {
+            self.error(line!(), "Error parsing trait", "Expected `trait` keyword: `trait NAME {{ ... }}", &tokens[start_of_name].location);
+            return ASTNode::err();
+        }
+        let trait_keyword = tokens[i].clone();
+        
+        Self::inc(&mut i);
+        let name = tokens.get(i).cloned().unwrap_or_else(|| {
+            self.error(line!(), "Error parsing trait", "Expected a name for the trait: `trait NAME {{ ... }}`", &tokens[start_of_name].location);
+            Box::new(Token::new_empty())
+        });
+
+        Self::inc(&mut i);
+        let extends = if tokens.get(i).is_some_and(|t| t.token_type == TokenType::RightArrow) {
+            Self::inc(&mut i);
+
+            let mut extends = vec![];
+            let mut last_was_comma = true;
+            for token in tokens.iter().skip(i) {
+                if token.token_type == TokenType::LBrace {
+                    break;
+                }
+                if !matches!(token.token_type, TokenType::Comma | TokenType::Identifier) {
+                    self.error(line!(), "Error parsing traits extensions for {}", "Unexpected token while parsing traits for trait. Expects `{{`, `,`, or `IDENTIFIER`, but got `{B}`: `trait NAME -> EXTENDS, TRAITS {{ ... }}`", &tokens[start_of_name].location);
+                } 
+                if last_was_comma && token.token_type == TokenType::Comma {
+                    self.error(line!(), "Error parsing traits extensions for {}", "Two commas in a row while parsing traits for trait: `trait NAME -> EXTENDS, TRAITS {{ ... }}`", &tokens[start_of_name].location);
+                }
+                if !last_was_comma && token.token_type != TokenType::Comma {
+                    self.error(line!(), "Error parsing traits extensions for {}", "Missing a comma while parsing traits for trait: `trait NAME -> EXTENDS, TRAITS {{ ... }}`", &tokens[start_of_name].location);
+                }
+
+                if last_was_comma && token.token_type == TokenType::Identifier {
+                    extends.push(token.clone());
+                    last_was_comma = false;
+                }
+                if !last_was_comma && token.token_type == TokenType::Comma {
+                    last_was_comma = true;
+                } 
+            }
+            extends
+        } else {
+            vec![]
+        };
+
+        Self::inc(&mut i);
+        let body = self.get_code_block(tokens, &mut i, false);
+        
+        for thing in body.body.clone() {
+            if let NodeType::FunctionDeclaration(_) = thing.node.as_ref() {
+            }
+            else if let NodeType::VariableDeclaration(ref v) = thing.node.as_ref() {
+                if v.var_value.is_some() {
+                    self.error(line!(), "Error while parsing {} body", "Expected only a function or variable declaration for trait: `trait NAME {{ TYPE: NAME = VALUEl; TYPE: NAME() {{ ... }} }}`", &thing.token.location);
+                    return ASTNode::err();
+                }
+            } 
+            else {
+                self.error(line!(), "Error while parsing {} body", "Expected only a function or variable declaration for trait: `trait NAME {{ TYPE: NAME = VALUEl; TYPE: NAME() {{ ... }} }}`", &thing.token.location);
+                return ASTNode::err();
+            }
+        }
+
+        return ASTNode {
+            node: Box::new(NodeType::TraitDeclaration(TraitDeclaration {
+                access_modifier,
+                name,
+                extends,
+                body
+            })),
+            token: trait_keyword.clone(),
+        };
     }
 
     fn get_class_or_struct(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
@@ -282,7 +381,7 @@ impl Parser {
         }
     }
 
-    fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, is_in_for: bool) -> ASTNode { // `tokens` fpr tokens to parse, `i` for current token index only used if `is_in_for` is true, `is_in_for` whether or not we are in a for loop
+    fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, is_in_for: bool, assigning: bool) -> ASTNode { // `tokens` fpr tokens to parse, `i` for current token index only used if `is_in_for` is true, `is_in_for` whether or not we are in a for loop
         let starting_index: usize;
         if is_in_for {
             let position_of_for: i32 = tokens.iter().position(|t| t.token_type == TokenType::For).map_or(-1, |index| index as i32);
@@ -301,16 +400,22 @@ impl Parser {
             starting_index = 0;
         }
 
-        let assign_index = tokens.iter().position(|t| t.token_type == TokenType::Assign).map_or(-1, |index| index as i32);
+        let assign_index = tokens.iter().position(|t| t.token_type == TokenType::Assign).map_or(if assigning { -1 } else { tokens.len() as i32 }, |index| index as i32);
 
         if assign_index != -1 {
             let lhs = tokens[starting_index..assign_index as usize].to_vec();
-            let mut rhs = tokens[assign_index as usize + 1..].to_vec();
+            
+            let mut rhs;
+            if assigning {
+                rhs = tokens[assign_index as usize + 1..].to_vec();
+            } else {
+                rhs = vec![];
+            }
 
             if lhs.len() == 1 && lhs[0].token_type == TokenType::Underscore {
                 // is an underscore assignment,
                 *tokens = rhs;
-            } else if lhs.len() >= 2 && lhs[lhs.len() - 2].token_type == TokenType::Colon {
+            } else if (lhs.len() >= 2 && lhs[lhs.len() - 2].token_type == TokenType::Colon && assigning) || !assigning {
                 // declaring variable
                 let var_name: Box<Token> = lhs[lhs.len() - 1].clone();
 
@@ -336,11 +441,17 @@ impl Parser {
                 let mut type_tokens = lhs[accessing_end_index..lhs.len() - 2].to_vec();
                 let var_type: Box<ASTNode> = self.get_type_idententifier(&mut type_tokens, &mut 0, false);
 
-                let var_value = if is_in_for {
-                    self.get_expression(tokens, i, Self::PARSING_FOR_FOR_LOOP_STATEMENT)
+                let var_value;
+                if assigning {
+                    let var = if is_in_for {
+                        self.get_expression(tokens, i, Self::PARSING_FOR_FOR_LOOP_STATEMENT)
+                    } else {
+                        self.get_entire_expression(&mut rhs)
+                    };
+                    var_value = Some(var);
                 } else {
-                    self.get_entire_expression(&mut rhs)
-                };
+                    var_value = None;
+                }
 
                 let var_decl = VariableDeclaration {
                     access_modifier,
@@ -1340,7 +1451,7 @@ impl Parser {
                     // parse the variable
                     Self::inc(i); // is on `=`
                     Self::inc(i); // is on first token of expression
-                    let variable = self.declaring_variable(tokens, i, is_in_for);
+                    let variable = self.declaring_variable(tokens, i, is_in_for, true);
                     if variable != ASTNode::err() {
                         if expr_stack.len() > 1 {
                             self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
@@ -1358,6 +1469,27 @@ impl Parser {
                         self.__curent_parsing_line += 1;
                         *tokens = self.lines[self.__curent_parsing_line].clone();
                         *i = Parser::SET_I_TO_ZERO;
+                    }
+                    break;
+                } else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(*i + 1).is_none() {
+                    // it's a variable declaration with no assignment
+                    
+                    // remove any errors that occured before the variable declaration.
+                    self.output.messages.retain(|x| x.location.line != token.location.line);
+
+                    // parse the variable
+                    Self::inc(i); // is on `=`
+                    Self::inc(i); // is on first token of expression
+                    let variable = self.declaring_variable(tokens, i, false, false);
+                    if variable != ASTNode::err() {
+                        if expr_stack.len() > 1 {
+                            self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
+                        }
+                        expr_stack.clear();
+                        op_stack.clear();
+                        expr_stack.push(Box::new(variable));
+                    } else {
+                        self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression", &token.location);
                     }
                     break;
                 } else {
@@ -2721,7 +2853,10 @@ impl Parser {
 
             // next is the name
             Self::inc(i);
-            let name = tokens[*i].clone();
+            let name = tokens.get(*i).cloned().unwrap_or_else(|| {
+                self.error(line!(), "Error parsing defined node parameters", "Expected next token to be name: `TYPE: NAME`", &error_token.location);
+                Box::new(Token::new_empty())
+            }).clone();
             Self::inc(i);
 
             // check if next token is `=`, if so skip it and get the value
@@ -2772,9 +2907,13 @@ impl Parser {
             NodeType::VariableDeclaration(ref value) => {
                 let var_type = Self::node_expr_to_string(&value.var_type, tab_level);
                 let var_name = value.var_name.value.clone();
-                let var_value = Self::node_expr_to_string(&value.var_value, tab_level);
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
-                format!("{}{}: {} = {}", access_modifiers, var_type, var_name, var_value)
+                if let Some(v) = &value.var_value {
+                    let var_value = Self::node_expr_to_string(v, tab_level);
+                    format!("{}{}: {} = {}", access_modifiers, var_type, var_name, var_value)
+                } else {
+                    format!("{}{}: {}", access_modifiers, var_type, var_name)
+                }
             }
             NodeType::TypeIdentifier(ref value) => {
                 let mut array = "".to_string();
@@ -3197,6 +3336,24 @@ impl Parser {
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
 
                 format!("{}struct {}{} {} {}", access_modifiers, name, generics, extends, body)
+            }
+            NodeType::TraitDeclaration(ref value) => {
+                let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
+                let name = value.name.value.clone();
+                let mut extends = "".to_string();
+                if value.extends.len() > 0 {
+                    extends += "-> ";
+                    extends += &value.extends.iter().map(|x| x.value.clone()).collect::<Vec<String>>().join(", ");
+                }
+                let mut body = "".to_string();
+                tab_level += 1;
+                for param in value.body.body.iter() {
+                    body += format!("{}{};\n", "    ".repeat(tab_level), Self::node_expr_to_string(param, tab_level)).as_str();
+                }
+                tab_level -= 1;
+                body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
+
+                format!("{}struct {} {} {}", access_modifiers, name, extends, body)
             }
             _ => {
                 node.token.value.clone()

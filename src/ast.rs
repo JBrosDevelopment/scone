@@ -166,7 +166,7 @@ pub struct VariableDeclaration {
     pub access_modifier: Vec<AccessModifier>,
     pub var_type: Box<ASTNode>,
     pub var_name: Box<Token>,
-    pub var_value: Box<ASTNode>,
+    pub var_value: Option<Box<ASTNode>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -200,7 +200,7 @@ pub struct StructDeclaration {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct TraitDeclaration {
     pub name: Box<Token>,
-    pub type_parameters: Option<AnonymousTypeParameters>,
+    pub extends: Vec<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Vec<AccessModifier>,
 }
