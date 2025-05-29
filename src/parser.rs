@@ -12,12 +12,12 @@ use crate::{ast::*, error_handling::{ErrorHandling, DEBUGGING}};
 #[allow(unused_imports)]
 use crate::debug;
 
-pub fn parse(tokens: Vec<Token>, file: &String, code: &String) -> Vec<ASTNode> {
+pub fn parse(tokens: Vec<Token>, file: &String, code: &String) -> (Vec<ASTNode>, ErrorHandling) {
     let mut parser = Parser::new(Some(file.clone()), code.clone(), tokens);
     parser.generate_ast();
     
     parser.output.print_messages();
-    parser.ast
+    (parser.ast, parser.output)
 }
 
 #[derive(Debug, Clone)]
@@ -211,6 +211,8 @@ impl Parser {
                         TokenType::Const => access_modifier.push(AccessModifier::Const),
                         TokenType::Extern => access_modifier.push(AccessModifier::Extern),
                         TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
+                        TokenType::Safe => access_modifier.push(AccessModifier::Safe),
+                        TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
                         _ => break
                     }
                     accessing_end_index += 1;
@@ -263,6 +265,8 @@ impl Parser {
                 TokenType::Const => access_modifier.push(AccessModifier::Const),
                 TokenType::Extern => access_modifier.push(AccessModifier::Extern),
                 TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
+                TokenType::Safe => access_modifier.push(AccessModifier::Safe),
+                TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
                 _ => break
             }
             start_of_type += 1;
@@ -318,6 +322,81 @@ impl Parser {
             token: name.clone(),
             node: Box::new(NodeType::FunctionDeclaration(function)),
         };
+    }
+
+    fn get_enum(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ASTNode { 
+        let node_token = tokens[*i].clone();
+
+        let mut access_modifier: Vec<AccessModifier> = vec![];
+        for token in tokens.iter() {
+            match token.token_type {
+                TokenType::Pub => access_modifier.push(AccessModifier::Public),
+                TokenType::Priv => access_modifier.push(AccessModifier::Private),
+                TokenType::Override => access_modifier.push(AccessModifier::Override),
+                TokenType::Virtual => access_modifier.push(AccessModifier::Virtual),
+                TokenType::Static => access_modifier.push(AccessModifier::Static),
+                TokenType::Const => access_modifier.push(AccessModifier::Const),
+                TokenType::Extern => access_modifier.push(AccessModifier::Extern),
+                TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
+                TokenType::Safe => access_modifier.push(AccessModifier::Safe),
+                TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
+                _ => break
+            }
+        }
+
+        let name = tokens.get(*i + 1).cloned().unwrap_or_else(|| {
+            self.error(line!(), "Expected enum name", "Parser error, expected enum name: `enum NAME { ... }`", &tokens[*i].location);
+            Box::new(Token::new_empty())
+        }).clone();
+
+        Self::inc(i);
+        Self::inc(i);
+        if !tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBrace) {
+            self.error(line!(), "Error parsing enum, Expected `{`", "Parser error, expected `{` in enum declaration: `enum NAME { ... }`", &node_token.location);
+            return ASTNode::err();
+        }
+        
+        self.__curent_parsing_line += 1;
+        if self.__curent_parsing_line >= self.lines.len() {
+            self.error(line!(), "Error parsing enum, Expected closing delimeter", "Parser error, expected closing `}` in enum declaration but found end of file: `enum NAME { ... }`", &node_token.location);
+            return ASTNode::err();
+        }
+        *tokens = self.lines[self.__curent_parsing_line].clone(); 
+        *i = 0;
+
+        let mut body: Vec<(Box<Token>, Option<Box<ASTNode>>)> = vec![];
+        
+        let mut expessions = self.get_node_parameters(tokens, i, Self::PARSING_FOR_ENUM);
+        if expessions.last().is_some_and(|t| **t == ASTNode::err()) {
+            expessions.pop();
+        }
+
+        for expession in expessions {
+            if let NodeType::Identifier(ref name) = *expession.node {
+                body.push((name.clone(), None));
+            } else if let NodeType::Operator(ref value) = *expession.node {
+                if value.operator.token_type == TokenType::Assign {
+                    if let NodeType::Identifier(ref name) = *value.left.node {
+                        body.push((name.clone(), Some(value.right.clone())));
+                    } else {
+                        self.error(line!(), "Error parsing enum, Expected identifier", format!("Expected identifier in enum declaration but found `{}`: `enum NAME {{ ... }}`", value.left.token.value).as_str(), &value.left.token.location);
+                    }
+                } else {
+                    self.error(line!(), "Error parsing enum, Expected `=`", format!("Expected `=` operator in enum declaration but found `{}`: `enum NAME {{ THING = 0, ... }}`", value.operator.value).as_str(), &value.operator.location);
+                }
+            } else {
+                self.error(line!(), "Error parsing enum, invalid syntax", "Expected identifier with or without assigned valie in enum declaration: `enum NAME { THING1, THING2 = 1, ... }", &node_token.location);
+            }
+        }
+
+        ASTNode { 
+            token: node_token, 
+            node:  Box::new(NodeType::EnumDeclaration(EnumDeclaration {
+                access_modifier,
+                name,
+                body 
+            }))
+        }
     }
 
     fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, BodyRegion) {
@@ -1040,6 +1119,8 @@ impl Parser {
     const PARSING_FOR_SHABANG_UNTIL: [TokenType; 1] = [TokenType::RightArrow];
     const PARSING_FOR_TYPE_CONSTRAINT: u8 = 12;
     const PARSING_FOR_TYPE_CONSTRAINT_UNTIL: [TokenType; 2] = [TokenType::Comma, TokenType::GreaterThan];
+    const PARSING_FOR_ENUM: u8 = 13;
+    const PARSING_FOR_ENUM_UNTIL: [TokenType; 2] = [TokenType::Comma, TokenType::RBrace];
 
     fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Box<ASTNode> {
         let mut expr_stack: Vec<Box<ASTNode>> = Vec::new();
@@ -1089,6 +1170,8 @@ impl Parser {
                     break;
                 } else if Self::PARSING_FOR_TYPE_CONSTRAINT == until && Self::PARSING_FOR_TYPE_CONSTRAINT_UNTIL.iter().any(|t| t == &token.token_type) {
                     Self::dec(i);
+                    break;
+                } else if Self::PARSING_FOR_ENUM == until && Self::PARSING_FOR_ENUM_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
                 }
             }
@@ -1247,7 +1330,7 @@ impl Parser {
                 let mut handle_as_operator = true;
 
                 // check if part of assignment
-                if !matches!(until, Self::PARSING_FOR_STATEMENT | Self::PARSING_FOR_OBJECT_INSTANTIATION) {
+                if !matches!(until, Self::PARSING_FOR_STATEMENT | Self::PARSING_FOR_OBJECT_INSTANTIATION | Self::PARSING_FOR_ENUM) {
                     if token.token_type == TokenType::Assign {
                         let mut copy_op_stack: Vec<Box<Token>> = op_stack.clone();
                         let mut copy_expr_stack = expr_stack.clone();
@@ -1599,6 +1682,8 @@ impl Parser {
                 expr_stack.push(Box::new(self.parse_for(tokens)));
             } else if token.token_type == TokenType::Match {
                 expr_stack.push(Box::new(self.parse_match(tokens, i)));
+            }  else if token.token_type == TokenType::Enum {
+                expr_stack.push(Box::new(self.get_enum(tokens, i)));
             } else if token.token_type == TokenType::Else {
                 self.error(line!(), "Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
                 return Box::new(ASTNode::err());
@@ -1847,9 +1932,9 @@ impl Parser {
             Self::PARSING_FOR_FUNCTION => TokenType::RParen,
             Self::PARSING_FOR_ARRAY => TokenType::RBracket,
             Self::PARSING_FOR_STATEMENT => TokenType::LBrace,
-            Self::PARSING_FOR_OBJECT_INSTANTIATION | Self::PARSING_FOR_CODE_BLOCK => TokenType::RBrace,
+            Self::PARSING_FOR_OBJECT_INSTANTIATION | Self::PARSING_FOR_CODE_BLOCK | Self::PARSING_FOR_ENUM => TokenType::RBrace,
             _  => { 
-                self.error(line!(), "INTERNAL ERROR", "Internal parsing error, caused when invalid argument was passed while trying to get node parameters in `Parser::get_node_parameters`. Expected a valid `until` argument. Try using `PARSING_FOR_FUNCTION`, `PARSING_FOR_ARRAY`, `PARSING_FOR_STATEMENT`, `PARSING_FOR_CODE_BLOCK`, or `PARSING_FOR_OBJECT_INSTANTIATION`", &tokens[*i].location);
+                self.error(line!(), "INTERNAL ERROR", "Internal parsing error, caused when invalid argument was passed while trying to get node parameters in `Parser::get_node_parameters`. Expected a valid `until` argument. Try using `PARSING_FOR_FUNCTION`, `PARSING_FOR_ARRAY`, `PARSING_FOR_STATEMENT`, `PARSING_FOR_CODE_BLOCK`, or `PARSING_FOR_ENUM`, or `PARSING_FOR_OBJECT_INSTANTIATION`", &tokens[*i].location);
                 return vec![];
             }
         };
@@ -1915,7 +2000,7 @@ impl Parser {
                 
                 if *i == Parser::SET_I_TO_ZERO {
                     *i = 0;
-                } else if until != Self::PARSING_FOR_STATEMENT && *i != 0 {
+                } else if until != Self::PARSING_FOR_STATEMENT && until != Self::PARSING_FOR_ENUM && *i != 0 {
                     Self::inc(i);
                 }
             }
@@ -2916,6 +3001,21 @@ impl Parser {
                 let name = value.name.value.clone();
                 format!("typedef {}: {}", expression, name)
             }
+            NodeType::EnumDeclaration(ref value) => {
+                let name = value.name.value.clone();
+                let mut body = "".to_string();
+                tab_level += 1;
+                for param in value.body.iter() {
+                    if param.1.is_none() {
+                        body += format!("{}{},\n", "    ".repeat(tab_level), param.0.value.clone()).as_str();
+                    } else {
+                        body += format!("{}{} = {},\n", "    ".repeat(tab_level), param.0.value.clone(), Self::node_expr_to_string(param.1.as_ref().unwrap(), tab_level)).as_str();
+                    }
+                }
+                tab_level -= 1;
+                body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
+                format!("enum {}: {}", name, body)
+            }
             _ => {
                 node.token.value.clone()
             }
@@ -2939,8 +3039,11 @@ impl Parser {
                 else if number.ends_with("i64") { return Ok(ConstantType::I64) }
                 else if number.ends_with("u128") { return Ok(ConstantType::U128) }
                 else if number.ends_with("i128") { return Ok(ConstantType::I128) }
-                else if number.ends_with("f32") { return Ok(ConstantType::F32) }
                 else if number.ends_with("f64") { return Ok(ConstantType::F64) }
+                else if number.ends_with("f32") && !number.contains("0x") { return Ok(ConstantType::F32) }
+                else if number.contains("0x") { return Ok(ConstantType::I32) }
+                else if number.contains("0b") { return Ok(ConstantType::I32) }
+                else if number.contains("e") { return Ok(ConstantType::F64) }
                 else if let Ok(_) = number.parse::<u8>() { return Ok(ConstantType::U8) }
                 else if let Ok(_) = number.parse::<i8>() { return Ok(ConstantType::I8)}
                 else if let Ok(_) = number.parse::<u16>() { return Ok(ConstantType::U16) }

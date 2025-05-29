@@ -79,7 +79,8 @@ pub enum ConstantType {
     Bool,
     Array(Box<ConstantType>),
     Range(Box<ConstantType>, Box<ConstantType>),
-    Object
+    Object,
+    None
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -183,7 +184,7 @@ pub struct ClassDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: BodyRegion,
-    pub access_modifier: Option<Vec<AccessModifier>>,
+    pub access_modifier: Vec<AccessModifier>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -191,7 +192,7 @@ pub struct StructDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: BodyRegion,
-    pub access_modifier: Option<Vec<AccessModifier>>,
+    pub access_modifier: Vec<AccessModifier>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -199,14 +200,14 @@ pub struct TraitDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: BodyRegion,
-    pub access_modifier: Option<Vec<AccessModifier>>,
+    pub access_modifier: Vec<AccessModifier>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct EnumDeclaration {
     pub name: Box<Token>,
-    pub body: BodyRegion,
-    pub access_modifier: Option<Vec<AccessModifier>>,
+    pub access_modifier: Vec<AccessModifier>,
+    pub body: Vec<(Box<Token>, Option<Box<ASTNode>>)>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

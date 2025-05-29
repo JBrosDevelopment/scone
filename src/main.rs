@@ -8,13 +8,18 @@ fn main() {
     let code = std::fs::read_to_string(&path).unwrap();
     
     // lexer
-    let tokens = lexer::lex(&code, &path);
+    let (tokens, output) = lexer::lex(&code, &path);
     
     let json = serde_json::to_string_pretty(&tokens).unwrap();
     std::fs::write("src/testing/lexer.out.json", json).unwrap();
 
-    // parser    
-    let ast = parser::parse(tokens, &path, &code);
+    if output.has_errors() {
+        error_handling::ErrorHandling::print_unable_to_continue_message();
+        return;
+    }
+
+    // parser
+    let (ast, _output) = parser::parse(tokens, &path, &code);
 
     let fmt_json = serde_json::to_string_pretty(&ast).unwrap();
     std::fs::write("src/testing/parser.out.json", fmt_json).unwrap();

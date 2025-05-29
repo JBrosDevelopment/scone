@@ -1,12 +1,12 @@
 use serde::Serialize;
 use crate::error_handling::ErrorHandling;
 
-pub fn lex(code: &String, file: &String) -> Vec<Token> {
-    let mut lexer = Lexer::new(code, file);
+pub fn lex(code: &String, path: &String) -> (Vec<Token>, ErrorHandling) {
+    let mut lexer = Lexer::new(code, path);
     let tokens = lexer.lex();
 
     lexer.output.print_messages();
-    tokens
+    (tokens, lexer.output)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -215,9 +215,9 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(code: &String, file: &String) -> Lexer {
+    pub fn new(code: &String, path: &String) -> Lexer {
         Lexer {
-            output: ErrorHandling::new(Some(file.clone()), code.clone())
+            output: ErrorHandling::new(Some(path.clone()), code.clone())
         }
     }
     pub fn error(&mut self, message: &str, help: &str, location: &Location) {
@@ -327,8 +327,15 @@ impl Lexer {
                 }
         
                 let mut one_dot = false;
+                let mut hex = false;
+                let mut binary = false;
+                let mut exponent = false;
                 while i < chars.len() {
                     if char::is_numeric(chars[i]) {
+                        if binary && chars[i] != '0' && chars[i] != '1' {
+                            self.error("invalid binary number", "Binary prefix `0b` must be followed by only `0` or `1`", &current_location);
+                            break;
+                        }
                         number.push(chars[i]);
                         i += 1;
                     } else if chars[i] == '.' && one_dot == false {
@@ -341,7 +348,7 @@ impl Lexer {
                     } else if chars[i] == '_' {
                         number.push('_');
                         i += 1;
-                    } else if chars[i] == 'f' || chars[i] == 'u' || chars[i] == 'i' {
+                    } else if (chars[i] == 'f' && !hex) || chars[i] == 'u' || chars[i] == 'i' {
                         let type_c = chars[i];
                         let mut j = i + 1;
                         let mut adds = String::new();
@@ -355,6 +362,30 @@ impl Lexer {
                             i = j;
                             one_dot = true;
                         } else {
+                            break;
+                        }
+                    } else if chars[i] == 'x' && hex == false {
+                        hex = true;
+                        number.push(chars[i]);
+                        i += 1;
+                    } else if chars[i] == 'b' && binary == false {
+                        binary = true;
+                        number.push(chars[i]);
+                        i += 1;
+                    } else if chars[i] == 'e' && exponent == false && hex == false {
+                        exponent = true;
+                        number.push(chars[i]);
+                        if chars.get(i + 1).is_some_and(|x| x == &'+' || x == &'-') {
+                            number.push(chars[i + 1]);
+                            i += 1;
+                        }
+                        i += 1;
+                    } else if chars[i].is_alphabetic() && hex {
+                        if chars[i] == 'a' || chars[i] == 'b' || chars[i] == 'c' || chars[i] == 'd' || chars[i] == 'e' || chars[i] == 'f' {
+                            number.push(chars[i]);
+                            i += 1;
+                        } else {
+                            self.error("invalid hex number", "Hex prefix `0x` must be followed by only '0' to '9' and `a` to `f`", &current_location);
                             break;
                         }
                     } else {

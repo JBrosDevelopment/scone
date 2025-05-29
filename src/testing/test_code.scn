@@ -1,7 +1,19 @@
-typedef (u8, u8, u8): Color;
-typedef f32[4][4]: Mat4x4;
-typedef f32: Meter;
-
+enum Directories {
+    Root = 0b1,
+    Home = 0b01,
+    Documents = 0b001,
+    Downloads = 0b0001,
+    Pictures = 0b00001,
+    Music = 0b000001,
+    Videos = 0b0000001,
+    None,
+}
+enum Answers {
+    Yes,
+    No,
+    Maybe,
+    Unknown
+}
 
 ;// TODO:
 // enum Files { File1 = 0, File2 }

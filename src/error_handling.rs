@@ -3,24 +3,24 @@ use crate::lexer::Location;
 #[derive(Debug, Clone)]
 pub struct ErrorHandling {
     pub messages: Vec<Message>,
-    pub file: Option<String>,
+    pub path: Option<String>,
     pub full_code: String,
 } 
 impl ErrorHandling {
-    pub fn new(file: Option<String>, full_code: String) -> ErrorHandling { ErrorHandling { messages: Vec::new(), file, full_code } }
+    pub fn new(path: Option<String>, full_code: String) -> ErrorHandling { ErrorHandling { messages: Vec::new(), path, full_code } }
 
     pub fn error(&mut self, title: &str, message: &str, help: &str, location: &Location) {
-        let message = Self::output(title, MessageType::Error, message, help, location, &self.full_code, &self.file);
+        let message = Self::output(title, MessageType::Error, message, help, location, &self.full_code, &self.path);
         self.messages.push(message);
     }
 
     pub fn warning(&mut self, title: &str, message: &str, help: &str, location: &Location) {
-        let message = Self::output(title, MessageType::Warning, message, help, location, &self.full_code, &self.file);
+        let message = Self::output(title, MessageType::Warning, message, help, location, &self.full_code, &self.path);
         self.messages.push(message);
     }
 
     pub fn message(&mut self, title: &str, message: &str, help: &str, location: &Location) {
-        let message = Self::output(title, MessageType::Message, message, help, location, &self.full_code, &self.file);
+        let message = Self::output(title, MessageType::Message, message, help, location, &self.full_code, &self.path);
         self.messages.push(message);
     }
 
@@ -90,11 +90,7 @@ impl ErrorHandling {
     pub fn errors(&self) -> Vec<&Message> { 
         self.messages.iter().filter(|m| m.message_type == MessageType::Error).collect()
     }
-    
-    pub fn colored_text(r: i32, g: i32, b: i32, text: &str, bold: bool) -> String {
-        let bold_code = if bold { "\x1B[1m" } else { "" };
-        format!("{}{}\x1B[38;2;{};{};{}m{}\x1B[0m", bold_code, "\x1B[38;2", r, g, b, text)
-    }
+
     pub fn print_messages(&self) {
         if self.messages.len() == 0 {
             return;
@@ -109,6 +105,16 @@ impl ErrorHandling {
         for error in self.errors().iter() {
             println!("{}", error.output);
         }
+    }
+
+    
+    pub fn colored_text(r: i32, g: i32, b: i32, text: &str, bold: bool) -> String {
+        let bold_code = if bold { "\x1B[1m" } else { "" };
+        format!("{}{}\x1B[38;2;{};{};{}m{}\x1B[0m", bold_code, "\x1B[38;2", r, g, b, text)
+    }
+    
+    pub fn print_unable_to_continue_message() {
+        println!("{}{} due to previous errors", Self::colored_text(200, 50, 50, "error: ", true), Self::colored_text(255, 255, 255, "Unable to continue", true))
     }
 }
 
