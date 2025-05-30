@@ -12,8 +12,8 @@ use crate::{ast::*, error_handling::{ErrorHandling, DEBUGGING}};
 #[allow(unused_imports)]
 use crate::debug;
 
-pub fn parse(tokens: Vec<Token>, file: &String, code: &String) -> (Vec<ASTNode>, ErrorHandling) {
-    let mut parser = Parser::new(Some(file.clone()), code.clone(), tokens);
+pub fn parse(tokens: Vec<Token>, code: &String, path: Option<String>) -> (Vec<ASTNode>, ErrorHandling) {
+    let mut parser = Parser::new(tokens, code.clone(), path.clone());
     parser.generate_ast();
     
     parser.output.print_messages();
@@ -29,9 +29,9 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(file: Option<String>, full_code: String, tokens: Vec<Token>) -> Parser {
+    pub fn new(tokens: Vec<Token>, full_code: String, path: Option<String>) -> Parser {
         Parser {
-            output: ErrorHandling::new(file, full_code),
+            output: ErrorHandling::new(path, full_code),
             ast: Vec::new(),
             lines: Self::split_tokens_into_lines(&tokens),
             __curent_parsing_line: 0,
@@ -43,7 +43,7 @@ impl Parser {
 
         // for testing
         for _node in self.ast.iter() {
-            //Self::print_node(node);
+            //Self::print_node(_node);
         }
     }
 
@@ -95,11 +95,15 @@ impl Parser {
         let mut ast: Vec<ASTNode> = Vec::new();
 
         while self.__curent_parsing_line < self.lines.len() {
+            println!("> {}", self.lines[self.__curent_parsing_line].iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "));
             let mut tokens = self.lines[self.__curent_parsing_line].clone();
             let node = self.get_ast_node(&mut tokens);
             
-            println!("{}", Self::node_expr_to_string(&node, 0));
-            ast.push(node);
+            println!("  {}", Self::node_expr_to_string(&node, 0));
+
+            if node != ASTNode::err() {
+                ast.push(node);
+            }
             
             self.__curent_parsing_line += 1;
         }
@@ -1870,15 +1874,15 @@ impl Parser {
                 break;
             } else if token.token_type == TokenType::QuestionMark {
                 // ternary operator a ? b : c
-
-                let left_operand = expr_stack.pop().unwrap_or_else(|| {
+                
+                let left_operand = self.expression_stacks_to_ast_node(&mut op_stack, &mut expr_stack).unwrap_or_else(|| {
                     self.error(line!(), "Ternary operator has no left operand", "Ternary operator must have a left operand: `a ? b : c`", &token.location);
                     return Box::new(ASTNode::err());
                 });
                 
                 let ternary = self.get_ternary(tokens, i, left_operand.clone(), until == Self::PARSING_FOR_STATEMENT);
 
-                if *i > 0 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket || t.token_type == TokenType::RBrace) {
+                if *i > 0 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket || t.token_type == TokenType::RBrace) && !tokens.get(*i).map_or(false, |t| t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket || t.token_type == TokenType::RBrace) {
                     Self::dec(i);
                 }
                 Self::dec(i);

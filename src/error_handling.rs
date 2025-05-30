@@ -28,6 +28,10 @@ impl ErrorHandling {
         self.errors().len() > 0 
     }
 
+    pub fn has_no_errors(&self) -> bool { 
+        self.errors().len() == 0 
+    }
+
     pub fn output(message_title: &str, message_type: MessageType, message: &str, help: &str, location: &Location, code: &String, file: &Option<String>) -> Message {
         let message_color = match message_type {
             MessageType::Error => (200, 50, 50),

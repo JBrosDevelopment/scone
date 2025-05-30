@@ -1,7 +1,7 @@
 use serde::Serialize;
 use crate::error_handling::ErrorHandling;
 
-pub fn lex(code: &String, path: &String) -> (Vec<Token>, ErrorHandling) {
+pub fn lex(code: &String, path: Option<String>) -> (Vec<Token>, ErrorHandling) {
     let mut lexer = Lexer::new(code, path);
     let tokens = lexer.lex();
 
@@ -215,9 +215,9 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(code: &String, path: &String) -> Lexer {
+    pub fn new(code: &String, path: Option<String>) -> Lexer {
         Lexer {
-            output: ErrorHandling::new(Some(path.clone()), code.clone())
+            output: ErrorHandling::new(path.clone(), code.clone())
         }
     }
     pub fn error(&mut self, message: &str, help: &str, location: &Location) {

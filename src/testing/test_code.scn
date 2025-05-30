@@ -1,60 +1,25 @@
-trait Number -> Default, ToString {
-    Self: MIN;
-    Self: MAX;
-    Self: ZERO;
-
-    Self: default();
-    string: to_string();
-
-    bool: is_integer();
-    bool: is_float();
-    bool: is_positive();
-    bool: is_negative();
-    bool: is_zero();
-    bool: is_even();
-    bool: is_odd();
-    
-    T: to<T is Number>();
-    static Self: from<T is Number>(T: number);
-    
-    Self: add(Self: other);
-    Self: sub(Self: other);
-    Self: mul(Self: other);
-    Self: div(Self: other);
-    Self: mod(Self: other);
-    Self: neg();
-    Self: eq(Self: other);
-    Self: lt(Self: other);
-    Self: gt(Self: other);
-    Self: le(Self: other);
-    Self: ge(Self: other);
-    Self: and(Self: other);
-    Self: or(Self: other);
-    Self: xor(Self: other);
-    Self: not();
-    Self: bit_and(Self: other);
-    Self: bit_or(Self: other);
-    Self: bit_xor(Self: other);
-    Self: bit_not();
-    Self: bit_shift_left(Self: other);
-    Self: bit_shift_right(Self: other);
-    Self: bit_count();
-    Self: byte_count();
-    
-    Self: pow(Self: number);
-    Self: sqrt();
-    Self: abs();
-    Self: floor();
-    Self: ceil();
-    Self: round();
-    Self: round(u32: digits);
-    Self: neg(); 
-    Self: min(Self: other);
-    Self: max(Self: other);
-    Self: clamp(Self: min, Self: max);
-
-}
-
-// i need to update the parser to handle these differently. I also need to handle these in lexer and make it switch it out when it matches
-//#! define PI 3.14;
-//#! define ADD(a, b) a + b;
+a ? (b ? c : d) ? e : f : g;
+a ? b ? c ? d : e : f : g;
+x ? y ? z ? w : v : u : t;
+a ? b ? c : d : e;
+(a ? b : c).method() ? x : y;
+a ? b : c;
+(a ? b : c);
+(a ? b : c) ? d : e;
+(a ? b : c ? d : e);
+a ? b : c ? d : e;
+a + 1 ? b - 1 : c / 1;
+(x * 2) ? (y / 3) : (z - 4);
+a ? b + c : d * e;
+x + y ? a - b : c / d;
+(a ? b : (c ? d : e));
+((a ? b : c) ? d : e);
+a ? (b ? c : d) : e;
+((x + y) ? (a - b) : (c * d));
+(a + (b ? c : d)) ? e : f;
+arr[0] ? map[1] : obj.field;
+func(a, b) ? x.y : z[2];
+(a + b > c ? d - e : f / g) ? h : i;
+(a ? (b + c) : (d - e)) ? f : g;
+(a ? b : c ? d : e) ? (f ? g : h) : i;
+(((a ? b : c) ? d : e) ? f : g);
