@@ -158,7 +158,7 @@ auto: sum = func((x, y) => x + y, (z) => z * 2).a;
 
 bool: valid = (matrix[0][1] == (5, "test").a) && (nested[2][3].b > 0);
 tuple: pair = vec { a = nested::call(array[1][1]).a, b = 10 }.b + 5;
-matrix[0][1] = (tuple[2].a > vec { x = 1 }.x ? nested[3][4].b : 10).c;
+matrix[0][1] = (tuple[2].a > vec { x = 1 }.x ? nested[3][4].b : 10).c; 
 str: result = (5 + (tuple[1].a - 3) * vec { a = 2 }.a).b;
 array[(nested[0][0].b > 5 ? 1 : 0)] = (matrix[1][1] * 2).a - 10;
 nested::func(array[1][2]).b = (vec { x = (10, "test").a }.a * 5).c;
@@ -223,8 +223,6 @@ Matrix4x4 { values = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }.inverse(
 Level::Tile { id = 12, meta = Meta { solid = true, visible = true } }.meta.visible;
 Widget::Button { text = "Click", onClick = handler() }.text.length();
 a{ b = c{ d = e{}.h }.i }.j;
-
-
 
 
 // bracketed
@@ -336,7 +334,7 @@ a{ b = c{ d = e{}.h }.i }.j;
     arr[0] ? map[1] : obj.field;
     func(a, b) ? x.y : z[2];
     (a + b > c ? d - e : f / g) ? h : i;
-    (a ? (b + c) : (d - e)) ? f : g; ////////////////////////////////////////////////////////////////////////////////////////fix
+    (a ? (b + c) : (d - e)) ? f : g; 
     (a ? b : c ? d : e) ? (f ? g : h) : i;
     (((a ? b : c) ? d : e) ? f : g);
     AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
@@ -719,6 +717,8 @@ Box<Token>: try_get_last_token(&Vec<Box<Token>>: tokens) {
     }
     return token.unwrap_or(&Box::new(Token::new_empty())).clone();
 }
+
+this: that() => though;
 
 pub class A<B, C is D> -> E, F, G {
     H: I = J;

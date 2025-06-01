@@ -6,10 +6,11 @@ Its syntax takes inspiration from Rust, C, and Java, aiming to be **familiar**, 
 ### Key Features
 - Clean, familiar syntax (inspired by Rust, C, and Java)
 - Operator overloading
-- Type inference
+- Type inference with `auto`
 - Traits (like `ToString`)
 - Strong typing with explicit type declarations
 - Call tagged `crumb` functions without scoping when creating an instance of a class or struct
+- Advanced features like lambda, default parameters in functions, and more
 
 ## Example Code
 

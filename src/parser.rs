@@ -95,11 +95,10 @@ impl Parser {
         let mut ast: Vec<ASTNode> = Vec::new();
 
         while self.__curent_parsing_line < self.lines.len() {
-            println!("> {}", self.lines[self.__curent_parsing_line].iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "));
             let mut tokens = self.lines[self.__curent_parsing_line].clone();
             let node = self.get_ast_node(&mut tokens);
             
-            println!("  {}", Self::node_expr_to_string(&node, 0));
+            println!("{}", Self::node_expr_to_string(&node, 0));
 
             if node != ASTNode::err() {
                 ast.push(node);
@@ -115,10 +114,11 @@ impl Parser {
         if tokens.len() == 0 {
             return ASTNode::err();
         }
-
+        
+        let mut set_i_to_zero = Parser::SET_I_TO_ZERO;
         match tokens[0].token_type {
             TokenType::For => { // this is so that `for i = 0, i < 10, i += 1` doesn't parse as a variable assignment with the `=`
-                return *self.get_entire_expression(tokens);
+                return *self.get_expression(tokens, &mut set_i_to_zero, Self::NORMAL_PARSING);
             }
             TokenType::Use => {
                 if tokens.len() != 2 {
@@ -146,7 +146,7 @@ impl Parser {
         }
 
         // anything else
-        return *self.get_entire_expression(tokens);
+        return *self.get_expression(tokens, &mut set_i_to_zero, Self::NORMAL_PARSING);
     }
 
     fn get_trait(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
@@ -409,16 +409,13 @@ impl Parser {
         if assign_index != -1 {
             let lhs = tokens[starting_index..assign_index as usize].to_vec();
             
-            let mut rhs;
-            if assigning {
-                rhs = tokens[assign_index as usize + 1..].to_vec();
-            } else {
-                rhs = vec![];
-            }
+            if !is_in_for {
+                *i = assign_index as usize + 1; // skip `=`
+            } 
 
             if lhs.len() == 1 && lhs[0].token_type == TokenType::Underscore {
                 // is an underscore assignment,
-                *tokens = rhs;
+                return *self.get_expression(tokens, i, Self::NORMAL_PARSING);
             } else if (lhs.len() >= 2 && lhs[lhs.len() - 2].token_type == TokenType::Colon && assigning) || !assigning {
                 // declaring variable
                 let var_name: Box<Token> = lhs[lhs.len() - 1].clone();
@@ -450,7 +447,11 @@ impl Parser {
                     let var = if is_in_for {
                         self.get_expression(tokens, i, Self::PARSING_FOR_FOR_LOOP_STATEMENT)
                     } else {
-                        self.get_entire_expression(&mut rhs)
+                        self.get_expression(tokens, i, Self::NORMAL_PARSING)
+                        // let mut j = 0;
+                        // let expression = self.get_expression(&mut rhs, &mut j, Self::NORMAL_PARSING);
+                        // *i += j; 
+                        // expression
                     };
                     var_value = Some(var);
                 } else {
@@ -468,12 +469,8 @@ impl Parser {
                     node: Box::new(NodeType::VariableDeclaration(var_decl)),
                 };
             }
-
-            return *self.get_entire_expression(tokens);
         }
-        else {
-            return ASTNode::err();
-        }
+        return ASTNode::err();
     }
 
     fn declaring_function(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ASTNode {        
@@ -652,7 +649,7 @@ impl Parser {
     }
 
     fn parse_match(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ASTNode {
-        if tokens[0].token_type != TokenType::Match {
+        if tokens[*i].token_type != TokenType::Match {
             self.error(line!(), "Expected `match`", "Parser error, expected `match`", &tokens[0].location);
             return ASTNode::err();
         }
@@ -685,6 +682,13 @@ impl Parser {
                 else if tokens[*i].token_type == TokenType::Comma {
                     // add to stack
                     Self::inc(i);
+
+                    if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::RBrace) {
+                        // ends
+                        done = true;
+                        break;
+                    }
+
                     let case = self.parse_match_case(tokens, i);
                     match_cases.push(case);
                 }
@@ -852,6 +856,7 @@ impl Parser {
 
         let mut else_region: Option<BodyRegion> = None;
         let mut else_if_regions: Option<Vec<Box<ConditionalRegion>>> = None;
+
 
         while tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Else) {
             Self::inc(i);
@@ -1318,11 +1323,6 @@ impl Parser {
         }
     }
 
-    fn get_entire_expression(&mut self, tokens: &mut Vec<Box<Token>>) -> Box<ASTNode> {
-        let mut __ = Parser::SET_I_TO_ZERO;
-        self.get_expression(tokens, &mut __, Self::NORMAL_PARSING)
-    }
-
     const SET_I_TO_ZERO: usize = usize::MAX - u8::MAX as usize; // if `i` is equal to this, set `i` to 0 instead of incrementing
 
     const NORMAL_PARSING: u8 = 0;
@@ -1389,7 +1389,7 @@ impl Parser {
                     break;
                 } else if Self::PARSING_FOR_STATEMENT == until && Self::PARSING_FOR_STATEMENT_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
-                } else if Self::PARSING_FOR_SCOPING == until && matches!(&token.token_type, operator_tokens!() | TokenType::LBrace) {
+                } else if Self::PARSING_FOR_SCOPING == until && matches!(&token.token_type, operator_tokens!() | TokenType::QuestionMark | TokenType::LBrace) {
                     break;
                 } else if Self::PARSING_FOR_FOR_LOOP_STATEMENT == until && Self::PARSING_FOR_FOR_LOOP_STATEMENT_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
@@ -1466,14 +1466,14 @@ impl Parser {
                     } else {
                         self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression", &token.location);
                     }
-                    if !is_in_for {
-                        if self.__curent_parsing_line >= self.lines.len() {
-                            break;
-                        }
-                        self.__curent_parsing_line += 1;
-                        *tokens = self.lines[self.__curent_parsing_line].clone();
-                        *i = Parser::SET_I_TO_ZERO;
-                    }
+                    // if !is_in_for {
+                    //     if self.__curent_parsing_line >= self.lines.len() {
+                    //         break;
+                    //     }
+                    //     self.__curent_parsing_line += 1;
+                    //     *tokens = self.lines[self.__curent_parsing_line].clone();
+                    //     *i = Parser::SET_I_TO_ZERO;
+                    // }
                     break;
                 } else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(*i + 1).is_none() {
                     // it's a variable declaration with no assignment
@@ -1501,6 +1501,14 @@ impl Parser {
                     break;
                 }
             } else if token.token_type.is_constant() {
+                if last_was_ident {
+                    self.error(line!(), "Unexpected constant", "Did not expect constant token after identifier token", &token.location);
+                    return Box::new(ASTNode::err());
+                } else if *i > 0 && tokens.get(*i - 1).is_some_and(|t| t.token_type.is_constant() || matches!(t.token_type, TokenType::Identifier | TokenType::Dot | TokenType::RBracket | TokenType::RParen | TokenType::RBrace)) {
+                    self.error(line!(), "Unexpected constant", "Did not expect constant token here", &token.location);
+                    return Box::new(ASTNode::err());
+                }
+
                 last_was_unary_operator = false;
                 let mut node = Box::new(ASTNode {
                     token: token.clone(),
@@ -1523,6 +1531,13 @@ impl Parser {
                     return Box::new(ASTNode::err());
                 }
             } else if token.token_type == TokenType::Identifier {
+                if last_was_ident {
+                    self.error(line!(), "Unexpected identifier", "Did not expect this identifier token after preceding identifier token", &token.location);
+                    return Box::new(ASTNode::err());
+                } else if *i > 0 && tokens.get(*i - 1).is_some_and(|t| t.token_type.is_constant() || matches!(t.token_type, TokenType::RBracket | TokenType::RParen | TokenType::RBrace)) {
+                    self.error(line!(), "Unexpected identifier", "Did not expect identifier token here", &token.location);
+                    return Box::new(ASTNode::err());
+                }
                 last_was_unary_operator = false;
                 if tokens.get(*i + 1).is_some() && (tokens[*i + 1].token_type == TokenType::DoubleColon || (tokens[*i + 1].token_type == TokenType::LBrace && (until != Self::PARSING_FOR_STATEMENT && until != Self::PARSING_FOR_SCOPING)) || tokens[*i + 1].token_type == TokenType::Dot || tokens[*i + 1].token_type == TokenType::LParen || tokens[*i + 1].token_type == TokenType::LessThan) && !(until != 0 && (until == Self::PARSING_FOR_FUNCTION && Self::PARSING_FOR_FUNCTION_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type) || until == Self::PARSING_FOR_INSIDE_PARENTHESIS && Self::PARSING_FOR_INSIDE_PARENTHESIS_UNTIL.iter().any(|x| x == &tokens[*i + 1].token_type))) {
                     if tokens[*i + 1].token_type == TokenType::LessThan {
@@ -1609,9 +1624,11 @@ impl Parser {
                         if self.__curent_parsing_line >= self.lines.len() {
                             break;
                         }
-                        self.__curent_parsing_line += 1;
-                        *tokens = self.lines[self.__curent_parsing_line].clone();
-                        *i = Parser::SET_I_TO_ZERO;
+                        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                        // self.__curent_parsing_line += 1;
+                        // *tokens = self.lines[self.__curent_parsing_line].clone();
+                        // *i = Parser::SET_I_TO_ZERO;
+                        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                         break;
                     }
                 }
@@ -1619,7 +1636,7 @@ impl Parser {
                 if last_was_ident {
                     let assign_position = tokens.iter().rposition(|t| t.token_type == TokenType::Assign);
                     if let Some(position) = assign_position {
-                        if position > 2 && tokens.get(position - 1).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(position - 2).map_or(false, |t| t.token_type == TokenType::Colon) {
+                        if position > 2 && position > *i && tokens.get(position - 1).map_or(false, |t| t.token_type == TokenType::Identifier) && tokens.get(position - 2).map_or(false, |t| t.token_type == TokenType::Colon) {
                             // part of variable declaration: TYPE: NAME = VALUE
                             *i = position - 2;
                             continue;
@@ -1722,6 +1739,7 @@ impl Parser {
                 }
                 else {
                     self.error(line!(), "Expected identifier before double colon", "Expected identifier before double colon: `IDENT::IDENT`", &token.location);
+                    return Box::new(ASTNode::err());
                 }
                 last_was_ident = false;
             } else if token.token_type == TokenType::Dot {
@@ -1735,6 +1753,7 @@ impl Parser {
                 }
                 else {
                     self.error(line!(), "Expected identifier before dot", "Expected a correct expression before scoping: `expression.member`", &token.location);
+                    return Box::new(ASTNode::err());
                 }
                 last_was_ident = false;
             } else if token.token_type == TokenType::LParen {
@@ -1860,14 +1879,6 @@ impl Parser {
                         token: token.clone(),
                         node: Box::new(NodeType::CodeBlock(code_block)),
                     }));
-                    if tokens.len() >= *i && self.__curent_parsing_line + 1 < self.lines.len() {
-                        if self.lines[self.__curent_parsing_line + 1].get(0).map_or(false, |t| t.token_type.is_operator() || matches!(t.token_type, TokenType::Dot | TokenType::LBrace | TokenType::LBracket | TokenType::LParen | TokenType::RParen | TokenType::RBracket | TokenType::RBrace)) {
-                            self.__curent_parsing_line += 1;
-                            *i = 0;
-                            *tokens = self.lines[self.__curent_parsing_line].clone();
-                            inc_i = false;
-                        }
-                    }
                 }
             } else if token.token_type == TokenType::RBrace {
                 //self.error(line!(), "Missing delimeter", "Expected opening brace `{`", &tokens[*i].location);
@@ -1875,12 +1886,28 @@ impl Parser {
             } else if token.token_type == TokenType::QuestionMark {
                 // ternary operator a ? b : c
                 
-                let left_operand = self.expression_stacks_to_ast_node(&mut op_stack, &mut expr_stack).unwrap_or_else(|| {
+                let mut left_operand = self.expression_stacks_to_ast_node(&mut op_stack, &mut expr_stack).unwrap_or_else(|| {
                     self.error(line!(), "Ternary operator has no left operand", "Ternary operator must have a left operand: `a ? b : c`", &token.location);
                     return Box::new(ASTNode::err());
                 });
+                if until == Self::PARSING_FOR_OBJECT_INSTANTIATION {
+                    let right_half;
+                    if let NodeType::Operator(op) = left_operand.node.as_ref() {
+                        if op.operator.token_type != TokenType::Assign {
+                            self.error(line!(), "Error parsing ternary operator in object instantiation", "This operator has the highest precedence, but expected `=` due to the object instantiation: `A { B = C ? D : E }`", &op.operator.location);
+                            return Box::new(ASTNode::err());
+                        }
+                        op_stack.push(op.operator.clone());
+                        expr_stack.push(op.left.clone());
+                        right_half = op.right.clone();
+                    } else {
+                        self.error(line!(), "Error parsing ternary operator in object instantiation", "Expected operator `=` due to the object instantiation, but didn't even find an operator: `A { B = C ? D : E }`", &token.location);
+                        return Box::new(ASTNode::err());
+                    }
+                    left_operand = right_half;
+                }
                 
-                let ternary = self.get_ternary(tokens, i, left_operand.clone(), until == Self::PARSING_FOR_STATEMENT);
+                let ternary = self.get_ternary(tokens, i, left_operand, until == Self::PARSING_FOR_STATEMENT);
 
                 if *i > 0 && tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket || t.token_type == TokenType::RBrace) && !tokens.get(*i).map_or(false, |t| t.token_type == TokenType::RParen || t.token_type == TokenType::RBracket || t.token_type == TokenType::RBrace) {
                     Self::dec(i);
@@ -2215,7 +2242,7 @@ impl Parser {
         let mut done = false;
         while self.__curent_parsing_line < self.lines.len() {
             while *i < tokens.len() {
-                //debug!(tokens[*i]);
+                //debug!(tokens.get(*i));
                 if tokens[*i].token_type == until_token {
                     // ends
                     Self::inc(i);
@@ -2906,7 +2933,7 @@ impl Parser {
         println!("{}", Self::node_expr_to_string(node, 0));
     }
 
-    fn node_expr_to_string(node: &ASTNode, mut tab_level: usize) -> String {
+    pub fn node_expr_to_string(node: &ASTNode, mut tab_level: usize) -> String {
         match *node.node {
             NodeType::VariableDeclaration(ref value) => {
                 let var_type = Self::node_expr_to_string(&value.var_type, tab_level);
@@ -2973,7 +3000,11 @@ impl Parser {
             NodeType::UnaryOperator(ref value) => {
                 let operand = Self::node_expr_to_string(&value.operand, tab_level);
 
-                format!("({}{})", value.operator.value, operand)
+                if value.operator.value == "-" && operand.starts_with("-") {
+                    format!("({}({}))", value.operator.value, operand)
+                } else {
+                    format!("({}{})", value.operator.value, operand)
+                }
             }
             NodeType::FunctionCall(ref value) => {
                 let mut parameters = "".to_string();
@@ -3020,8 +3051,9 @@ impl Parser {
             NodeType::Constant(ref value) => {
                 if value.constant_type == ConstantType::String {
                     format!("\"{}\"", value.value.value)
-                }
-                else {
+                } else if value.constant_type == ConstantType::Char {
+                    format!("'{}'", value.value.value)
+                } else {
                     value.value.value.clone()
                 }
             }
@@ -3171,7 +3203,7 @@ impl Parser {
                     c += " => ";
                     c += Self::node_expr_to_string(&case.body, tab_level).as_str();
 
-                    cases = format!("{}{}", cases, c);
+                    cases = format!("{}{},", cases, c);
                 }
 
                 tab_level -= 1;
@@ -3200,7 +3232,7 @@ impl Parser {
                     ShabangType::Define(node, value) => format!("#! def {} -> {}", Self::node_expr_to_string(node, tab_level), Self::node_expr_to_string(value, tab_level)),
                     ShabangType::Undef(token) => format!("#! undef {}", token.value),
                     ShabangType::Once(token) => format!("#! once {}", token.value),
-                    ShabangType::DefineFile(token) => format!("#! define file {}", token.value),
+                    ShabangType::DefineFile(token) => format!("#! define {}", token.value),
                     ShabangType::Other(tokens) => format!("#! {}", tokens.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" ")),
                 }
             }
