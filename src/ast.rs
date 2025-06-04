@@ -46,7 +46,7 @@ pub enum NodeType {
     IsCheck(Expression),
     CodeBlock(BodyRegion),
     Discard(Box<Token>),
-    Shabang(ShabangType),
+    Shebang(ShebangType),
     
     // declare
     TypeDefinition(TypeDefinition),
@@ -58,6 +58,52 @@ pub enum NodeType {
     TraitDeclaration(TraitDeclaration),
     EnumDeclaration(EnumDeclaration),
     TypeDef(TypeDefDeclaration),
+}
+
+impl NodeType {
+    pub fn to_string(&self) -> String {
+        match self {
+            NodeType::None => "None".to_string(),
+            NodeType::Constant(_) => "Constant".to_string(),
+            NodeType::Operator(_) => "Operator".to_string(),
+            NodeType::Identifier(_) => "Identifier".to_string(),
+            NodeType::TypeIdentifier(_) => "TypeIdentifier".to_string(),
+            NodeType::AnonymousType(_) => "AnonymousType".to_string(),
+            NodeType::Assignment(_) => "Assignment".to_string(),
+            NodeType::ScopedExpression(_) => "ScopedExpression".to_string(),
+            NodeType::FunctionCall(_) => "FunctionCall".to_string(),
+            NodeType::TupleExpression(_) => "TupleExpression".to_string(),
+            NodeType::ReturnExpression(_) => "ReturnExpression".to_string(),
+            NodeType::TernaryOperator(_) => "TernaryOperator".to_string(),
+            NodeType::UnaryOperator(_) => "UnaryOperator".to_string(),
+            NodeType::ArrayExpression(_) => "ArrayExpression".to_string(),
+            NodeType::Indexer(_) => "Indexer".to_string(),
+            NodeType::ObjectInstantiation(_) => "ObjectInstantiation".to_string(),
+            NodeType::LambdaExpression(_) => "LambdaExpression".to_string(),
+            NodeType::If(_) => "If".to_string(),
+            NodeType::While(_) => "While".to_string(),
+            NodeType::ForEach(_) => "ForEach".to_string(),
+            NodeType::For(_) => "For".to_string(),
+            NodeType::Match(_) => "Match".to_string(),
+            NodeType::Break(_) => "Break".to_string(),
+            NodeType::Continue(_) => "Continue".to_string(),
+            NodeType::Use(_) => "Use".to_string(),
+            NodeType::AsCast(_) => "AsCast".to_string(),
+            NodeType::IsCheck(_) => "IsCheck".to_string(),
+            NodeType::CodeBlock(_) => "CodeBlock".to_string(),
+            NodeType::Discard(_) => "Discard".to_string(),
+            NodeType::Shebang(_) => "Shebang".to_string(),
+            NodeType::TypeDefinition(_) => "TypeDefinition".to_string(),
+            NodeType::TupleDeclaration(_) => "TupleDeclaration".to_string(),
+            NodeType::VariableDeclaration(_) => "VariableDeclaration".to_string(),
+            NodeType::FunctionDeclaration(_) => "FunctionDeclaration".to_string(),
+            NodeType::ClassDeclaration(_) => "ClassDeclaration".to_string(),
+            NodeType::StructDeclaration(_) => "StructDeclaration".to_string(),
+            NodeType::TraitDeclaration(_) => "TraitDeclaration".to_string(),
+            NodeType::EnumDeclaration(_) => "EnumDeclaration".to_string(),
+            NodeType::TypeDef(_) => "TypeDef".to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -167,6 +213,7 @@ pub struct VariableDeclaration {
     pub var_type: Box<ASTNode>,
     pub var_name: Box<Token>,
     pub var_value: Option<Box<ASTNode>>,
+    pub tags: Vec<Vec<Box<Token>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -177,6 +224,7 @@ pub struct FunctionDeclaration {
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: Option<BodyRegion>,
     pub access_modifier: Vec<AccessModifier>,
+    pub tags: Vec<Vec<Box<Token>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -185,7 +233,8 @@ pub struct ClassDeclaration {
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: BodyRegion,
     pub access_modifier: Vec<AccessModifier>,
-    pub extends: Vec<Box<Token>>
+    pub extends: Vec<Box<Token>>,
+    pub tags: Vec<Vec<Box<Token>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -194,7 +243,8 @@ pub struct StructDeclaration {
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: BodyRegion,
     pub access_modifier: Vec<AccessModifier>,
-    pub extends: Vec<Box<Token>>
+    pub extends: Vec<Box<Token>>,
+    pub tags: Vec<Vec<Box<Token>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -203,6 +253,7 @@ pub struct TraitDeclaration {
     pub extends: Vec<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Vec<AccessModifier>,
+    pub tags: Vec<Vec<Box<Token>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -210,6 +261,7 @@ pub struct EnumDeclaration {
     pub name: Box<Token>,
     pub access_modifier: Vec<AccessModifier>,
     pub body: Vec<(Box<Token>, Option<Box<ASTNode>>)>,
+    pub tags: Vec<Vec<Box<Token>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -360,28 +412,38 @@ pub struct TypeDefinition {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub enum ShabangType {
-    Allow(Box<Token>),
-    Warning(Box<Token>),
-    Err(Box<Token>),
-    Deprecated,
-    Crumb,
-    If(Box<ASTNode>),
-    IfNot(Box<ASTNode>),
-    ElseIf(Box<ASTNode>),
-    Else,
-    EndIf,
-    IfNotDefined(Box<Token>),
-    IfDefined(Box<Token>),
-    Define(Box<ASTNode>, Box<ASTNode>),
-    Undef(Box<Token>),
-    Once(Box<Token>),
-    DefineFile(Box<Token>),
-    Other(Vec<Box<Token>>),
-}
-
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct TypeDefDeclaration {
     pub name: Box<Token>,
     pub type_definition: Box<ASTNode>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub enum ShebangType {
+    Allow(ShebangAWEMessage),
+    Warning(ShebangAWEMessage),
+    Err(ShebangAWEMessage),
+    Insert(Box<Token>),
+    C(Vec<Box<Token>>),
+    Pragma(Vec<Box<Token>>),
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub enum ShebangAWEMessage {
+    Unused, 
+    Unreachable,
+    Unimplemented,
+    Deprecated,
+    NoEntrance,
+}
+
+impl ShebangAWEMessage {
+    pub fn to_string(&self) -> String {
+        match self {
+            ShebangAWEMessage::Unused => "unused".to_string(),
+            ShebangAWEMessage::Unreachable => "unreachable".to_string(),
+            ShebangAWEMessage::Unimplemented => "unimplemented".to_string(),
+            ShebangAWEMessage::Deprecated => "deprecated".to_string(),
+            ShebangAWEMessage::NoEntrance => "no_entrance".to_string(),
+        }
+    }
 }

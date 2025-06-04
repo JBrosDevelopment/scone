@@ -1,0 +1,57 @@
+// inline
+#! allow unused 
+#! warn deprecated
+#! error no_entrance
+#! insert "int main() { return 0; }"
+#! C pragma once
+#! pragma once
+
+
+// tags
+#! version 1.0
+struct a{}
+#! version 1.0
+class c{}
+#! deprecated
+enum a {}
+#! deprecated
+trait o {}
+#! deprecated
+f: unc();
+#! deprecated
+v: ar;
+
+#! def ADD(x, y) x + y
+#! def RESULT ADD(VERSION, 2) / 1.5
+
+
+before;
+#! ifndef AAA
+first_one;
+#! elif VERSION >= 0.01 && VERSION <= 5
+second_one;
+#! else
+third_one;
+#! endif
+after;
+
+
+
+#! def H1
+#! def H2 0
+#! def H3() 0
+#! def H4
+
+#! def AAAA H3() + 1
+
+#! ifdef H1
+1;
+#! endif
+
+#! ifndef H2
+2;
+#! elifdef H3
+3;
+#! elifndef H4
+4;
+#! endif

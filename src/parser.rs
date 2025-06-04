@@ -26,15 +26,17 @@ pub struct Parser {
     ast: Vec<ASTNode>,
     lines: Vec<Vec<Box<Token>>>,
     __curent_parsing_line: usize,
+    __current_tags: Vec<Vec<Box<Token>>>
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>, full_code: String, path: Option<String>) -> Parser {
         Parser {
             output: ErrorHandling::new(path, full_code),
-            ast: Vec::new(),
+            ast: vec![],
             lines: Self::split_tokens_into_lines(&tokens),
             __curent_parsing_line: 0,
+            __current_tags: vec![],
         }
     }
 
@@ -92,7 +94,7 @@ impl Parser {
     }
 
     fn generate_from_tokens(&mut self) -> Vec<ASTNode> {
-        let mut ast: Vec<ASTNode> = Vec::new();
+        let mut ast: Vec<ASTNode> = vec![];
 
         while self.__curent_parsing_line < self.lines.len() {
             let mut tokens = self.lines[self.__curent_parsing_line].clone();
@@ -150,7 +152,10 @@ impl Parser {
     }
 
     fn get_trait(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
-        let mut access_modifier: Vec<AccessModifier> = Vec::new();
+        let tags = self.__current_tags.clone();
+        self.__current_tags.clear();
+
+        let mut access_modifier: Vec<AccessModifier> = vec![];
         let mut start_of_name = 0;
         for token in tokens.iter() {
             match token.token_type {
@@ -238,14 +243,18 @@ impl Parser {
                 access_modifier,
                 name,
                 extends,
-                body
+                body,
+                tags
             })),
             token: trait_keyword.clone(),
         };
     }
 
     fn get_class_or_struct(&mut self, tokens: &mut Vec<Box<Token>>) -> ASTNode {
-        let mut access_modifier: Vec<AccessModifier> = Vec::new();
+        let tags = self.__current_tags.clone();
+        self.__current_tags.clear();
+
+        let mut access_modifier: Vec<AccessModifier> = vec![];
         let mut start_of_name = 0;
         for token in tokens.iter() {
             match token.token_type {
@@ -337,7 +346,8 @@ impl Parser {
                     name,
                     type_parameters,
                     extends,
-                    body
+                    body,
+                    tags
                 })),
                 token: class_or_struct_token.clone(),
             };
@@ -348,7 +358,8 @@ impl Parser {
                     name,
                     type_parameters,
                     extends,
-                    body
+                    body,
+                    tags
                 })),
                 token: class_or_struct_token.clone(),
             };
@@ -421,7 +432,7 @@ impl Parser {
                 let var_name: Box<Token> = lhs[lhs.len() - 1].clone();
 
                 let mut accessing_end_index = 0;
-                let mut access_modifier: Vec<AccessModifier> = Vec::new();
+                let mut access_modifier: Vec<AccessModifier> = vec![];
                 for token in lhs.iter() {
                     match token.token_type {
                         TokenType::Pub => access_modifier.push(AccessModifier::Public),
@@ -463,7 +474,10 @@ impl Parser {
                     var_name: var_name.clone(),
                     var_value,
                     var_type,
+                    tags: self.__current_tags.clone(),
                 };
+                self.__current_tags.clear(); 
+
                 return ASTNode {
                     token: var_name.clone(),
                     node: Box::new(NodeType::VariableDeclaration(var_decl)),
@@ -480,7 +494,7 @@ impl Parser {
         Self::inc(i);
         let name: Box<Token> = tokens[*i].clone();
 
-        let mut access_modifier: Vec<AccessModifier> = Vec::new();
+        let mut access_modifier: Vec<AccessModifier> = vec![];
         let mut start_of_type = 0;
         for token in before_colon.iter() {
             match token.token_type {
@@ -544,7 +558,9 @@ impl Parser {
             type_parameters,
             parameters,
             body,
+            tags: self.__current_tags.clone(),
         };
+        self.__current_tags.clear(); 
 
         return ASTNode {
             token: name.clone(),
@@ -617,12 +633,16 @@ impl Parser {
             }
         }
 
+        let tags = self.__current_tags.clone();
+        self.__current_tags.clear();
+
         ASTNode { 
             token: node_token, 
             node:  Box::new(NodeType::EnumDeclaration(EnumDeclaration {
                 access_modifier,
                 name,
-                body 
+                body,
+                tags
             }))
         }
     }
@@ -912,7 +932,13 @@ impl Parser {
 
             if tokens.get(*i + 1).is_some() && tokens[*i + 1].token_type == TokenType::LParen {
                 Self::inc(i);
-                node_parameters = self.get_node_parameters(tokens, i, Self::PARSING_FOR_FUNCTION);
+                if tokens.get(*i + 1).is_some() && tokens[*i + 1].token_type == TokenType::RParen {
+                    Self::inc(i);
+                    Self::inc(i);
+                    node_parameters = vec![];
+                } else {
+                    node_parameters = self.get_node_parameters(tokens, i, Self::PARSING_FOR_FUNCTION);
+                }
             }
             else {
                 self.error(line!(), "Invalid token for funciton call", format!("Expected either `<` or `(` for function call, got: `{}`", next_token.value).as_str(), &tokens[*i].location);
@@ -1346,16 +1372,16 @@ impl Parser {
     const PARSING_FOR_MATCH_CASE: u8 = 10;
     const PARSING_FOR_MATCH_CASE_UNTIL: [TokenType; 1] = [TokenType::DoubleArrow];
     const PARSING_FOR_MATCH_STATEMENT: u8 = Self::PARSING_FOR_OBJECT_INSTANTIATION;
-    const PARSING_FOR_SHABANG: u8 = 11;
-    const PARSING_FOR_SHABANG_UNTIL: [TokenType; 1] = [TokenType::RightArrow];
+    const PARSING_FOR_SHEBANG: u8 = 11;
+    const PARSING_FOR_SHEBANG_UNTIL: [TokenType; 1] = [TokenType::RightArrow];
     const PARSING_FOR_TYPE_CONSTRAINT: u8 = 12;
     const PARSING_FOR_TYPE_CONSTRAINT_UNTIL: [TokenType; 2] = [TokenType::Comma, TokenType::GreaterThan];
     const PARSING_FOR_ENUM: u8 = 13;
     const PARSING_FOR_ENUM_UNTIL: [TokenType; 2] = [TokenType::Comma, TokenType::RBrace];
 
     fn get_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Box<ASTNode> {
-        let mut expr_stack: Vec<Box<ASTNode>> = Vec::new();
-        let mut op_stack: Vec<Box<Token>> = Vec::new();
+        let mut expr_stack: Vec<Box<ASTNode>> = vec![];
+        let mut op_stack: Vec<Box<Token>> = vec![];
         let mut last_was_ident = false;
         let mut last_was_unary_operator: bool = false;
         let mut is_1_expression = until == Self::NORMAL_PARSING;
@@ -1396,7 +1422,7 @@ impl Parser {
                 } else if Self::PARSING_FOR_MATCH_CASE == until && Self::PARSING_FOR_MATCH_CASE_UNTIL.iter().any(|t| t == &token.token_type) {
                     Self::inc(i);
                     break;
-                } else if Self::PARSING_FOR_SHABANG == until && Self::PARSING_FOR_SHABANG_UNTIL.iter().any(|t| t == &token.token_type) {
+                } else if Self::PARSING_FOR_SHEBANG == until && Self::PARSING_FOR_SHEBANG_UNTIL.iter().any(|t| t == &token.token_type) {
                     Self::inc(i);
                     break;
                 } else if Self::PARSING_FOR_TYPE_CONSTRAINT == until && Self::PARSING_FOR_TYPE_CONSTRAINT_UNTIL.iter().any(|t| t == &token.token_type) {
@@ -1966,133 +1992,104 @@ impl Parser {
             } else if token.token_type == TokenType::Else {
                 self.error(line!(), "Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
                 return Box::new(ASTNode::err());
-            } else if token.token_type == TokenType::Shabang {
+            } else if token.token_type == TokenType::Shebang {
                 if *i != 0 {
-                    self.error(line!(), "Unexpected Shabang token", "Shabang must be at the start of a line: `#! ...`", &token.location);
+                    self.error(line!(), "Unexpected Shebang token", "Shebang must be at the start of a line: `#! ...`", &token.location);
                     return Box::new(ASTNode::err());
                 }
                 Self::inc(i);
                 if tokens.len() == 1 {
-                    self.error(line!(), "Unexpected Shabang token", "Shabang doesn't have any content: `#! ...`", &token.location);
+                    self.error(line!(), "Unexpected Shebang token", "Shebang doesn't have any content: `#! ...`", &token.location);
                     return Box::new(ASTNode::err());
                 }
-                match tokens[1].value.to_lowercase().as_str() {
-                    "crumb" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Crumb))
-                        });
-                    }
-                    "deprecated" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Deprecated))
-                        });
-                    }
-                    "else" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Else)),
-                        });
-                    }
-                    "endif" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::EndIf)),
-                        });
-                    }
-                    _ => {
-                        if tokens.len() == 2 {
-                            return Box::new(ASTNode {
-                                token: token.clone(),
-                                node: Box::new(NodeType::Shabang(ShabangType::Other(tokens.iter().skip(1).map(|t| t.clone()).collect()))),
-                            });
-                        } 
-                    }
+                
+                if !tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Identifier) {
+                    self.error(line!(), "Unexpected Shebang token", "Shebang doesn't have correct content, expected identifier token after shebang: `#! ...`", &token.location);
+                    return Box::new(ASTNode::err());    
                 }
                 
-                match tokens[1].value.to_lowercase().as_str() {
-                    "allow" => {
+                match tokens.get(*i).map_or("", |t| t.value.as_str()) {
+                    "allow"| "warn" | "warning" | "err" | "error" => {
+                        let token = tokens[*i].clone();
+                        Self::inc(i);
+                        if tokens.get(*i).is_some_and(|t| t.token_type != TokenType::Identifier) {
+                            self.error(line!(), "Unexpected Shebang token", "Shebang `#! allow` must have an identifier after it: `#! allow IDENTIFIER`", &token.location);
+                            return Box::new(ASTNode::err());
+                        }
+                        let identifier = tokens[*i].clone();
+                        let awe_message = match identifier.value.as_str() {
+                            "unused" => ShebangAWEMessage::Unused,
+                            "unreachable" => ShebangAWEMessage::Unreachable,
+                            "unimplemented" => ShebangAWEMessage::Unimplemented,
+                            "deprecated" => ShebangAWEMessage::Deprecated,
+                            "no_entrance" => ShebangAWEMessage::NoEntrance,
+                            _ => {
+                                let messages = ["unused", "unreachable", "unimplemented", "deprecated", "no_entrance"];
+                                self.error(line!(), "Unexpected Shebang token", format!("Shebang `#! {}` has invalid message: `{:?}`", token.value, messages).as_str(), &tokens[*i].location);
+                                return Box::new(ASTNode::err());
+                            }   
+                        };
+                        Self::inc(i);
+                        match token.value.as_str() {
+                            "allow" => {
+                                return Box::new(ASTNode {
+                                    token: token.clone(),
+                                    node: Box::new(NodeType::Shebang(ShebangType::Allow(awe_message)))
+                                });
+                            } 
+                            "warn" | "warning" => {
+                                return Box::new(ASTNode {
+                                    token: token.clone(),
+                                    node: Box::new(NodeType::Shebang(ShebangType::Warning(awe_message)))
+                                });
+                            }
+                            "err" | "error" => {
+                                return Box::new(ASTNode {
+                                    token: token.clone(),
+                                    node: Box::new(NodeType::Shebang(ShebangType::Err(awe_message)))
+                                });
+                            }
+                            _ => unreachable!()
+                        }
+                    }
+                    "insert" => {
+                        Self::inc(i);
+                        if tokens.get(*i).is_none() || tokens[*i].token_type != TokenType::StringConstant {
+                            self.error(line!(), "Unexpected Shebang token", "Shebang `#! insert` must have a string constant after it: `#! insert \"CODE\"`", &token.location);
+                            return Box::new(ASTNode::err());
+                        }
                         return Box::new(ASTNode {
                             token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Allow(tokens[2].clone()))),
+                            node: Box::new(NodeType::Shebang(ShebangType::Insert(tokens[*i].clone())))
                         });
                     }
-                    "warn" | "warning" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Warning(tokens[2].clone()))),
-                        });
-                    }
-                    "err" | "error" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Err(tokens[2].clone()))),
-                        });
-                    }
-                    "ifndef" | "ifndefine" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::IfNotDefined(tokens[2].clone()))),
-                        });
-                    }
-                    "ifdef" | "ifdefine" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::IfDefined(tokens[2].clone()))),
-                        });
-                    }
-                    "once" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Once(tokens[2].clone()))),
-                        });
-                    }
-                    "define" | "def" if tokens.len() == 3 => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::DefineFile(tokens[2].clone()))),
-                        });
-                    }
-                    "define" | "def" => {
+                    "pragma" => {
                         Self::inc(i);
                         return Box::new(ASTNode {
                             token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Define(self.get_expression(tokens, i, Self::PARSING_FOR_SHABANG), self.get_expression(tokens, i, Self::NORMAL_PARSING)))),
+                            node: Box::new(NodeType::Shebang(ShebangType::Pragma(tokens.iter().skip(*i).map(|t| t.clone()).collect())))
                         });
                     }
-                    "if" => {
+                    "C" => {
                         Self::inc(i);
                         return Box::new(ASTNode {
                             token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::If(self.get_expression(tokens, i, Self::NORMAL_PARSING)))),
+                            node: Box::new(NodeType::Shebang(ShebangType::C(tokens.iter().skip(*i).map(|t| t.clone()).collect())))
                         });
                     }
-                    "ifn" => {
-                        Self::inc(i);
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::IfNot(self.get_expression(tokens, i, Self::NORMAL_PARSING)))),
-                        });
+                    "crumb" | "deprecated" | "version" => {
+                        self.__current_tags.push(tokens.iter().skip(*i).map(|t| t.clone()).collect());
+                        if self.lines.get(self.__curent_parsing_line + 1).is_some_and(|l| !l.iter().any(|t| matches!(t.token_type, TokenType::Class | TokenType::Struct | TokenType::Trait))) {
+                            self.__curent_parsing_line += 1;
+                            *tokens = self.lines[self.__curent_parsing_line].clone();
+                            *i = Self::SET_I_TO_ZERO;
+                        } else {
+                            return Box::new(ASTNode::err()); // not error, but returning empty
+                        }
                     }
-                    "elif" | "elseif" => {
-                        Self::inc(i);
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::ElseIf(self.get_expression(tokens, i, Self::NORMAL_PARSING)))),
-                        });
-                    }
-                    "undef" => {
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Undef(tokens[2].clone()))),
-                        });
-                    }
-                    _ => { 
-                        return Box::new(ASTNode {
-                            token: token.clone(),
-                            node: Box::new(NodeType::Shabang(ShabangType::Other(tokens.iter().skip(1).map(|t| t.clone()).collect()))),
-                        });
+                    _ => {
+                        self.error(line!(), "Unexpected Shebang token", "Shebang has unexpected content, expected `#! allow`, `#! warn`, `#! err`, `#! insert` or `#! C`. Any other messages are exped in header or should have been handled in lexer", &token.location);
+                        return Box::new(ASTNode::err());
                     }
                 }
             } else if token.token_type == TokenType::Comma {
@@ -2303,7 +2300,7 @@ impl Parser {
         // (Tuple, Type)
         let all_tokens = self.get_node_parameters_for_tuple(tokens, i);
         
-        let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
+        let mut return_tokens: Vec<Box<ASTNode>> = vec![];
         for tokens in all_tokens {
             let mut tokens = tokens.clone();
             let mut zero = 0;
@@ -2480,7 +2477,7 @@ impl Parser {
                 *i = 0;
                 self.__curent_parsing_line += 1;
                 let mut err = false;
-                let v = Vec::new();
+                let v = vec![];
 
                 *tokens = self.lines.get(self.__curent_parsing_line).unwrap_or_else(|| {
                     err = true;
@@ -2575,7 +2572,7 @@ impl Parser {
                 TokenType::Comma => {
                     if parenthesis_level == 0 && angle_bracket_level == 1 && brace_level == 0 && bracket_level == 0 {
                         comma_count += 1;
-                        all_tokens.push(Vec::new());
+                        all_tokens.push(vec![]);
                     }
                     else {
                         all_tokens[comma_count].push(token.clone());
@@ -2591,7 +2588,7 @@ impl Parser {
             }
         }
 
-        let mut return_tokens: Vec<Box<ASTNode>> = Vec::new();
+        let mut return_tokens: Vec<Box<ASTNode>> = vec![];
         for tokens in all_tokens {
             let mut tokens = tokens.clone();
             return_tokens.push(self.get_type_idententifier(&mut tokens, &mut 0, false));
@@ -2939,11 +2936,15 @@ impl Parser {
                 let var_type = Self::node_expr_to_string(&value.var_type, tab_level);
                 let var_name = value.var_name.value.clone();
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
+                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
+                if tags.len() > 0 {
+                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
+                } 
                 if let Some(v) = &value.var_value {
                     let var_value = Self::node_expr_to_string(v, tab_level);
-                    format!("{}{}: {} = {}", access_modifiers, var_type, var_name, var_value)
+                    format!("{}{}{}: {} = {}", tags, access_modifiers, var_type, var_name, var_value)
                 } else {
-                    format!("{}{}: {}", access_modifiers, var_type, var_name)
+                    format!("{}{}{}: {}", tags, access_modifiers, var_type, var_name)
                 }
             }
             NodeType::TypeIdentifier(ref value) => {
@@ -3215,28 +3216,21 @@ impl Parser {
             NodeType::Use(ref value) => {
                 format!("use \"{}\"", value.value)
             }
-            NodeType::Shabang(ref value) => {
+            NodeType::Shebang(ref value) => {
                 match value {
-                    ShabangType::Allow(t) => format!("#! allow {}", t.value),
-                    ShabangType::Warning(t) => format!("#! warning {}", t.value),
-                    ShabangType::Err(t) => format!("#! err {}", t.value),
-                    ShabangType::Deprecated => "#! deprecated".to_string(),
-                    ShabangType::Crumb => "#! crumb".to_string(),
-                    ShabangType::If(node) => format!("#! if {}", Self::node_expr_to_string(node, tab_level)),
-                    ShabangType::IfNot(node) => format!("#! ifn {}", Self::node_expr_to_string(node, tab_level)),
-                    ShabangType::ElseIf(node) => format!("#! elif {}", Self::node_expr_to_string(node, tab_level)),
-                    ShabangType::Else => "#! else".to_string(),
-                    ShabangType::EndIf => "#! endif".to_string(),
-                    ShabangType::IfNotDefined(token) => format!("#! ifndef {}", token.value),
-                    ShabangType::IfDefined(token) => format!("#! ifdef {}", token.value),
-                    ShabangType::Define(node, value) => format!("#! def {} -> {}", Self::node_expr_to_string(node, tab_level), Self::node_expr_to_string(value, tab_level)),
-                    ShabangType::Undef(token) => format!("#! undef {}", token.value),
-                    ShabangType::Once(token) => format!("#! once {}", token.value),
-                    ShabangType::DefineFile(token) => format!("#! define {}", token.value),
-                    ShabangType::Other(tokens) => format!("#! {}", tokens.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" ")),
+                    ShebangType::Allow(s) => format!("#! allow {}", s.to_string()),
+                    ShebangType::Warning(s) => format!("#! warn {}", s.to_string()),
+                    ShebangType::Err(s) => format!("#! err {}", s.to_string()),
+                    ShebangType::Insert(s) => format!("#! insert \"{}\"", s.value),
+                    ShebangType::C(s) => format!("#! C {}", s.iter().map(|x| x.value.clone()).collect::<Vec<String>>().join(" ")),
+                    ShebangType::Pragma(s) => format!("#! pragma {}", s.iter().map(|x| x.value.clone()).collect::<Vec<String>>().join(" ")),
                 }
             }
             NodeType::FunctionDeclaration(ref value) => {
+                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
+                if tags.len() > 0 {
+                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
+                } 
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 let ty = Self::node_expr_to_string(&value.return_type, tab_level);
                 let name = value.name.value.clone();
@@ -3285,7 +3279,7 @@ impl Parser {
                     tab_level -= 1;
                     body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level))
                 } 
-                format!("{}{}: {}{}{} {}", access_modifiers, ty, name, generics, parameters, body)
+                format!("{}{}{}: {}{}{} {}", tags, access_modifiers, ty, name, generics, parameters, body)
             }
             NodeType::TypeDef(ref value) => {
                 let expression = Self::node_expr_to_string(&value.type_definition, tab_level);
@@ -3293,6 +3287,10 @@ impl Parser {
                 format!("typedef {}: {}", expression, name)
             }
             NodeType::EnumDeclaration(ref value) => {
+                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
+                if tags.len() > 0 {
+                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
+                } 
                 let name = value.name.value.clone();
                 let mut body = "".to_string();
                 tab_level += 1;
@@ -3305,9 +3303,13 @@ impl Parser {
                 }
                 tab_level -= 1;
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
-                format!("enum {}: {}", name, body)
+                format!("{}enum {} {}", tags, name, body)
             }
             NodeType::ClassDeclaration(ref value) => {
+                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
+                if tags.len() > 0 {
+                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
+                } 
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 let name = value.name.value.clone();
                 let mut generics = "".to_string();
@@ -3338,9 +3340,13 @@ impl Parser {
                 tab_level -= 1;
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
 
-                format!("{}class {}{} {} {}", access_modifiers, name, generics, extends, body)
+                format!("{}{}class {}{} {} {}", tags, access_modifiers, name, generics, extends, body)
             }
             NodeType::StructDeclaration(ref value) => {
+                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
+                if tags.len() > 0 {
+                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
+                } 
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 let name = value.name.value.clone();
                 let mut generics = "".to_string();
@@ -3371,14 +3377,18 @@ impl Parser {
                 tab_level -= 1;
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
 
-                format!("{}struct {}{} {} {}", access_modifiers, name, generics, extends, body)
+                format!("{}{}struct {}{} {} {}", tags, access_modifiers, name, generics, extends, body)
             }
             NodeType::TraitDeclaration(ref value) => {
+                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
+                if tags.len() > 0 {
+                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
+                } 
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 let name = value.name.value.clone();
                 let mut extends = "".to_string();
                 if value.extends.len() > 0 {
-                    extends += "-> ";
+                    extends += " -> ";
                     extends += &value.extends.iter().map(|x| x.value.clone()).collect::<Vec<String>>().join(", ");
                 }
                 let mut body = "".to_string();
@@ -3389,7 +3399,7 @@ impl Parser {
                 tab_level -= 1;
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
 
-                format!("{}struct {} {} {}", access_modifiers, name, extends, body)
+                format!("{}{}struct {}{} {}", tags, access_modifiers, name, extends, body)
             }
             _ => {
                 node.token.value.clone()

@@ -601,25 +601,6 @@ std::cout("Enter a number: ");
 std::cin(&number);
 std::cout("You entered: " + number + std::endl);
 
-
-#! allow WARNING_OR_ERROR
-#! warn WARNING_OR_ERROR
-#! error WARNING_OR_ERROR
-#! deprecated 
-#! crumb
-#! if ARGUMENT
-#! ifn ARGUMENT
-#! elif ARGUMENT
-#! else
-#! ifndef NAME
-#! ifdef NAME
-#! def NAME -> VALUE
-#! def ADD(x, y) -> x + y 
-#! undef NAME
-#! once NAME 
-#! def NAME
-#! unknown message
-
 false.a;
 "hi".b;
 '!'.c;
@@ -793,5 +774,97 @@ trait Number -> Default, ToString {
     Self: min(Self: other);
     Self: max(Self: other);
     Self: clamp(Self: min, Self: max);
-
 }
+
+// tags
+#! version 1.0
+struct a {
+    #! deprecated 
+    #! crumb
+    a: b();
+
+
+    #! deprecated 
+    a: v;
+
+    a: v();
+}
+
+class b {
+    #! deprecated
+    a: v;
+    a: v();
+}
+
+#! version 1.0
+class c{}
+
+#! deprecated
+enum a {
+    a,e,i=0
+}
+
+#! deprecated
+trait o -> a {
+    a: b;
+    a: v();
+}
+
+
+// inline
+#! allow unused 
+#! warn deprecated
+#! error no_entrance
+#! insert "int main() { return 0; }"
+#! C pragma once
+#! pragma once
+
+
+// tags
+#! version 1.0
+struct a{}
+#! version 1.0
+class c{}
+#! deprecated
+enum a {}
+#! deprecated
+trait o {}
+#! deprecated
+f: unc();
+#! deprecated
+v: ar;
+
+#! def ADD(x, y) x + y
+#! def RESULT ADD(VERSION, 2) / 1.5
+
+
+before;
+#! ifndef AAA
+first_one;
+#! elif VERSION >= 0.01 && VERSION <= 5
+second_one;
+#! else
+third_one;
+#! endif
+after;
+
+
+
+#! def H1
+#! def H2 0
+#! def H3() 0
+#! def H4
+
+#! def AAAA H3() + 1
+
+#! ifdef H1
+1;
+#! endif
+
+#! ifndef H2
+2;
+#! elifdef H3
+3;
+#! elifndef H4
+4;
+#! endif

@@ -1,4 +1,5 @@
 pub mod error_handling;
+pub mod macros;
 pub mod lexer;
 pub mod ast;
 pub mod parser;
@@ -8,7 +9,9 @@ fn main() {
     let code = std::fs::read_to_string(&path).unwrap();
     
     // lexer
-    let (tokens, output) = lexer::lex(&code, Some(path.clone()));
+    let (tokens, output, macros) = lexer::lex(&code, Some(path.clone()), None);
+
+    println!("{:#?}", macros);
     
     let json = serde_json::to_string_pretty(&tokens).unwrap();
     std::fs::write("src/testing/lexer.out.json", json).unwrap();

@@ -21,7 +21,6 @@ pub class Color -> ToString {
     u8: B = 0;
 
     #! crumb
-    #! description "Creates a color object with given RGB values"
     static Color: new(u8: r, u8: g, u8: b) {
         Color {
             R = r,
@@ -30,7 +29,6 @@ pub class Color -> ToString {
         }
     }
 
-    #! description "Creates a white color object"
     static Color: white() {
         Color {
             R = 255,
@@ -39,7 +37,6 @@ pub class Color -> ToString {
         }
     }
 
-    #! description "Operator overload for adding two colors" 
     static Color: op_add(Color: color1, Color: color2) {
         Color {
             R = color1.R + color2.R,
@@ -48,9 +45,9 @@ pub class Color -> ToString {
         }
     }
 
-    #! "Implementation of the ToString trait"
+    // Implements the ToString trait
     string: to_string() {
-        format("Color: R: {}, G: {}, B: {}", R, G, B)
+        format("Color: R: $, G: $, B: $", R, G, B)
     }
 }
 

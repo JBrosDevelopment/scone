@@ -1,12 +1,17 @@
 use serde::Serialize;
-use crate::error_handling::ErrorHandling;
+use crate::macros::Macros;
 
-pub fn lex(code: &String, path: Option<String>) -> (Vec<Token>, ErrorHandling) {
-    let mut lexer = Lexer::new(code, path);
+#[allow(unused_imports)]
+use crate::error_handling::{ErrorHandling, DEBUGGING};
+#[allow(unused_imports)]
+use crate::debug;
+
+pub fn lex(code: &String, path: Option<String>, macros: Option<Macros>) -> (Vec<Token>, ErrorHandling, Macros) {
+    let mut lexer = Lexer::new(code, path, macros.unwrap_or(Macros::new()));
     let tokens = lexer.lex();
 
     lexer.output.print_messages();
-    (tokens, lexer.output)
+    (tokens, lexer.output, lexer.macros)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -50,7 +55,7 @@ pub enum TokenType {
     DollarSign,
     RightArrow,
     DoubleArrow,
-    Shabang,
+    Shebang,
     QuestionMark,
     DotDotDot,
 
@@ -211,13 +216,15 @@ impl Token {
 #[derive(Debug, Clone)]
 pub struct Lexer {
     output: ErrorHandling,
+    macros: Macros,
     // code at: self.output.full_code
 }
 
 impl Lexer {
-    pub fn new(code: &String, path: Option<String>) -> Lexer {
+    pub fn new(code: &String, path: Option<String>, macros: Macros) -> Lexer {
         Lexer {
-            output: ErrorHandling::new(path.clone(), code.clone())
+            output: ErrorHandling::new(path.clone(), code.clone()),
+            macros
         }
     }
     pub fn error(&mut self, message: &str, help: &str, location: &Location) {
@@ -234,7 +241,9 @@ impl Lexer {
         let chars: Vec<char> = self.output.full_code.chars().collect::<Vec<char>>();
         let mut current_location: Location = Location::new(1, 1, 0);
 
-        let mut is_in_shabang_line = false;
+        let mut is_in_shebang_line = false;
+        let mut macro_if_value: Option<bool> = None; // reflects value of `if` in shebangs
+        let mut macro_if_has_been_true = None;
 
         // if the last token was `(`  `{`  `[`  `,`  `..`  `OPERATORS`, `END_OF_LINE`6
         // set to 3 if true, so that it can go down every time it finds a new token
@@ -244,6 +253,239 @@ impl Lexer {
         let mut i = 0;
         while i < chars.len() {
             let c = chars[i];
+            if c == '#' {
+                if chars.get(i + 1) == Some(&'!') {
+                    i += 2;
+
+                    // handle shebang
+                    let mut j = i;
+                    let mut message = "".to_string();
+                    while j < chars.len() {
+                        if chars[j] == '\n' {
+                            break;
+                        }
+                        message.push(chars[j]);
+                        j += 1;
+                    }
+                    let message = message.trim().to_string();
+                    let directive = message.trim().split(" ").collect::<Vec<&str>>().first().cloned().unwrap_or(&"");
+                    match directive {
+                        "allow" | "warn" | "warning" | "err" | "error" | "deprecated" | "crumb" | "insert" | "C" | "pragma" | "version" => {
+                            current_location.advance(2);
+                            tokens.push(Token::new(TokenType::Shebang, "#!".to_string(), current_location.clone()));
+                            is_in_shebang_line = true;
+                            continue;
+                        }
+                        "if" => {
+                            if macro_if_value.is_some() || macro_if_has_been_true.is_some() {
+                                self.error("Unexpected `if` directive", "Nesting of `if` or `ifn` is not supported", &current_location);
+                                continue;
+                            }
+                            match self.macros.parse_if_directive(message) {
+                                Ok(v) => {
+                                    macro_if_value = Some(v);
+                                    if v {
+                                        macro_if_has_been_true = Some(true);
+                                    } else {
+                                        macro_if_has_been_true = Some(false);
+                                    }
+                                },
+                                Err(e) => {
+                                    self.error("Error parsing `if` directive", &e, &current_location);
+                                }
+                            }
+                        } 
+                        "ifn" => {
+                            if macro_if_value.is_some() || macro_if_has_been_true.is_some() {
+                                self.error("Unexpected `ifn` directive", "Nesting of `if` or `ifn` is not supported", &current_location);
+                                continue;
+                            }
+                            match self.macros.parse_if_directive(message) {
+                                Ok(v) => {
+                                    macro_if_value = Some(!v);
+                                    if !v {
+                                        macro_if_has_been_true = Some(true);
+                                    } else {
+                                        macro_if_has_been_true = Some(false);
+                                    }
+                                },
+                                Err(e) => {
+                                    self.error("Error parsing `ifn` directive", &e, &current_location);
+                                }
+                            }
+                        }
+                        "elif" => {
+                            if macro_if_value.is_none() || macro_if_has_been_true.is_none() {
+                                self.error("Unexpected `elif` directive", "Expected `if` or `elif` directive before `elif`", &current_location);
+                                continue;
+                            }
+                            if macro_if_has_been_true.unwrap() == true {
+                                macro_if_value = Some(false);
+                                continue; // skip this elif
+                            }
+                            match self.macros.parse_if_directive(message) {
+                                Ok(v) => {
+                                    macro_if_value = Some(v);
+                                    if v {
+                                        macro_if_has_been_true = Some(true);
+                                    }
+                                },
+                                Err(e) => {
+                                    self.error("Error parsing `elif` directive", &e, &current_location);
+                                }
+                            }
+                        }
+                        "elifn" => {
+                            if macro_if_value.is_none() || macro_if_has_been_true.is_none() {
+                                self.error("Unexpected `elifn` directive", "Expected `if` or `elif` directive before `elifn`", &current_location);
+                                continue;
+                            }
+                            if macro_if_has_been_true.unwrap() == true {
+                                macro_if_value = Some(false);
+                                continue; // skip this elifn
+                            }
+                            match self.macros.parse_if_directive(message) {
+                                Ok(v) => {
+                                    macro_if_value = Some(!v);
+                                    if !v {
+                                        macro_if_has_been_true = Some(true);
+                                    }
+                                },
+                                Err(e) => {
+                                    self.error("Error parsing `elifn` directive", &e, &current_location);
+                                }
+                            }
+                        }
+                        "elifdef" => {
+                            if macro_if_value.is_none() || macro_if_has_been_true.is_none() {
+                                self.error("Unexpected `elifdef` directive", "Expected `if` or `elif` directive before `elifdef`", &current_location);
+                                continue;
+                            }
+                            if macro_if_has_been_true.unwrap() == true {
+                                macro_if_value = Some(false);
+                                continue; // skip this elif
+                            }
+                            match self.macros.parse_if_define_directive(message) {
+                                Ok(v) => {
+                                    macro_if_value = Some(v);
+                                    if v {
+                                        macro_if_has_been_true = Some(true);
+                                    }
+                                },
+                                Err(e) => {
+                                    self.error("Error parsing `elifdef` directive", &e, &current_location);
+                                }
+                            }
+                        }
+                        "elifndef" => {
+                            if macro_if_value.is_none() || macro_if_has_been_true.is_none() {
+                                self.error("Unexpected `elifndef` directive", "Expected `if` or `elif` directive before `elifndef`", &current_location);
+                                continue;
+                            }
+                            if macro_if_has_been_true.unwrap() == true {
+                                macro_if_value = Some(false);
+                                continue; // skip this elifn
+                            }
+                            match self.macros.parse_if_define_directive(message) {
+                                Ok(v) => {
+                                    macro_if_value = Some(!v);
+                                    if !v {
+                                        macro_if_has_been_true = Some(true);
+                                    }
+                                },
+                                Err(e) => {
+                                    self.error("Error parsing `elifndef` directive", &e, &current_location);
+                                }
+                            }
+                        }
+                        "else" => {
+                            if macro_if_value.is_none() ||  macro_if_has_been_true.is_none() {
+                                self.error("Unexpected `else` directive", "Expected `if` or `elif` directive before `else`", &current_location);
+                                continue;
+                            }
+                            if macro_if_has_been_true.unwrap() == true {
+                                macro_if_value = Some(false);
+                            } else if macro_if_has_been_true.unwrap() == false {
+                                macro_if_value = Some(true);
+                                macro_if_has_been_true = Some(true);
+                            }
+                        } 
+                        "endif" => {
+                            macro_if_value = None; // end of if directive, reset value
+                            macro_if_has_been_true = None;
+                        }
+                        "ifdef" => {
+                            if macro_if_value.is_some() || macro_if_has_been_true.is_some() {
+                                self.error("Unexpected `ifdef` directive", "Nesting of `if` or `ifdef` is not supported", &current_location);
+                                continue;
+                            }
+                            match self.macros.parse_if_define_directive(message) {
+                                Ok(v) => {
+                                    macro_if_value = Some(v);
+                                    if v {
+                                        macro_if_has_been_true = Some(true);
+                                    } else {
+                                        macro_if_has_been_true = Some(false);
+                                    }
+                                },
+                                Err(e) => {
+                                    self.error("Error parsing `ifdef` directive", &e, &current_location);
+                                }
+                            }
+                        }
+                        "ifndef" => {
+                            if macro_if_value.is_some() || macro_if_has_been_true.is_some() {
+                                self.error("Unexpected `ifndef` directive", "Nesting of `if` or `ifndef` is not supported", &current_location);
+                                continue;
+                            }
+                            match self.macros.parse_if_define_directive(message) {
+                                Ok(v) => {
+                                    macro_if_value = Some(!v);
+                                    if !v {
+                                        macro_if_has_been_true = Some(true);
+                                    } else {
+                                        macro_if_has_been_true = Some(false);
+                                    }
+                                },
+                                Err(e) => {
+                                    self.error("Error parsing `ifdef` directive", &e, &current_location);
+                                }
+                            }
+                        }
+                        "def" | "define" => {
+                            match self.macros.parse_define_directive(message) {
+                                Ok(_) => {},
+                                Err(e) => {
+                                    self.error("Error parsing `def` directive", &e, &current_location);
+                                }
+                            }
+                        }
+                        "undef" | "undefine" => {
+                            match self.macros.parse_undefine_directive(message) {
+                                Ok(_) => {},
+                                Err(e) => {
+                                    self.error("Error parsing `undef` directive", &e, &current_location);
+                                }
+                            }
+                        }
+                        _ => {
+                            self.error("Unknown shebang directive", "`if`, `ifn`, `elif`, `elifn`, `else`, `endif`, `ifdef`, `ifndef`, `def`, `undef` is supported in shebangs", &current_location);
+                        }
+                    }
+                    while i < chars.len() && chars[i] != '\n' {
+                        i += 1;
+                        current_location.advance(1);
+                    }
+
+                    current_location.advance_line();
+                    tokens.push(Token::new(TokenType::EndOfLine, "\n".to_string(), current_location.clone()));
+                }
+                else {
+                    current_location.advance(1);
+                    tokens.push(Token::new(TokenType::Hashtag, "#".to_string(), current_location.clone()));
+                }
+            }
+            
             if c == ' ' {
                 current_location.advance(1);
                 last_was_negatable_ability += 1;
@@ -257,11 +499,21 @@ impl Lexer {
             else if c == '\n' {
                 current_location.advance_line();
                 last_was_negatable_ability = 3;
-                if is_in_shabang_line {
-                    is_in_shabang_line = false;
+                if is_in_shebang_line {
+                    is_in_shebang_line = false;
                     tokens.push(Token::new(TokenType::EndOfLine, "\n".to_string(), current_location.clone()));
                 }
             }
+
+            if macro_if_value.is_some_and(|x| x == false) {
+                i += 1;
+                current_location.advance(1);
+                continue;
+            }
+
+            if matches!(c, ' ' | '\t' | '\r' | '\n' | '#') {
+                // already handled above
+            } 
             else if c == ';' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::EndOfLine, ";".to_string(), current_location.clone()));
@@ -396,18 +648,6 @@ impl Lexer {
                 let new_token = Token::new(TokenType::NumberConstant, number, current_location.clone());
                 tokens.push(new_token);
                 i -= 1;
-            }
-            else if c == '#' {
-                if chars.get(i + 1) == Some(&'!') {
-                    current_location.advance(1);
-                    tokens.push(Token::new(TokenType::Shabang, "#!".to_string(), current_location.clone()));
-                    is_in_shabang_line = true;
-                    i += 1;
-                }
-                else {
-                    current_location.advance(1);
-                    tokens.push(Token::new(TokenType::Hashtag, "#".to_string(), current_location.clone()));
-                }
             }
             else if c == ',' {
                 current_location.advance(1);
@@ -801,6 +1041,7 @@ impl Lexer {
                             '\'' => string.push('\''),
                             '\\' => string.push('\\'),
                             '0' => string.push('\0'),
+                            '$' => string.push('$'),
                             _ => {
                                 self.error("Invalid escape sequence", "", &current_location);
                                 break;
