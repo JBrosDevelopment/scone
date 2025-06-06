@@ -50,7 +50,7 @@ pub enum NodeType {
     
     // declare
     TypeDefinition(TypeDefinition),
-    TupleDeclaration(NodeParameters),
+    TupleDeclaration(TupleDeclaration),
     VariableDeclaration(VariableDeclaration),
     FunctionDeclaration(FunctionDeclaration),
     ClassDeclaration(ClassDeclaration),
@@ -185,7 +185,8 @@ pub struct NodeParameters {
 pub struct DefinedNodeParameter {
     pub ty: Box<ASTNode>,
     pub name: Box<Token>,
-    pub default_value: Option<Box<ASTNode>>
+    pub default_value: Option<Box<ASTNode>>,
+    pub params: bool
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -352,6 +353,12 @@ pub struct Expression {
     pub left: Box<ASTNode>,
     pub right: Box<ASTNode>,
     pub operator: Box<Token>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct TupleDeclaration {
+    pub parameters: NodeParameters,
+    pub is_array: Vec<Vec<Box<ASTNode>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

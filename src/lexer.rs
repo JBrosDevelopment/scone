@@ -1056,7 +1056,6 @@ impl Lexer {
                             '\'' => string.push('\''),
                             '\\' => string.push('\\'),
                             '0' => string.push('\0'),
-                            '$' => string.push('$'),
                             _ => {
                                 self.error("Invalid escape sequence", "", &current_location);
                                 break;

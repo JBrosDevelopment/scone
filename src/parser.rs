@@ -216,7 +216,10 @@ impl Parser {
                 } 
             }
             extends
+        } else if tokens.get(i).is_some_and(|t| t.token_type == TokenType::LBrace) {
+            vec![]
         } else {
+            self.error(line!(), "Error parsing traits extensions", "Expected either `->` or `{` after trait name: `trait NAME -> EXTENDS {...}` or `trait NAME {...}`", tokens.get(i).map_or(&tokens[start_of_name].location, |t| &t.location));
             vec![]
         };
 
@@ -1487,9 +1490,6 @@ impl Parser {
                     Self::inc(i); // is on first token of expression
                     let variable = self.declaring_variable(tokens, i, is_in_for, true);
                     if variable != ASTNode::err() {
-                        if expr_stack.len() > 1 {
-                            self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
-                        }
                         expr_stack.clear();
                         op_stack.clear();
                         expr_stack.push(Box::new(variable));
@@ -1516,9 +1516,6 @@ impl Parser {
                     Self::inc(i); // is on first token of expression
                     let variable = self.declaring_variable(tokens, i, false, false);
                     if variable != ASTNode::err() {
-                        if expr_stack.len() > 1 {
-                            self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
-                        }
                         expr_stack.clear();
                         op_stack.clear();
                         expr_stack.push(Box::new(variable));
@@ -1642,9 +1639,6 @@ impl Parser {
     
                         let assign = Assignment { left, right };
                         
-                        if expr_stack.len() > 1 {
-                            self.error(line!(), "Variable declaration error", "Unable to parse variable declaration expression, there is more than one expression in type declaration", &token.location);
-                        }
                         expr_stack.clear();
                         op_stack.clear();
                         expr_stack.push(Box::new(ASTNode{
@@ -2389,10 +2383,17 @@ impl Parser {
             }
             else if first_token.token_type == TokenType::LParen {
                 let tuple = self.get_tuple_node_parameters(&mut copy_tokens, i);
+                let mut is_array = vec![];
+                if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBracket) {
+                    is_array = self.next_is_array_for_type(&mut copy_tokens, i);
+                }
                 return Box::new(ASTNode {
                     token: first_token.clone(),
-                    node: Box::new(NodeType::TupleDeclaration(NodeParameters {
-                        parameters: tuple
+                    node: Box::new(NodeType::TupleDeclaration(TupleDeclaration {
+                        is_array,
+                        parameters: NodeParameters {
+                            parameters: tuple
+                        },
                     }))
                 });
             }
@@ -2915,14 +2916,25 @@ impl Parser {
             } else {
                 default_value = None;
             }
+            
+            let params;
+            if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::DotDotDot) {
+                params = true;
+                Self::inc(i);
+            } else {
+                params = false;
+            }
 
-            parameters.push(DefinedNodeParameter { name, ty, default_value });
+            parameters.push(DefinedNodeParameter { name, ty, default_value, params });
 
             // check if next token is `,` or `)` 
             if let Some(nt) = tokens.get(*i) {
                 match nt.token_type {
                     TokenType::Comma => {
                         Self::inc(i);
+                        if params {
+                            self.error(line!(), "Error parsing defined node parameters", "Expected next token to be `,` or `)`. The `...` parameter must be the last parameter", tokens.get(*i - 2).map_or(&nt.location, |t| &t.location));
+                        }
                         continue;
                     }
                     TokenType::RParen => {
@@ -3004,11 +3016,19 @@ impl Parser {
                 format!("{}{}{}{}", reference, scope, array, pointer)
             }
             NodeType::TupleDeclaration(ref value) => {
-                let mut tuple = "".to_string();
-                for (index, param) in value.parameters.iter().enumerate() {
-                    tuple += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                let mut array = "".to_string();
+                for array_full in value.is_array.clone() {
+                    array += "[";
+                    for (index, param) in array_full.iter().enumerate() {
+                        array += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), array_full.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    }
+                    array += "]";
                 }
-                format!("({})", tuple)
+                let mut tuple = "".to_string();
+                for (index, param) in value.parameters.parameters.iter().enumerate() {
+                    tuple += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                }
+                format!("({}){}", tuple, array)
             }
             NodeType::Operator(ref value) => {
                 let left = Self::node_expr_to_string(&value.left, tab_level);
@@ -3068,10 +3088,28 @@ impl Parser {
                 format!("({})", tuple)
             }
             NodeType::Constant(ref value) => {
-                if value.constant_type == ConstantType::String {
-                    format!("\"{}\"", value.value.value)
-                } else if value.constant_type == ConstantType::Char {
-                    format!("'{}'", value.value.value)
+                if matches!(value.constant_type, ConstantType::String | ConstantType::Char) {
+                    let mut text = "".to_string();
+                    for t in value.value.value.chars() {
+                        match t {
+                            '\n' => text += "\\n",
+                            '\r' => text += "\\r",
+                            '\t' => text += "\\t",
+                            '\\' => text += "\\\\",
+                            '\"' => text += "\\\"",
+                            '\'' => text += "\\\'",
+                            '\0' => text += "\\0",
+                            _ => text += &t.to_string(), 
+                        }
+                    }
+
+                    if value.constant_type == ConstantType::String {
+                        format!("\"{}\"", text)
+                    } else if value.constant_type == ConstantType::Char {
+                        format!("'{}'", text)
+                    } else {
+                        unreachable!()
+                    }   
                 } else {
                     value.value.value.clone()
                 }
@@ -3282,6 +3320,10 @@ impl Parser {
                         parameters += &Self::node_expr_to_string(&param.default_value.clone().unwrap(), tab_level);
                     }
 
+                    if param.params {
+                        parameters += " ...";
+                    }
+
                     if param != value.parameters.last().unwrap() {
                         parameters += ", ";
                     }
@@ -3417,7 +3459,7 @@ impl Parser {
                 tab_level -= 1;
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
 
-                format!("{}{}struct {}{} {}", tags, access_modifiers, name, extends, body)
+                format!("{}{}trait {}{} {}", tags, access_modifiers, name, extends, body)
             }
             _ => {
                 node.token.value.clone()
