@@ -1,57 +1,436 @@
-// inline
-#! allow unused 
-#! warn deprecated
-#! error no_entrance
-#! insert "int main() { return 0; }"
-#! C pragma once
-#! pragma once
+use "serde::Serialize";
+use "crate::{ast::*, lexer::{self, TokenType}, parser}";
 
+pub struct MacroVariable {
+    pub String: name;
+    pub String: value;
+}
+pub struct MacroFunction {
+    pub String: name;
+    pub Vec<String>: args;
+    pub String: body;
+}
+pub struct MacroHeader {
+    pub String: name;
+}
 
-// tags
-#! version 1.0
-struct a{}
-#! version 1.0
-class c{}
-#! deprecated
-enum a {}
-#! deprecated
-trait o {}
-#! deprecated
-f: unc();
-#! deprecated
-v: ar;
+pub struct Macros {
+    pub Vec<MacroVariable>: variables;
+    pub Vec<MacroFunction>: functions;
+    pub Vec<MacroHeader: headers;
+    
+    #! crumb
+    pub Macros: new() {
+        Macros {
+            variables = Self::constants(),
+            functions = [],
+            headers = []
+        }
+    }
+    pub Vec<MacroVariable>: constants() {
+        [
+            MacroVariable { name = "TRUE".to_string(), value = "1".to_string() },
+            MacroVariable { name = "FALSE".to_string(), value = "0".to_string() },
+            MacroVariable { name = "INT_MAX".to_string(), value = "2147483647".to_string() },
+            MacroVariable { name = "INT_MIN".to_string(), value = "-2147483648".to_string() },
+            MacroVariable { name = "UINT_MAX".to_string(), value = "4294967295".to_string() },
+            MacroVariable { name = "VERSION".to_string(), value = env("CARGO_PKG_VERSION").split(".").take(2).collect<Vec<&str>>().join(".").to_string() },
+        ]
+    }
+    pub void: add_variable(String: name, String: value) {
+        self.variables.push(MacroVariable { name = name, value = value });
+    }
+    pub void: add_function(String: name, Vec<String>: args, String: body) {
+        self.functions.push(MacroFunction { name = name, args = args, body = body });
+    }
+    pub void: add_header(String: name) {
+        self.headers.push(MacroHeader { name = name });
+    }
+    pub Option<&MacroVariable>: get_variable(&str: name) {
+        self.variables.iter().find(var => var.name == name)
+    }
+    pub Option<&MacroFunction>: get_function(&str: name) {
+        self.functions.iter().find(func => func.name == name)
+    }
+    pub Option<&MacroHeader>: get_header(&str: name) {
+        self.headers.iter().find(header => header.name == name)
+    }
+    pub void: remove_variable(&str: name) {
+        self.variables.retain(var => var.name != name);
+    }
+    pub void: remove_function(&str: name) {
+        self.functions.retain(func => func.name != name);
+    }
+    pub void: remove_header(&str: name) {
+        self.headers.retain(header => header.name != name);
+    }
+    pub bool: has_variable(&str: name) {
+        self.get_variable(name).is_some()
+    }
+    pub bool: has_function(&str: name) {
+        self.get_function(name).is_some()
+    }
+    pub bool: has_header(&str: name) {
+        self.get_header(name).is_some()
+    }
+    pub void: clear() {
+        self.variables.clear();
+        self.functions.clear();
+        self.headers.clear();
+    }
+    pub bool: is_empty() {
+        self.variables.is_empty() && self.functions.is_empty() && self.headers.is_empty()
+    }
+    pub usize: len() {
+        self.variables.len() + self.functions.len() + self.headers.len()
+    }
+    pub bool: valid_name(&str: name) {
+        (name.chars().nth(0).unwrap_or('0').is_alphabetic() || name.chars().nth(0).unwrap_or('0') == '_') && name.chars().all(c => c.is_alphanumeric() || c == '_')
+    }
+    
+    pub Result<bool, String>: parse_if_directive(String: message) {
+        Vec<&str>: parts = message.split_whitespace().collect();
+        if parts.len() < 2 {
+            return Err("Invalid directive".to_string());
+        }
 
-#! def ADD(x, y) x + y
-#! def RESULT ADD(VERSION, 2) / 1.5
+        String: condition = parts.skip(1).join(" ");
+        auto: value = self.parse_value(condition);
 
+        if value.is_err() {
+            return Err("Error parsing condition".to_string());
+        }
 
-before;
-#! ifndef AAA
-first_one;
-#! elif VERSION >= 0.01 && VERSION <= 5
-second_one;
-#! else
-third_one;
-#! endif
-after;
+        auto: result = value.unwrap();
+        if result == "true" || result == "1" {
+            return Ok(true);
+        } else if result == "false" || result == "0" {
+            return Ok(false);
+        } else {
+            return Err("Invalid boolean value".to_string())
+        }
+    }
 
+    pub Result<bool, String>: parse_if_define_directive(String: message) {
+        Vec<&str>: parts = message.split_whitespace().collect();
+        if parts.len() != 2 {
+            return Err("Invalid `define` directive, expected a name: `#! ifdef NAME ...`".to_string());
+        }
 
+        auto: name = parts[1];
+        if self.has_header(name) || self.has_function(name) || self.has_variable(name) {
+            return Ok(true);
+        } else {
+            return Ok(false);
+        }
+    }
 
-#! def H1
-#! def H2 0
-#! def H3() 0
-#! def H4
+    pub Result<OK, String>: parse_define_directive(String: message) {
+        Vec<&str>: parts = message.split_whitespace().collect();
+        if parts.len() < 2 {
+            return Err("Invalid `define` directive, expected at least a name: `#! def NAME ...`".to_string());
+        }
+        
+        Vec<&str>: name = parts[1].chars().take_while(c => c != &'(').collect<String>();
+        if Macros::valid_name(&name) == false {
+            return Err("Invalid macro name, only alphanumeric characters and underscores are allowed".to_string());
+        }
 
-#! def AAAA H3() + 1
+        if parts.len() == 2 {
+            // defining header
+            if self.has_header(&name) {
+                return Err(format("Macro `{}` is already defined", name));
+            }
+            self.add_header(name.to_string());
+        } else if parts[1].contains("(") {
+            // define function
+            if self.has_function(&name) {
+                return Err(format("Macro function `{}` is already defined", name));
+            }
+            auto: chars = message.chars().skip_while(x => *x != '(').into_iter();
+            chars.next(); // skip '('
+            auto: args = [];
+            auto: current_arg = "".to_string();
+            auto: in_arg = false;
+            auto: j = 1;
+            while c == chars.next() {
+                j += 1;
+                if c == ')' {
+                    if !current_arg.is_empty() {
+                        args.push(current_arg.to_string());
+                    }
+                    break;
+                } else if c.is_whitespace() {
+                    j += 1;
+                    continue;
+                } else if c == ',' {
+                    if in_arg {
+                        args.push(current_arg.to_string());
+                        current_arg = "".to_string();
+                        in_arg = false;
+                    } else {
+                        return Err("Unexpected comma in macro function definition".to_string());
+                    }
+                } else if (c.is_alphabetic() || c == '_') && !in_arg {
+                    current_arg.push(c);
+                    in_arg = true;
+                } else if (c.is_alphabetic() || c.is_numeric() || c == '_') && in_arg {
+                    current_arg.push(c);
+                } else {
+                    return Err(format("Invalid character `{}` in macro function definition", c));
+                }
+            }
+            auto: position = message.chars().position(x => x == '(').unwrap_or(0);
+            auto: body = message.take(position + j).trim().to_string();
+            if body.is_empty() {
+                return Err("Macro function body cannot be empty".to_string());
+            }
+            self.add_function(name.to_string(), args, body);
+        } else {
+            // defining variable
+            if self.has_variable(&name) {
+                return Err(format("Macro variable `{}` is already defined", name));
+            }
+            auto: parse_msg = parts.skip(2).join(" ");
+            match self.parse_value(parse_msg) {
+                Ok => self.add_variable(name.to_string(), value),
+                Err => return Err(e)
+            }
+        }
 
-#! ifdef H1
-1;
-#! endif
+        return Ok()
+    }
 
-#! ifndef H2
-2;
-#! elifdef H3
-3;
-#! elifndef H4
-4;
-#! endif
+    pub Result<OK, String>: parse_undefine_directive(String: message) {
+        Vec<&str>: parts = message.split_whitespace().collect();
+
+        if parts.len() != 2 {
+            return Err("Invalid `define` directive, expected a name: `#! undef NAME`".to_string());
+        }
+        
+        if Macros::valid_name(parts[1]) == false {
+            return Err("Invalid macro name, only alphanumeric characters and underscores are allowed".to_string());
+        }
+
+        if self.has_variable(parts[1]) {
+            self.remove_variable(parts[1]);
+        } else if self.has_function(parts[1]) {
+            self.remove_function(parts[1]);
+        } else if self.has_header(parts[1]) {
+            self.remove_header(parts[1]);
+        } else {
+            return Err(format("Macro `{}` is not defined", parts[1]));
+        }
+        return Ok();
+    }
+
+    pub Result<ASTNode, String>: string_to_node(&String: message) {
+        (tokens, error_handling, OK): tuple = lexer::lex(message, None, None);
+        if error_handling.has_errors() {
+            return Err("Error lexing macro string".to_string());
+        }
+        (ast, output): tuple = parser::parse(tokens, &message, None);
+        if output.has_errors() {
+            return Err("Error parsing macro string".to_string());
+        }
+        if ast.len() != 1 {
+            return Err("Macro body should return 1 end node".to_string());
+        }
+        Ok(ast[0].clone())
+    }
+
+    pub Result<String, String>: parse_value(String: message) {
+        auto: node = self.string_to_node(&message);
+        if node.is_err() {
+            return Err("Error parsing value".to_string());
+        }
+        auto: node = node.unwrap();
+        self.evaluate_node(&node)
+    }
+
+    pub Result<String, String>: evaluate_node(&ASTNode: node) {
+        match &node.node.as_ref() {
+            NodeType::Identifier => {
+                match self.get_variable(&val.value) {
+                    Some => return Ok(var.value.clone()),
+                    None => return Err(format("Variable `{}` not defined", val.value))
+                }
+            }
+            NodeType::Constant => {
+                return Ok(val.value.value.clone())
+            }
+            NodeType::Operator => {
+                match val.operator.token_type {
+                    TokenType::Plus => {
+                        auto: l = self.evaluate_node(&val.left);
+                        auto: r = self.evaluate_node(&val.right);
+                        if Ok(l_val) == l.parse<f32>() {
+                            if Ok(r_val) == r.parse<f32>() {
+                                return Ok((l_val + r_val).to_string());
+                            }
+                        }
+                        return Ok(l + &r)
+                    }
+                    TokenType::Dash => {
+                        auto: l = self.evaluate_node(&val.left).parse<f32>();
+                        auto: r = self.evaluate_node(&val.right).parse<f32>();
+                        if l.is_ok() && r.is_ok() {
+                            return Ok((l.unwrap() - r.unwrap()).to_string());
+                        }
+                        return Err("Error evaluating subtraction".to_string())
+                    }
+                    TokenType::Star => {
+                        auto: l = self.evaluate_node(&val.left).parse<f32>();
+                        auto: r = self.evaluate_node(&val.right).parse<f32>();
+                        if l.is_ok() && r.is_ok() {
+                            return Ok((l.unwrap() * r.unwrap()).to_string());
+                        }
+                        return Err("Error evaluating multiplication".to_string())
+                    }
+                    TokenType::Slash => {
+                        auto: l = self.evaluate_node(&val.left).parse<f32>();
+                        auto: r = self.evaluate_node(&val.right).parse<f32>();
+                        if l.is_ok() && r.is_ok() && r.clone().unwrap() != 0.0 {
+                            return Ok((l.unwrap() / r.unwrap()).to_string());
+                        }
+                        return Err("Error evaluating division or division by zero".to_string())
+                    }
+                    TokenType::Equal => {
+                        auto: l = self.evaluate_node(&val.left);
+                        auto: r = self.evaluate_node(&val.right);
+                        if l == r {
+                            return Ok("true".to_string());
+                        }
+                        return Ok("false".to_string())
+                    }
+                    TokenType::NotEqual => {
+                        auto: l = self.evaluate_node(&val.left);
+                        auto: r = self.evaluate_node(&val.right);
+                        if l != r {
+                            return Ok("true".to_string());
+                        }
+                        return Ok("false".to_string())
+                    }
+                    TokenType::GreaterThan => {
+                        auto: l = self.evaluate_node(&val.left).parse<f32>();
+                        auto: r = self.evaluate_node(&val.right).parse<f32>();
+                        if l.is_ok() && r.is_ok() {
+                            return Ok((l.unwrap() > r.unwrap()).to_string());
+                        }
+                        return Err("Error evaluating greater than comparison".to_string())
+                    }
+                    TokenType::LessThan => {
+                        auto: l = self.evaluate_node(&val.left).parse<f32>();
+                        auto: r = self.evaluate_node(&val.right).parse<f32>();
+                        if l.is_ok() && r.is_ok() {
+                            return Ok((l.unwrap() < r.unwrap()).to_string());
+                        }
+                        return Err("Error evaluating less than comparison".to_string())
+                    }
+                    TokenType::GreaterThanOrEqual => {
+                        auto: l = self.evaluate_node(&val.left).parse<f32>();
+                        auto: r = self.evaluate_node(&val.right).parse<f32>();
+                        if l.is_ok() && r.is_ok() {
+                            return Ok((l.unwrap() >= r.unwrap()).to_string());
+                        }
+                        return Err("Error evaluating greater than or equal comparison".to_string())
+                    }
+                    TokenType::LessThanOrEqual => {
+                        auto: l = self.evaluate_node(&val.left).parse<f32>();
+                        auto: r = self.evaluate_node(&val.right).parse<f32>();
+                        if l.is_ok() && r.is_ok() {
+                            return Ok((l.unwrap() <= r.unwrap()).to_string());
+                        }
+                        return Err("Error evaluating less than or equal comparison".to_string())
+                    }
+                    TokenType::And => {
+                        auto: l = self.evaluate_node(&val.left);
+                        auto: r = self.evaluate_node(&val.right);
+                        if l == "true" && r == "true" {
+                            return Ok("true".to_string());
+                        }
+                        return Ok("false".to_string())
+                    }
+                    TokenType::Or => {
+                        auto: l = self.evaluate_node(&val.left);
+                        auto: r = self.evaluate_node(&val.right);
+                        if l == "true" || r == "true" {
+                            return Ok("true".to_string());
+                        }
+                        return Ok("false".to_string())
+                    }
+                    TokenType::Not => {
+                        auto: val = self.evaluate_node(&val.left);
+                        if val == "true" {
+                            return Ok("false".to_string());
+                        } else if val == "false" {
+                            return Ok("true".to_string());
+                        }
+                        return Err("Error evaluating logical NOT operation".to_string())
+                    }
+                    _ => {
+                        return Err("Unsupported operator for macro evaluation".to_string())
+                    }
+                } 
+            }
+            NodeType::FunctionCall => {
+                if !self.has_function(&val.name.value) {
+                    return Err(format("Macro function `{}` not defined", val.name.value));
+                }
+                auto: func = self.get_function(&val.name.value).unwrap().clone();
+                auto: args = val.parameters.parameters.clone();
+                auto: evaluated_args = args.iter().map(arg => self.evaluate_node(arg)).collect<Result<Vec<String>, String>>();
+                if evaluated_args.is_err() {
+                    return Err("Error evaluating function arguments".to_string());
+                }
+                
+                return self.macro_function(evaluated_args.unwrap(), &func)
+            }
+            NodeType::ScopedExpression => {
+                auto: result = String::new();
+                if val.scope.len() != 1 {
+                    return Err("No scoping for macro evaluation, expected exactly one identifier while calling".to_string());
+                }
+                for ident in &val.scope {
+                    auto: expr = *ident.expression.clone();
+                    auto: evaluated = self.evaluate_node(&expr);
+                    result.push_str(&evaluated);
+                }
+                return Ok(result)
+            }
+            _ => {
+                return Err(format("Unsupported node type for macro evaluation, supports: identifiers, operators, function calls, literals. Instead got: `{}`", node.node.to_string()))
+            }
+        }
+    }
+
+    pub Result<String, String>: macro_function(Vec<String>: args, &MacroFunction: func) {
+        if args.len() != func.args.len() {
+            return Err("Function argument count mismatch".to_string())
+        }
+        
+        for arg in &func.args {
+            if self.has_variable(arg) {
+                return Err("Function argument name conflicts with existing variable".to_string());
+            }
+        }
+
+        for i in func.args.iter().enumerate() {
+            self.add_variable(arg.clone(), args[i].clone());
+        }
+
+        auto: body = func.body.clone();
+        auto: node = self.string_to_node(&body);
+        if node.is_err() {
+            return Err("Error parsing function body".to_string());
+        }
+
+        auto: evaluated_node = self.evaluate_node(&node.unwrap());
+
+        for arg in &func.args {
+            self.remove_variable(arg);
+        }
+
+        evaluated_node
+    }
+}

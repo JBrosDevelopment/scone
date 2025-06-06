@@ -267,7 +267,13 @@ impl Macros {
                 }
             }
             NodeType::Constant(ref val) => {
-                Ok(val.value.value.clone())
+                if val.constant_type == ConstantType::String {
+                    Ok(format!("\"{}\"", val.value.value.clone()))
+                } else if val.constant_type == ConstantType::Char {
+                    Ok(format!("'{}'", val.value.value.clone()))
+                } else {
+                    Ok(val.value.value.clone())
+                }
             }
             NodeType::Operator(ref val) => {
                 match val.operator.token_type {

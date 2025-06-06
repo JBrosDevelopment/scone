@@ -647,20 +647,6 @@ impl Parser {
         }
     }
 
-    fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, BodyRegion) {
-        if tokens[*i].token_type != TokenType::If && tokens[*i].token_type != TokenType::While { 
-            self.error(line!(), "Expected `if` or `while`", "Parser error, expected `if` or `while`", &tokens[*i].location);
-        } else {
-            Self::inc(i); // skip if
-        }
-
-        let condition = self.get_expression(tokens, i, Self::PARSING_FOR_STATEMENT);
-        Self::dec(i);
-        let body = self.get_code_block(tokens, i, false);
-        
-        return (condition, body);
-    }
-
     fn parse_match_case(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> MatchCase {
         MatchCase { 
             pattern: self.get_expression(tokens, i, Self::PARSING_FOR_MATCH_CASE), 
@@ -868,6 +854,24 @@ impl Parser {
             self.error(line!(), "Could not parse for statement", "Too many parameters were found for the for statement: `for X in Y { ... }` or `for VAR, CONDITION, INC { ... }`", &tokens[i].location);
             return ASTNode::err();
         }
+    }
+
+    fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, BodyRegion) {
+        if tokens[*i].token_type != TokenType::If && tokens[*i].token_type != TokenType::While { 
+            self.error(line!(), "Expected `if` or `while`", "Parser error, expected `if` or `while`", &tokens[*i].location);
+        } else {
+            Self::inc(i); // skip if
+        }
+
+        let condition = self.get_expression(tokens, i, Self::PARSING_FOR_STATEMENT);
+        Self::dec(i);
+        let body = self.get_code_block(tokens, i, false);
+        
+        if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::RBrace) && tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::Else) {
+            Self::inc(i);
+        }
+        
+        return (condition, body);
     }
 
     fn parse_conditional_statement(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ConditionalRegion {
@@ -1415,7 +1419,7 @@ impl Parser {
                     break;
                 } else if Self::PARSING_FOR_STATEMENT == until && Self::PARSING_FOR_STATEMENT_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
-                } else if Self::PARSING_FOR_SCOPING == until && matches!(&token.token_type, operator_tokens!() | TokenType::QuestionMark | TokenType::LBrace) {
+                } else if Self::PARSING_FOR_SCOPING == until && !last_was_ident && matches!(&token.token_type, operator_tokens!() | TokenType::QuestionMark | TokenType::LBrace) {
                     break;
                 } else if Self::PARSING_FOR_FOR_LOOP_STATEMENT == until && Self::PARSING_FOR_FOR_LOOP_STATEMENT_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
@@ -1968,7 +1972,7 @@ impl Parser {
                 }))
             } else if token.token_type == TokenType::Return {
                 Self::inc(i);
-                let return_node = self.get_expression(tokens, i, Self::NORMAL_PARSING);
+                let return_node = self.get_expression(tokens, i, until);
                 expr_stack.push(Box::new(ASTNode {
                     token: token.clone(),
                     node: Box::new(NodeType::ReturnExpression(return_node))
@@ -2249,11 +2253,25 @@ impl Parser {
                 else if tokens[*i].token_type == TokenType::Comma {
                     // add to stack
                     Self::inc(i);
+
+                    // this is for: `[a, b,]` so that `b` can have a comma without causing an infinite loop
+                    if tokens.get(*i).is_some_and(|t| t.token_type == until_token) {
+                        Self::inc(i);
+                        done = true;
+                        break;
+                    }
                     let expression = self.get_expression(tokens, i, until);
                     parameters.push(expression);
                 }
                 else if until == Self::PARSING_FOR_CODE_BLOCK && tokens[*i].token_type != until_token {
                     let expression = self.get_expression(tokens, i, until);
+                    
+                    // this is for: `if a { b } else { c }` so that `b` doesn't need to have a semicolon at the end
+                    if parameters.last().is_some() && parameters.last().unwrap() == &expression && tokens.get(*i + 1).map_or(false, |t| t.token_type == until_token) {
+                        Self::inc(i);
+                        done = true;
+                        break;
+                    }
                     parameters.push(expression);
 
                     if tokens.get(*i + 1).map_or(false, |t| t.token_type == TokenType::RBrace) {
@@ -3158,7 +3176,7 @@ impl Parser {
                 }
                 let if_name = value.is_while.then(|| "while").unwrap_or("if");
 
-                format!("{} {} {} {}{}", if_name, condition, body, else_if_string, else_string)
+                format!("{} {} {}{}{}", if_name, condition, body, else_if_string, else_string)
             }
             NodeType::ForEach(ref value) => {
                 let index = value.index_segment.clone().map_or("".to_string(), |t| t.value.clone());
@@ -3329,7 +3347,7 @@ impl Parser {
                 }
                 let mut extends = "".to_string();
                 if value.extends.len() > 0 {
-                    extends += "-> ";
+                    extends += " -> ";
                     extends += &value.extends.iter().map(|x| x.value.clone()).collect::<Vec<String>>().join(", ");
                 }
                 let mut body = "".to_string();
@@ -3340,7 +3358,7 @@ impl Parser {
                 tab_level -= 1;
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
 
-                format!("{}{}class {}{} {} {}", tags, access_modifiers, name, generics, extends, body)
+                format!("{}{}class {}{}{} {}", tags, access_modifiers, name, generics, extends, body)
             }
             NodeType::StructDeclaration(ref value) => {
                 let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
@@ -3366,7 +3384,7 @@ impl Parser {
                 }
                 let mut extends = "".to_string();
                 if value.extends.len() > 0 {
-                    extends += "-> ";
+                    extends += " -> ";
                     extends += &value.extends.iter().map(|x| x.value.clone()).collect::<Vec<String>>().join(", ");
                 }
                 let mut body = "".to_string();
@@ -3377,7 +3395,7 @@ impl Parser {
                 tab_level -= 1;
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
 
-                format!("{}{}struct {}{} {} {}", tags, access_modifiers, name, generics, extends, body)
+                format!("{}{}struct {}{}{} {}", tags, access_modifiers, name, generics, extends, body)
             }
             NodeType::TraitDeclaration(ref value) => {
                 let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());

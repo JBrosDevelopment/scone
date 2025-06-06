@@ -58,6 +58,7 @@ pub enum TokenType {
     Shebang,
     QuestionMark,
     DotDotDot,
+    BackTick,
 
     // keywords
     Return,
@@ -532,6 +533,16 @@ impl Lexer {
                 }
     
                 current_location.advance(name.len() as i32);
+
+                if let Some(v) = self.macros.get_variable(&name){
+                    let mut lexer = Lexer::new(&v.value, None, self.macros.clone());
+                    let lexer_tokens = lexer.lex();
+                    for t in lexer_tokens {
+                        tokens.push(t);
+                    }
+                    last_was_negatable_ability -= 1;
+                    continue;
+                }
     
                 let new_token = match name.as_str() {
                     "true" | "false" => Token::new(TokenType::BoolConstant, name.clone(), current_location.clone()),
@@ -695,6 +706,10 @@ impl Lexer {
             else if c == '@' {
                 current_location.advance(1);
                 tokens.push(Token::new(TokenType::AtSymbol, "@".to_string(), current_location.clone()));
+            }
+            else if c == '`' {
+                current_location.advance(1);
+                tokens.push(Token::new(TokenType::BackTick, "`".to_string(), current_location.clone()));
             }
             else if c == '.' {
                 if chars.get(i + 1) == Some(&'.') {
