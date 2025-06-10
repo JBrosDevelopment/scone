@@ -1,1 +1,4 @@
+use "HELPER";
+
 int: i = 0;
+HELPER::something: value = i;

@@ -2,7 +2,7 @@ use serde::de::value;
 
 use crate::transpiler;
 #[allow(unused_imports)]
-use crate::{ast::*, macros::*, lexer::*, error_handling::{ErrorHandling, DEBUGGING}};
+use crate::{ast::*, macros::*, lexer::*, error_handling::{ErrorHandling, DEBUGGING, Message}};
 #[allow(unused_imports)]
 use crate::debug;
 
@@ -54,7 +54,7 @@ impl Transpiler {
         }
     }
     pub fn error(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
-        if self.output.errors().iter().any(|t: &&crate::error_handling::Message| t.location.line == location.line) { // prevent extra errors on the same line
+        if self.output.errors().iter().any(|t: &&Message| t.location.line == location.line) { // prevent extra errors on the same line
             return;
         }
         if DEBUGGING {
@@ -170,6 +170,11 @@ impl Transpiler {
     }
 
     fn evaluate_variable_declaration(&mut self, node: &VariableDeclaration) -> String {
+        if self.current_scope.last().is_none() {
+            self.current_scope.push(vec![]);
+        }
+        self.current_scope.last_mut().unwrap().push(node.clone());
+
         // tags don't get transpiled
         // access modifiers:
         let modifiers = self.parse_access_modifiers(&node.access_modifier);
@@ -196,12 +201,8 @@ impl Transpiler {
         node.iter().filter(|x| x == &&TypeMemoryModifier::Ptr).map(|_| "_ptr").collect::<String>()
     }
 
-    fn parse_reference(&self, node: &Vec<TypeMemoryModifier>) -> String {
-        node.iter().filter(|x| x == &&TypeMemoryModifier::Ref).map(|x| x.to_string() + " ").collect::<String>()
-    }
-
-    fn parse_pointer(&self, node: &Vec<TypeMemoryModifier>) -> String {
-        node.iter().filter(|x| x == &&TypeMemoryModifier::Ptr).map(|x| x.to_string() + " ").collect::<String>()
+    fn parse_reference_or_pointer(&self, node: &Vec<TypeMemoryModifier>) -> String {
+        node.iter().map(|_| "*").collect::<String>()
     }
 
     fn parse_node_parameters(&mut self, node: &NodeParameters) -> String {
@@ -215,19 +216,19 @@ impl Transpiler {
         s
     }
 
-    fn parse_scope_type(&self, node: &Option<ScopeType>) -> String {
+    fn parse_typed_scope_type(&self, node: &Option<ScopeType>) -> String {
         if node.is_none() {
             return "".to_string()
         } 
         match node.clone().unwrap() {
-            ScopeType::Dot => ".".to_string(),
-            ScopeType::DoubleColon => "::".to_string(),
+            ScopeType::DoubleColon => "__".to_string(),
+            ScopeType::Dot => "___dot___".to_string() // shouldn't get here, but just in case
         }
     }
 
     fn parse_type_identifier(&mut self, node: &TypeIdentifier) -> String {
         // scope type (`.` or `::`):
-        let scope_type = self.parse_scope_type(&node.scope_type);
+        let scope_type = self.parse_typed_scope_type(&node.scope_type);
         // name:
         let name = node.name.value.clone();
 
@@ -235,7 +236,7 @@ impl Transpiler {
             // generics
             let generics = self.parse_node_parameters(&np);
             
-            format!("{scope_type}{name}<{generics}>")
+            format!("{scope_type}{name}_{generics}_c_")
         } else {
             format!("{scope_type}{name}")
         }
@@ -251,14 +252,22 @@ impl Transpiler {
     }
 
     fn evaluate_type_identifier(&mut self, node: &ScopedType) -> String {
-        // references:
-        let refs = self.parse_type_reference(&node.is_ptr_or_ref);
         // scope:
         let scope = self.parse_type_scope(&node.scope);
-        // pointers:
-        let pointers = self.parse_type_pointer(&node.is_ptr_or_ref);
+        // type references:
+        let type_refs = self.parse_type_reference(&node.is_ptr_or_ref);
+        // type pointers:
+        let type_pointers = self.parse_type_pointer(&node.is_ptr_or_ref);
+        // references or pointers:
+        let ref_or_ptr = self.parse_reference_or_pointer(&node.is_ptr_or_ref);
 
-        format!("{refs}{scope}{pointers}")
+        let type_result = format!("{type_refs}{scope}{type_pointers}");
+        let result = format!("{scope}{ref_or_ptr}");
+
+        if node.is_ptr_or_ref.len() > 0 {
+            self.header += format!("typedef {result} {type_result};\n").as_str();
+        }
+        type_result
     }
 
     fn evaluate_constant(&mut self, node: &ConstantNode) -> String { 

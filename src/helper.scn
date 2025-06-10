@@ -1,3 +1,6 @@
+#! ifndef HELPER
+#! def HELPER
+
 #! expose
 #! version 0.1
 pub unsafe struct Vec<T> {
@@ -98,3 +101,68 @@ VECTOR_DEFINE(ref_Random__Structure_ptr);
 Vec_ref_Random__Structure_ptr a = Vec_ref_Random__Structure_ptr_new(&a);
 
 */
+
+#! expose
+pub string: format(string: message, Tostring: params ...) {
+    u8: chars = message.to_chars();
+    bool: in_escape = false;
+    string: result = "";
+    u32: params_index = 0;
+    for c in chars {
+        if in_escape {
+            match c {
+                'n' => result.push('\n'),
+                't' => result.push('\t'),
+                'r' => result.push('\r'),
+                '\'' => result.push('\''),
+                '\\' => result.push('\\'),
+                '0' => result.push('\0'),
+                '%' => result.push('%'),
+                _ => break
+            }
+            continue;
+        }
+
+        if c == '\\' {
+            in_escape = true;
+        } else if c == '%' {
+            in_escape = false;
+            result.push_string(params[params_index].to_string());
+            params_index += 1;
+        } else {
+            in_escape = false;
+            result.push(c);
+        }
+    }
+
+    result
+}
+
+#! expose
+pub void: print(string: message, Tostring: params ...) {
+    string: m = format(message);
+    printf(message);
+}
+
+#! expose
+pub string: input(String: message = "", ToString: params ...) { 
+    print(message.format(params...));
+
+    u8*: str = NULL;
+    size_t: len = 0;
+
+    size_t: read = getline(&str, &len, stdin);
+
+    // If getline failed
+    if read == -1 {
+        return ""; // or return null, or error
+    }
+
+    // Optionally trim trailing newline
+    if read > 0 && str[read - 1] == '\n' {
+        str[read - 1] = '\0';
+    }
+
+    // Return the string
+    return string::from_u8_ptr(&str);
+}

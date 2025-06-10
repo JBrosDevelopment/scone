@@ -2786,13 +2786,15 @@ impl Parser {
                     first_token = false;
                 }
                 TokenType::Dot => {
-                    Self::inc(i);
-                    if last_punc.is_some() {
-                        self.error(line!(), "Scope has incorrect type", "Consecutive `.` found. Use `.` only between valid names, for example `A.B.C`", &token.location);
-                        return scope;
-                    }
-                    last_punc = Some(ScopeType::Dot);
-                    first_token = false;
+                    self.error(line!(), "Incorrect Scoping syntax", "Expected `::` for type scoping, found `.`", &token.location);
+                    break;
+                    // Self::inc(i);
+                    // if last_punc.is_some() {
+                    //     self.error(line!(), "Scope has incorrect type", "Consecutive `.` found. Use `.` only between valid names, for example `A.B.C`", &token.location);
+                    //     return scope;
+                    // }
+                    // last_punc = Some(ScopeType::Dot);
+                    // first_token = false;
                 }
                 TokenType::Identifier => {
                     let mut maybe_type_parameters = NodeParameters { parameters: vec![] };
