@@ -1,0 +1,100 @@
+#! expose
+#! version 0.1
+pub unsafe struct Vec<T> {
+    #! expose
+    T*: data;
+    #! expose
+    size_t: size;
+    #! expose
+    size_t: capacity;
+
+    #! expose
+    #! crumb
+    static Self: new(size_t: _capacity) {
+        Self: v = Self {};
+        v.data = malloc(sizeof(T) * _capacity) as T*;
+        v.size = 0;
+        v.capacity = _capacity;
+        return v;
+    }
+
+    #! expose
+    T*: get(size_t: index) {
+        if index < 0 {
+            print("Negative integers cannot be used to index");
+            exit(EXIT_FAILURE);
+        }
+        if index >= self.size {
+            print("Index out of bounds");
+            exit(EXIT_FAILURE);
+        }
+        
+        return ((self.data as char*) + index * sizeof(T)) as T*;        
+    }
+
+    #! expose
+    void: push(T: element) {
+        if self.size == self.capacity {
+            self.capacity *= 2;
+            self.data = realloc(self.data, self.capacity * sizeof(T));
+        }
+        
+        memcpy((self.data as char*) + self.size * sizeof(T), element, sizeof(T));
+        self.size += 1;
+    }
+
+    #! expose
+    void: free() {
+        free(self.data);
+    }
+}
+
+
+// should parse to:
+
+/*
+#include <stdlib.h>
+#include <string.h>
+
+#define VECTOR_DEFINE(type)                                         \
+typedef struct {                                                    \
+    T* data;                                                        \
+    size_t size;                                                    \
+    size_t capacity;                                                \
+} Vec_##type;                                                       \
+Vec_##type Vec_##type##_new(size_t capacity) {                      \
+    Vec_##type v;                                                   \
+    v.size = 0;                                                     \
+    v.capacity = capacity;                                          \
+    v.data = malloc(sizeof(T) * v.capacity);                        \
+    return v;                                                       \
+}                                                                   \
+T* Vec_##type##_get(Vec_##type v, size_t index) {                   \
+    if (index >= v->size) {                                         \
+        fprintf(stderr, "Out of bounds\n");                         \
+        exit(EXIT_FAILURE);                                         \
+    }                                                               \
+    return &v->data[index];                                         \
+}                                                                   \
+void Vec_##type##_push(Vec_##type v, T element) {                   \
+    if (v->size == v->capacity) {                                   \
+        v->capacity *= 2;                                           \
+        v->data = realloc(v->data, v->capacity * sizeof(T));        \
+    }                                                               \
+    v->data[v->size++] = element;                                   \
+}                                                                   \
+void Vec_##type##_free(Vec_##type v) {                              \
+    free(v->data);                                                  \
+}                                                                   \
+*/
+
+
+/*
+//this transpiles from:
+Vec<&Random::Structure*>: a = [];
+//to:
+typedef &Random__Structure* ref_Random__Structure_ptr;
+VECTOR_DEFINE(ref_Random__Structure_ptr);
+Vec_ref_Random__Structure_ptr a = Vec_ref_Random__Structure_ptr_new(&a);
+
+*/

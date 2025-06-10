@@ -193,12 +193,12 @@ scoped<a>::nested<b>: result = func<c>::call<d>(vec { x = 10, y = 20 });
 value<x>::type<y>: result = obj<a>::method<b>(nested[0][1].args);
 scoped<type>::key<val>: output = func<x>::call<y>(nested::op(array[2]));
 
-i32[]: array = [10, 20, 30];
+i32: array = [10, 20, 30];
 i32*: arrayPtr = &array[0];
 i32**: doubleArrayPtr = &arrayPtr;
 bool: isDoubleArrayPtr = doubleArrayPtr is i32**;
 auto: genericArray = array;
-Nullable<i32[]>: maybeArray = genericArray as i32[];
+Nullable<i32>: maybeArray = genericArray as i32;
 i32: value = 99;
 i32*: ptr = &value;
 i32**: doublePtr = &ptr;
@@ -417,12 +417,11 @@ a{ b = c{ d = e{}.h }.i }.j;
     value<x>::type<y>: result = obj<a>::method<b>(nested[0][1].args);
     scoped<type>::key<val>: output = func<x>::call<y>(nested::op(array[2]));
     AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA;
-    i32[]: array = [10, 20, 30];
+    i32: array = [10, 20, 30];
     i32*: arrayPtr = &array[0];
     //i32**: doubleArrayPtr = &arrayPtr; ////////////////////////////////////////////////////////////
     bool: isDoubleArrayPtr = doubleArrayPtr is i32**;
     auto: genericArray = array;
-    Nullable<i32[]>: maybeArray = genericArray as i32[];
     i32: value = 99;
     i32*: ptr = &value;
     //i32**: doublePtr = &ptr; ////////////////////////////////////////////////////////////
@@ -523,7 +522,7 @@ match a.b(c => d.e, f + g).h().i {
 }
 
 if a {
-    Thing[]: things = [];
+    Thing: things = [];
     for c in things.colors.iter().filter(x => x.is_good()).collect() {
         Thing: t = Thing {};
         t.color.red = c.red;
@@ -540,7 +539,7 @@ if a {
         things.push(t);
     }
 } else if b {
-    Thing[]: things = [];
+    Thing: things = [];
     for index, c in things.colors.iter().filter(x => x.is_good()).collect() {
         Thing: t = Thing {};
         t.color.red = c.red;
@@ -557,8 +556,8 @@ if a {
         things.push(t);
     }
 } else if c {
-    Thing[]: things = [];
-    Color[]: colors = things.colors.iter().filter(x => x.is_good()).collect();
+    Thing: things = [];
+    Color: colors = things.colors.iter().filter(x => x.is_good()).collect();
     for usize: i = 0, i < colors.len(), i += 1 {
         Thing: t = Thing {};
         t.color.red = colors[i].red;
@@ -575,8 +574,8 @@ if a {
         things.push(t);
     }
 } else {
-    Thing[]: things = [];
-    Color[]: colors = things.colors.iter().filter(x => x.is_good()).collect();
+    Thing: things = [];
+    Color: colors = things.colors.iter().filter(x => x.is_good()).collect();
     for index, usize: i = 1, i < colors.len(), i += 1 {
         Thing: t = Thing {};
         t.color.red = colors[i].red;
@@ -619,13 +618,13 @@ void: main() {
     string: code = std::fs::read_to_string(&path).unwrap();
     
     // lexer
-    Token[]: tokens = lexer::lex(&code, &path);
+    Token: tokens = lexer::lex(&code, &path);
     
     string: json = serde_json::to_string_pretty(&tokens).unwrap();
     std::fs::write("src/testing/lexer.out.json", json).unwrap();
 
     // parser    
-    ASTNode[]: ast = parser::parse(tokens, &path, &code);
+    ASTNode: ast = parser::parse(tokens, &path, &code);
 
     string: fmt_json = serde_json::to_string_pretty(&ast).unwrap();
     std::fs::write("src/testing/parser.out.json", fmt_json).unwrap();
@@ -1312,3 +1311,70 @@ pub struct Macros {
         evaluated_node
     }
 }
+
+pub String: format(String: message, (ToString): params ...) {
+    u8: chars = message.to_chars();
+    bool: in_escape = false;
+    String: result = "";
+    u32: params_index = 0;
+    for c in chars {
+        if in_escape {
+            match c {
+                'n' => result.push('\n'),
+                't' => result.push('\t'),
+                'r' => result.push('\r'),
+                '\'' => result.push('\''),
+                '\\' => result.push('\\'),
+                '0' => result.push('\0'),
+                '%' => result.push('%'),
+                _ => break
+            }
+            continue;
+        }
+
+        if c == '\\' {
+            in_escape = true;
+        } else if c == '%' {
+            in_escape = false;
+            result.push_string(params[params_index].to_string());
+            params_index += 1;
+        } else {
+            in_escape = false;
+            result.push(c);
+        }
+    }
+
+    result
+}
+
+
+trait Default {
+    Self: default();
+}
+
+trait ToString {
+    String: to_string();
+}
+
+struct Color -> Default, ToString {
+    u8: r = 0;
+    u8: g = 0;
+    u8: b = 0;
+
+    #! crumb
+    pub static Color: new(u8: _r, u8: _g, u8: _b) {
+        Color { r = _r, g = _g, b = _b }
+    } 
+
+    #! crumb
+    pub static Color: default() {
+        new(0, 0, 0)
+    }
+
+    pub String: to_string() {
+        format("{Color R = %, G = %, B = %}", r, g, b);
+    }
+}
+
+memcpy(data as char*);
+size += 1;

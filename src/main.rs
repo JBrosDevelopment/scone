@@ -3,13 +3,14 @@ pub mod macros;
 pub mod lexer;
 pub mod ast;
 pub mod parser;
+pub mod transpiler;
 
 fn main() {
     let path = "src/testing/test_code.scn".to_string();
     let code = std::fs::read_to_string(&path).unwrap();
     
     // lexer
-    let (tokens, output, _macros) = lexer::lex(&code, Some(path.clone()), None);
+    let (tokens, output, macros) = lexer::lex(&code, Some(path.clone()), None);
 
     let json = serde_json::to_string_pretty(&tokens).unwrap();
     std::fs::write("src/testing/lexer.out.json", json).unwrap();
@@ -20,7 +21,7 @@ fn main() {
     }
 
     // parser
-    let (ast, _output) = parser::parse(tokens, &code, Some(path.clone()));
+    let (ast, output) = parser::parse(tokens, &code, Some(path.clone()));
 
     let mut ast_string = String::new();
     for node in &ast {
@@ -32,4 +33,19 @@ fn main() {
 
     let fmt_json = serde_json::to_string_pretty(&ast).unwrap();
     std::fs::write("src/testing/parser.out.json", fmt_json).unwrap();
+    
+    if output.has_errors() {
+        error_handling::ErrorHandling::print_unable_to_continue_message();
+        return;
+    }
+
+    // transpiler
+    let (out_code, output) = transpiler::codegen(ast, &code, Some(path.clone()), macros);
+
+    std::fs::write("src/testing/transpiler.out.c", out_code.clone()).unwrap();
+
+    if output.has_errors() {
+        error_handling::ErrorHandling::print_unable_to_continue_message();
+        return;
+    }
 }

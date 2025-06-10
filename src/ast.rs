@@ -49,7 +49,6 @@ pub enum NodeType {
     Shebang(ShebangType),
     
     // declare
-    TypeDefinition(TypeDefinition),
     TupleDeclaration(TupleDeclaration),
     VariableDeclaration(VariableDeclaration),
     FunctionDeclaration(FunctionDeclaration),
@@ -93,7 +92,6 @@ impl NodeType {
             NodeType::CodeBlock(_) => "CodeBlock".to_string(),
             NodeType::Discard(_) => "Discard".to_string(),
             NodeType::Shebang(_) => "Shebang".to_string(),
-            NodeType::TypeDefinition(_) => "TypeDefinition".to_string(),
             NodeType::TupleDeclaration(_) => "TupleDeclaration".to_string(),
             NodeType::VariableDeclaration(_) => "VariableDeclaration".to_string(),
             NodeType::FunctionDeclaration(_) => "FunctionDeclaration".to_string(),
@@ -123,10 +121,6 @@ pub enum ConstantType {
     String,
     Char,
     Bool,
-    Array(Box<ConstantType>),
-    Range(Box<ConstantType>, Box<ConstantType>),
-    Object,
-    None
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -136,7 +130,6 @@ pub enum AccessModifier {
     Private,
     Override,
     Virtual,
-    Abstract,
     Static,
     Const,
     Extern,
@@ -151,7 +144,6 @@ impl AccessModifier {
             AccessModifier::Private => "priv".to_string(),
             AccessModifier::Override => "override".to_string(),
             AccessModifier::Virtual => "virtual".to_string(),
-            AccessModifier::Abstract => "abstract".to_string(),
             AccessModifier::Static => "static".to_string(),
             AccessModifier::Const => "const".to_string(),
             AccessModifier::Extern => "extern".to_string(),
@@ -214,7 +206,7 @@ pub struct VariableDeclaration {
     pub var_type: Box<ASTNode>,
     pub var_name: Box<Token>,
     pub var_value: Option<Box<ASTNode>>,
-    pub tags: Vec<Vec<Box<Token>>>,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -225,7 +217,7 @@ pub struct FunctionDeclaration {
     pub type_parameters: Option<AnonymousTypeParameters>,
     pub body: Option<BodyRegion>,
     pub access_modifier: Vec<AccessModifier>,
-    pub tags: Vec<Vec<Box<Token>>>,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -235,7 +227,7 @@ pub struct ClassDeclaration {
     pub body: BodyRegion,
     pub access_modifier: Vec<AccessModifier>,
     pub extends: Vec<Box<Token>>,
-    pub tags: Vec<Vec<Box<Token>>>,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -245,7 +237,7 @@ pub struct StructDeclaration {
     pub body: BodyRegion,
     pub access_modifier: Vec<AccessModifier>,
     pub extends: Vec<Box<Token>>,
-    pub tags: Vec<Vec<Box<Token>>>,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -254,7 +246,7 @@ pub struct TraitDeclaration {
     pub extends: Vec<Box<Token>>,
     pub body: BodyRegion,
     pub access_modifier: Vec<AccessModifier>,
-    pub tags: Vec<Vec<Box<Token>>>,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -262,7 +254,7 @@ pub struct EnumDeclaration {
     pub name: Box<Token>,
     pub access_modifier: Vec<AccessModifier>,
     pub body: Vec<(Box<Token>, Option<Box<ASTNode>>)>,
-    pub tags: Vec<Vec<Box<Token>>>,
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -358,7 +350,6 @@ pub struct Expression {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct TupleDeclaration {
     pub parameters: NodeParameters,
-    pub is_array: Vec<Vec<Box<ASTNode>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -372,13 +363,21 @@ pub struct TypeIdentifier {
 pub struct ScopedType {
     pub scope: Vec<TypeIdentifier>,
     pub is_ptr_or_ref: Vec<TypeMemoryModifier>,
-    pub is_array: Vec<Vec<Box<ASTNode>>>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub enum TypeMemoryModifier {
     Ptr,
     Ref
+}
+
+impl TypeMemoryModifier {
+    pub fn to_string(&self) -> String {
+        match self {
+            TypeMemoryModifier::Ptr => "*".to_string(),
+            TypeMemoryModifier::Ref => "&".to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -451,6 +450,25 @@ impl ShebangAWEMessage {
             ShebangAWEMessage::Unimplemented => "unimplemented".to_string(),
             ShebangAWEMessage::Deprecated => "deprecated".to_string(),
             ShebangAWEMessage::NoEntrance => "no_entrance".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub enum Tag {
+    Version(Box<Token>),
+    Deprecated,
+    Crumb,
+    Expose
+}
+
+impl Tag {
+    pub fn to_string(&self) -> String {
+        match self {
+            Tag::Version(version) => format!("#! version {}", version.value),
+            Tag::Deprecated => "#! deprecated".to_string(),
+            Tag::Crumb => "#! crumb".to_string(),
+            Tag::Expose => "#! expose".to_string(),
         }
     }
 }

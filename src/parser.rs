@@ -26,7 +26,7 @@ pub struct Parser {
     ast: Vec<ASTNode>,
     lines: Vec<Vec<Box<Token>>>,
     __curent_parsing_line: usize,
-    __current_tags: Vec<Vec<Box<Token>>>
+    __current_tags: Vec<Tag>
 }
 
 impl Parser {
@@ -100,7 +100,7 @@ impl Parser {
             let mut tokens = self.lines[self.__curent_parsing_line].clone();
             let node = self.get_ast_node(&mut tokens);
             
-            println!("{}", Self::node_expr_to_string(&node, 0));
+            //println!("{}", Self::node_expr_to_string(&node, 0));
 
             if node != ASTNode::err() {
                 ast.push(node);
@@ -166,7 +166,6 @@ impl Parser {
                 TokenType::Static => access_modifier.push(AccessModifier::Static),
                 TokenType::Const => access_modifier.push(AccessModifier::Const),
                 TokenType::Extern => access_modifier.push(AccessModifier::Extern),
-                TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
                 TokenType::Safe => access_modifier.push(AccessModifier::Safe),
                 TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
                 _ => break
@@ -268,7 +267,6 @@ impl Parser {
                 TokenType::Static => access_modifier.push(AccessModifier::Static),
                 TokenType::Const => access_modifier.push(AccessModifier::Const),
                 TokenType::Extern => access_modifier.push(AccessModifier::Extern),
-                TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
                 TokenType::Safe => access_modifier.push(AccessModifier::Safe),
                 TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
                 _ => break
@@ -400,6 +398,9 @@ impl Parser {
     }
 
     fn declaring_variable(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, is_in_for: bool, assigning: bool) -> ASTNode { // `tokens` fpr tokens to parse, `i` for current token index only used if `is_in_for` is true, `is_in_for` whether or not we are in a for loop
+        let tags = self.__current_tags.clone();
+        self.__current_tags.clear();
+
         let starting_index: usize;
         if is_in_for {
             let position_of_for: i32 = tokens.iter().position(|t| t.token_type == TokenType::For).map_or(-1, |index| index as i32);
@@ -445,7 +446,6 @@ impl Parser {
                         TokenType::Static => access_modifier.push(AccessModifier::Static),
                         TokenType::Const => access_modifier.push(AccessModifier::Const),
                         TokenType::Extern => access_modifier.push(AccessModifier::Extern),
-                        TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
                         TokenType::Safe => access_modifier.push(AccessModifier::Safe),
                         TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
                         _ => break
@@ -477,7 +477,7 @@ impl Parser {
                     var_name: var_name.clone(),
                     var_value,
                     var_type,
-                    tags: self.__current_tags.clone(),
+                    tags,
                 };
                 self.__current_tags.clear(); 
 
@@ -490,7 +490,10 @@ impl Parser {
         return ASTNode::err();
     }
 
-    fn declaring_function(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ASTNode {        
+    fn declaring_function(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ASTNode {
+        let tags = self.__current_tags.clone();
+        self.__current_tags.clear();
+
         Self::dec(i); // move `i` to `:`
         let before_colon: Vec<Box<Token>> = tokens.iter().take(*i).map(|t| t.clone()).collect(); // get tokens before `:`
         
@@ -508,7 +511,6 @@ impl Parser {
                 TokenType::Static => access_modifier.push(AccessModifier::Static),
                 TokenType::Const => access_modifier.push(AccessModifier::Const),
                 TokenType::Extern => access_modifier.push(AccessModifier::Extern),
-                TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
                 TokenType::Safe => access_modifier.push(AccessModifier::Safe),
                 TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
                 _ => break
@@ -561,7 +563,7 @@ impl Parser {
             type_parameters,
             parameters,
             body,
-            tags: self.__current_tags.clone(),
+            tags,
         };
         self.__current_tags.clear(); 
 
@@ -584,7 +586,6 @@ impl Parser {
                 TokenType::Static => access_modifier.push(AccessModifier::Static),
                 TokenType::Const => access_modifier.push(AccessModifier::Const),
                 TokenType::Extern => access_modifier.push(AccessModifier::Extern),
-                TokenType::Abstract => access_modifier.push(AccessModifier::Abstract),
                 TokenType::Safe => access_modifier.push(AccessModifier::Safe),
                 TokenType::Unsafe => access_modifier.push(AccessModifier::Unsafe),
                 _ => break
@@ -2075,8 +2076,29 @@ impl Parser {
                             node: Box::new(NodeType::Shebang(ShebangType::C(tokens.iter().skip(*i).map(|t| t.clone()).collect())))
                         });
                     }
-                    "crumb" | "deprecated" | "version" => {
-                        self.__current_tags.push(tokens.iter().skip(*i).map(|t| t.clone()).collect());
+                    "crumb" | "deprecated" | "version"| "expose" => {
+                        let tag_tokens: Vec<Box<Token>> = tokens.iter().skip(*i).map(|t| t.clone()).collect();
+                        match tag_tokens.first().map_or("", |t| t.value.as_str()) {
+                            "crumb" => {
+                                self.__current_tags.push(Tag::Crumb);
+                            }
+                            "expose" => {
+                                self.__current_tags.push(Tag::Expose);
+                            }
+                            "deprecated" => {
+                                self.__current_tags.push(Tag::Deprecated);
+                            }
+                            "version" => {
+                                if let Some(version_token) = tag_tokens.get(1) {
+                                    self.__current_tags.push(Tag::Version(version_token.clone()));
+                                } else {
+                                    self.error(line!(), "Unexpected tag syntax", "Version tag requires version number: `#! version 1.2.3`", &token.location);
+                                }
+                            }
+                            _ => {
+                                self.error(line!(), "Unexpected tag", "Tag not recognized, expected `crumb`, `expose`, `deprecated` or `version", &token.location);
+                            }
+                        }
                         if self.lines.get(self.__curent_parsing_line + 1).is_some_and(|l| !l.iter().any(|t| matches!(t.token_type, TokenType::Class | TokenType::Struct | TokenType::Trait))) {
                             self.__curent_parsing_line += 1;
                             *tokens = self.lines[self.__curent_parsing_line].clone();
@@ -2360,13 +2382,15 @@ impl Parser {
                                 type_parameters: None,
                                 scope_type: None,
                             }],
-                            is_array: vec![],
                             is_ptr_or_ref,
                         }))
                     });
                 }
                 if copy_tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::DoubleColon || t.token_type == TokenType::Dot || t.token_type == TokenType::LessThan || t.token_type == TokenType::LBracket || t.token_type == TokenType::Star || t.token_type == TokenType::Ampersand) {
                     let scope_and_types = self.get_scoped_typed(&mut copy_tokens, i, is_ptr_or_ref);
+                    if from_as_is_operators {
+                        Self::dec(i);
+                    }
                     return Box::new(ASTNode {
                         token: first_token.clone(),
                         node: Box::new(NodeType::TypeIdentifier(scope_and_types)),
@@ -2383,14 +2407,12 @@ impl Parser {
             }
             else if first_token.token_type == TokenType::LParen {
                 let tuple = self.get_tuple_node_parameters(&mut copy_tokens, i);
-                let mut is_array = vec![];
                 if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBracket) {
-                    is_array = self.next_is_array_for_type(&mut copy_tokens, i);
+                    self.error(line!(), "Incorrect type", "Incorrect type declaration. If you were trying to create an array, use: `Vec<>`", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()))
                 }
                 return Box::new(ASTNode {
                     token: first_token.clone(),
                     node: Box::new(NodeType::TupleDeclaration(TupleDeclaration {
-                        is_array,
                         parameters: NodeParameters {
                             parameters: tuple
                         },
@@ -2514,7 +2536,10 @@ impl Parser {
 
     fn get_scoped_typed(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, mut is_ptr_or_ref: Vec<TypeMemoryModifier>) -> ScopedType {
         let scope = self.get_type_scope(tokens, i);
-        let is_array = self.next_is_array_for_type(tokens, i);
+        
+        if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBracket) && tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::RBracket) {
+            self.error(line!(), "Incorrect type", "Incorrect type declaration. If you were trying to create an array, use: `Vec<>`", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
+        }
 
         while *i < tokens.len() {
             if tokens[*i].token_type == TokenType::Star {
@@ -2527,7 +2552,6 @@ impl Parser {
 
         ScopedType {
             scope,
-            is_array,
             is_ptr_or_ref,
         }
     }
@@ -2823,16 +2847,6 @@ impl Parser {
         return scope
     }
 
-    fn next_is_array_for_type(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Vec<Vec<Box<ASTNode>>> {
-        let mut arrays = vec![];
-        while tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBracket) {
-            //Self::inc(i);
-            let parameters = self.get_node_parameters(tokens, i, Self::PARSING_FOR_ARRAY);
-            arrays.push(parameters);
-        }
-        return arrays;
-    }
-
     fn get_anonymous_type_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> AnonymousTypeParameters {
         Self::inc(i); // skip the `<`
         
@@ -2966,10 +2980,7 @@ impl Parser {
                 let var_type = Self::node_expr_to_string(&value.var_type, tab_level);
                 let var_name = value.var_name.value.clone();
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
-                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
-                if tags.len() > 0 {
-                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
-                } 
+                let tags = value.tags.iter().map(|x| x.to_string() + "\n" + &"    ".repeat(tab_level)).collect::<String>();
                 if let Some(v) = &value.var_value {
                     let var_value = Self::node_expr_to_string(v, tab_level);
                     format!("{}{}{}: {} = {}", tags, access_modifiers, var_type, var_name, var_value)
@@ -2978,14 +2989,6 @@ impl Parser {
                 }
             }
             NodeType::TypeIdentifier(ref value) => {
-                let mut array = "".to_string();
-                for array_full in value.is_array.clone() {
-                    array += "[";
-                    for (index, param) in array_full.iter().enumerate() {
-                        array += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), array_full.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
-                    }
-                    array += "]";
-                }
                 let mut pointer = "".to_string();
                 let mut reference = "".to_string();
                 for modifier in value.is_ptr_or_ref.iter() {
@@ -3013,22 +3016,14 @@ impl Parser {
                         scope += format!("{}{}", scope_type, identifier).as_str();
                     }
                 }
-                format!("{}{}{}{}", reference, scope, array, pointer)
+                format!("{}{}{}", reference, scope, pointer)
             }
             NodeType::TupleDeclaration(ref value) => {
-                let mut array = "".to_string();
-                for array_full in value.is_array.clone() {
-                    array += "[";
-                    for (index, param) in array_full.iter().enumerate() {
-                        array += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), array_full.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
-                    }
-                    array += "]";
-                }
                 let mut tuple = "".to_string();
                 for (index, param) in value.parameters.parameters.iter().enumerate() {
                     tuple += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
-                format!("({}){}", tuple, array)
+                format!("({})", tuple)
             }
             NodeType::Operator(ref value) => {
                 let left = Self::node_expr_to_string(&value.left, tab_level);
@@ -3283,10 +3278,7 @@ impl Parser {
                 }
             }
             NodeType::FunctionDeclaration(ref value) => {
-                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
-                if tags.len() > 0 {
-                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
-                } 
+                let tags = value.tags.iter().map(|x| x.to_string() + "\n" + &"    ".repeat(tab_level)).collect::<String>();
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 let ty = Self::node_expr_to_string(&value.return_type, tab_level);
                 let name = value.name.value.clone();
@@ -3347,10 +3339,7 @@ impl Parser {
                 format!("typedef {}: {}", expression, name)
             }
             NodeType::EnumDeclaration(ref value) => {
-                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
-                if tags.len() > 0 {
-                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
-                } 
+                let tags = value.tags.iter().map(|x| x.to_string() + "\n" + &"    ".repeat(tab_level)).collect::<String>();
                 let name = value.name.value.clone();
                 let mut body = "".to_string();
                 tab_level += 1;
@@ -3366,10 +3355,7 @@ impl Parser {
                 format!("{}enum {} {}", tags, name, body)
             }
             NodeType::ClassDeclaration(ref value) => {
-                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
-                if tags.len() > 0 {
-                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
-                } 
+                let tags = value.tags.iter().map(|x| x.to_string() + "\n" + &"    ".repeat(tab_level)).collect::<String>();
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 let name = value.name.value.clone();
                 let mut generics = "".to_string();
@@ -3403,10 +3389,7 @@ impl Parser {
                 format!("{}{}class {}{}{} {}", tags, access_modifiers, name, generics, extends, body)
             }
             NodeType::StructDeclaration(ref value) => {
-                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
-                if tags.len() > 0 {
-                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
-                } 
+                let tags = value.tags.iter().map(|x| x.to_string() + "\n" + &"    ".repeat(tab_level)).collect::<String>();
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 let name = value.name.value.clone();
                 let mut generics = "".to_string();
@@ -3440,10 +3423,7 @@ impl Parser {
                 format!("{}{}struct {}{}{} {}", tags, access_modifiers, name, generics, extends, body)
             }
             NodeType::TraitDeclaration(ref value) => {
-                let mut tags = value.tags.iter().map(|x| format!("#! {}", x.iter().map(|t| t.value.clone()).collect::<Vec<String>>().join(" "))).collect::<Vec<String>>().join(format!("\n{}", "    ".repeat(tab_level)).as_str());
-                if tags.len() > 0 {
-                    tags = format!("{}\n{}", tags, "    ".repeat(tab_level));
-                } 
+                let tags = value.tags.iter().map(|x| x.to_string() + "\n" + &"    ".repeat(tab_level)).collect::<String>();
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 let name = value.name.value.clone();
                 let mut extends = "".to_string();
