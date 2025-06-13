@@ -615,11 +615,11 @@ impl Parser {
         let mut body: Vec<(Box<Token>, Option<Box<ASTNode>>)> = vec![];
         
         let mut expessions = self.get_node_parameters(tokens, i, Self::PARSING_FOR_ENUM);
-        if expessions.last().is_some_and(|t| **t == ASTNode::err()) {
-            expessions.pop();
+        if expessions.parameters.last().is_some_and(|t| **t == ASTNode::err()) {
+            expessions.parameters.pop();
         }
 
-        for expession in expessions {
+        for expession in expessions.parameters {
             if let NodeType::Identifier(ref name) = *expession.node {
                 body.push((name.clone(), None));
             } else if let NodeType::Operator(ref value) = *expession.node {
@@ -752,14 +752,14 @@ impl Parser {
         let segments = self.get_node_parameters(tokens, &mut i, Self::PARSING_FOR_STATEMENT);
         let body = self.get_code_block(tokens, &mut i, false);
 
-        if segments.len() == 0 {
+        if segments.parameters.len() == 0 {
             self.error(line!(), "Could not parse for statement", "No parameters were found for the for statement: `for X in Y { ... }` or `for VAR, CONDITION, INC { ... }`", &for_token.location);
             return ASTNode::err();
-        } else if segments.len() == 1 || segments.len() == 2 {
+        } else if segments.parameters.len() == 1 || segments.parameters.len() == 2 {
             // for X in Y
             let mut index_segment = None;
-            if segments.len() == 2 {
-                if let NodeType::Identifier(ref v) = segments[0].node.as_ref() {
+            if segments.parameters.len() == 2 {
+                if let NodeType::Identifier(ref v) = segments.parameters[0].node.as_ref() {
                     index_segment = Some(v.clone());
                 } else {
                     self.error(line!(), "Unable to parse `for` statement, incorrect indexer expression", "Expected a single identifier token as the indexer for the `for` statement: `for I, X in Y {}`", &for_token.location);
@@ -768,7 +768,7 @@ impl Parser {
 
             let iter_value;
             let iter_range;
-            if let NodeType::Operator(ref in_expression) = segments[if segments.len() == 1 {0} else {1}].node.as_ref() {
+            if let NodeType::Operator(ref in_expression) = segments.parameters[if segments.parameters.len() == 1 {0} else {1}].node.as_ref() {
                 iter_value = in_expression.left.clone();
                 iter_range = in_expression.right.clone();
                 if let NodeType::Identifier(_) = in_expression.left.node.as_ref() { } else {
@@ -795,37 +795,37 @@ impl Parser {
                 token: for_token.clone(), 
                 node: Box::new(NodeType::ForEach(node)) 
             };
-        } else if segments.len() == 3 || segments.len() == 4 {
+        } else if segments.parameters.len() == 3 || segments.parameters.len() == 4 {
             let mut index_segment = None;
-            if segments.len() == 4 {
-                if let NodeType::Identifier(ref v) = segments[0].node.as_ref() {
+            if segments.parameters.len() == 4 {
+                if let NodeType::Identifier(ref v) = segments.parameters[0].node.as_ref() {
                     index_segment = Some(v.clone());
                 } else {
                     self.error(line!(), "Unable to parse `for` statement, incorrect indexer expression", "Expected a single identifier token as the indexer for the `for` statement: `for INDEX, SET, CONDITION, INCREMENT {}`", &for_token.location);
                 }
             }
-            let start = if segments.len() == 3 {0} else {1};
+            let start = if segments.parameters.len() == 3 {0} else {1};
 
             let set_segment;
             let condition_segment;
             let increment_segment;
-            if let NodeType::VariableDeclaration(_) = segments[start].node.as_ref() {
-                set_segment = segments[start].clone();
+            if let NodeType::VariableDeclaration(_) = segments.parameters[start].node.as_ref() {
+                set_segment = segments.parameters[start].clone();
             } else {
                 self.error(line!(), "Unable to parse `for` statement, incorrect set expression", "Expected a variable declaration for the set segment for the `for` statement: `for i32: i = 0, i < 10, i += 1 {}`", &for_token.location);
                 return ASTNode::err();
             }
-            if let NodeType::Operator(ref v) = segments[start + 1].node.as_ref() {
+            if let NodeType::Operator(ref v) = segments.parameters[start + 1].node.as_ref() {
                 if !v.operator.token_type.operator_boolean() {
                     self.error(line!(), "Unable to parse `for` statement, incorrect condition expression", "Expected a valid expression for the condition segment for the `for` statement: `for i32: i = 0, i < 10, i += 1 {}`", &for_token.location);
                     return ASTNode::err();
                 }
-                condition_segment = segments[start + 1].clone();
+                condition_segment = segments.parameters[start + 1].clone();
             } else {
                 self.error(line!(), "Unable to parse `for` statement, incorrect condition expression", "Expected a valid expression for the condition segment for the `for` statement: `for i32: i = 0, i < 10, i += 1 {}`", &for_token.location);
                 return ASTNode::err();
             }
-            if let NodeType::Operator(ref v) = segments[start + 2].node.as_ref() {
+            if let NodeType::Operator(ref v) = segments.parameters[start + 2].node.as_ref() {
                 if v.operator.token_type != TokenType::Assign {
                     self.error(line!(), "Unable to parse `for` statement, incorrect increment expression", "Expected a assignment expression for the increment segment for the `for` statement: `for i32: i = 0, i < 10, i += 1 {}`", &for_token.location);
                     return ASTNode::err();
@@ -927,7 +927,7 @@ impl Parser {
         let mut scope = scope;
         Self::dec(i);
 
-        let mut node_parameters: Vec<Box<ASTNode>> = vec![];
+        let mut node_parameters: NodeParameters = NodeParameters { parameters: vec![], token: tokens.clone().get(*i + 1).unwrap_or(&tokens[*i]).clone() };
         let mut type_parameters: Vec<Box<ASTNode>> = vec![];
         let name = tokens[*i].clone();
 
@@ -943,7 +943,6 @@ impl Parser {
                 if tokens.get(*i + 1).is_some() && tokens[*i + 1].token_type == TokenType::RParen {
                     Self::inc(i);
                     Self::inc(i);
-                    node_parameters = vec![];
                 } else {
                     node_parameters = self.get_node_parameters(tokens, i, Self::PARSING_FOR_FUNCTION);
                 }
@@ -954,7 +953,7 @@ impl Parser {
         }
 
         let function_call = FunctionCall {
-            parameters: NodeParameters { parameters: node_parameters },
+            parameters: node_parameters,
             name: name.clone(),
             type_parameters: type_parameters.is_empty().then(|| None).unwrap_or(Some(type_parameters)),
         };
@@ -1173,7 +1172,7 @@ impl Parser {
             scope: vec![Identifier {
                 expression: Box::new(ASTNode {
                     token: first_token.clone(),
-                    node: Box::new(NodeType::ArrayExpression(NodeParameters { parameters: array_nodes.clone() })),
+                    node: Box::new(NodeType::ArrayExpression(array_nodes)),
                 }),
                 scope_type: None,
                 type_parameters: None
@@ -1208,7 +1207,7 @@ impl Parser {
         let raw_properties = self.get_node_parameters(tokens, i, Self::PARSING_FOR_OBJECT_INSTANTIATION);
 
         let mut properties = vec![];
-        for p in raw_properties {
+        for p in raw_properties.parameters {
             if ASTNode::err() == *p { continue; }
             if let NodeType::Operator(ref value) = *p.node {
                 if value.operator.token_type == TokenType::Assign {
@@ -1291,13 +1290,11 @@ impl Parser {
         let current_output = self.output.messages.clone();
 
         let nodes = self.get_node_parameters(tokens, &mut j, Self::PARSING_FOR_FUNCTION);
-        let is_tuple = nodes.len() > 1;
+        let is_tuple = nodes.parameters.len() > 1;
 
         let tuple = Box::new(ASTNode {
             token: first_token,
-            node: Box::new(NodeType::TupleExpression(NodeParameters {
-                parameters: nodes
-            })),
+            node: Box::new(NodeType::TupleExpression(nodes)),
         });
 
         if is_tuple {
@@ -1338,7 +1335,7 @@ impl Parser {
             return BodyRegion { body: vec![] };
         }
 
-        let mut body = self.get_node_parameters(tokens, i, Self::PARSING_FOR_CODE_BLOCK);
+        let mut body = self.get_node_parameters(tokens, i, Self::PARSING_FOR_CODE_BLOCK).parameters;
 
         if last_is_return {
             if let Some(last) = body.last_mut() {
@@ -2022,6 +2019,7 @@ impl Parser {
                             "unimplemented" => ShebangAWEMessage::Unimplemented,
                             "deprecated" => ShebangAWEMessage::Deprecated,
                             "no_entrance" => ShebangAWEMessage::NoEntrance,
+                            "unsafe" => ShebangAWEMessage::Unsafe,
                             _ => {
                                 let messages = ["unused", "unreachable", "unimplemented", "deprecated", "no_entrance"];
                                 self.error(line!(), "Unexpected Shebang token", format!("Shebang `#! {}` has invalid message: `{:?}`", token.value, messages).as_str(), &tokens[*i].location);
@@ -2076,7 +2074,7 @@ impl Parser {
                             node: Box::new(NodeType::Shebang(ShebangType::C(tokens.iter().skip(*i).map(|t| t.clone()).collect())))
                         });
                     }
-                    "crumb" | "deprecated" | "version"| "expose" => {
+                    "crumb" | "deprecated" | "version"| "expose" | "entry" => {
                         let tag_tokens: Vec<Box<Token>> = tokens.iter().skip(*i).map(|t| t.clone()).collect();
                         match tag_tokens.first().map_or("", |t| t.value.as_str()) {
                             "crumb" => {
@@ -2096,7 +2094,7 @@ impl Parser {
                                 }
                             }
                             _ => {
-                                self.error(line!(), "Unexpected tag", "Tag not recognized, expected `crumb`, `expose`, `deprecated` or `version", &token.location);
+                                self.error(line!(), "Unexpected tag", "Tag not recognized, expected `crumb`, `expose`, `entry`, `deprecated` or `version", &token.location);
                             }
                         }
                         if self.lines.get(self.__curent_parsing_line + 1).is_some_and(|l| !l.iter().any(|t| matches!(t.token_type, TokenType::Class | TokenType::Struct | TokenType::Trait))) {
@@ -2184,9 +2182,10 @@ impl Parser {
                 if let NodeType::TupleExpression(ref value) = parameters_node.node.as_ref() {
                     value.parameters.clone()
                 } else {
-                    vec![parameters_node]
+                    vec![parameters_node.clone()]
                 }
-            }
+            },
+            token: parameters_node.token.clone(),
         };
 
         *inc_i = false;
@@ -2222,7 +2221,7 @@ impl Parser {
         }
     }
 
-    fn get_node_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> Vec<Box<ASTNode>> {
+    fn get_node_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, until: u8) -> NodeParameters {
         // this allows this function to be reused for both functions and arrays
         let until_token = match until {
             Self::PARSING_FOR_FUNCTION => TokenType::RParen,
@@ -2231,17 +2230,18 @@ impl Parser {
             Self::PARSING_FOR_OBJECT_INSTANTIATION | Self::PARSING_FOR_CODE_BLOCK | Self::PARSING_FOR_ENUM => TokenType::RBrace,
             _  => { 
                 self.error(line!(), "INTERNAL ERROR", "Internal parsing error, caused when invalid argument was passed while trying to get node parameters in `Parser::get_node_parameters`. Expected a valid `until` argument. Try using `PARSING_FOR_FUNCTION`, `PARSING_FOR_ARRAY`, `PARSING_FOR_STATEMENT`, `PARSING_FOR_CODE_BLOCK`, or `PARSING_FOR_ENUM`, or `PARSING_FOR_OBJECT_INSTANTIATION`", &tokens[*i].location);
-                return vec![];
+                return NodeParameters { parameters: vec![], token: tokens.get(*i).unwrap_or(tokens.get(0).unwrap_or(&Box::new(Token::new_empty()))).clone() };
             }
         };
 
         if tokens.get(*i).is_some_and(|t| t.token_type == until_token) {
             // empty parameters
             Self::inc(i);
-            return vec![];
+            return NodeParameters { parameters: vec![], token: tokens.get(*i).unwrap_or(tokens.get(0).unwrap_or(&Box::new(Token::new_empty()))).clone() };
         }
 
         let mut parameters = vec![];
+        let token = tokens.get(*i).unwrap_or(tokens.get(0).unwrap_or(&Box::new(Token::new_empty()))).clone();
 
         if until == Self::PARSING_FOR_ARRAY || until == Self::PARSING_FOR_FUNCTION {
             Self::inc(i);
@@ -2327,21 +2327,22 @@ impl Parser {
             *tokens = self.lines[self.__curent_parsing_line].clone();
         }
 
-        parameters
+        NodeParameters { parameters, token }
     }
 
-    fn get_tuple_node_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> Vec<Box<ASTNode>> {
+    fn get_tuple_node_parameters(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> NodeParameters {
         // (Tuple, Type)
+        let token = tokens.get(*i).unwrap_or(tokens.get(0).unwrap_or(&Box::new(Token::new_empty()))).clone();
         let all_tokens = self.get_node_parameters_for_tuple(tokens, i);
         
-        let mut return_tokens: Vec<Box<ASTNode>> = vec![];
+        let mut parameters: Vec<Box<ASTNode>> = vec![];
         for tokens in all_tokens {
             let mut tokens = tokens.clone();
             let mut zero = 0;
-            return_tokens.push(self.get_type_idententifier(&mut tokens, &mut zero, false));
+            parameters.push(self.get_type_idententifier(&mut tokens, &mut zero, false));
         }
 
-        return_tokens
+        NodeParameters { parameters, token: token.clone() }
     }
 
     fn get_type_idententifier(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, from_as_is_operators: bool) -> Box<ASTNode> {
@@ -2363,7 +2364,7 @@ impl Parser {
             if matches!(first_token.token_type, TokenType::Identifier | TokenType::Ampersand) {               
                 let mut is_ptr_or_ref = vec![];
                 while copy_tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Ampersand) {
-                    is_ptr_or_ref.push(TypeMemoryModifier::Ref);
+                    is_ptr_or_ref.push(TypeModifier::Ref);
                     Self::inc(i);
                 }
 
@@ -2413,9 +2414,7 @@ impl Parser {
                 return Box::new(ASTNode {
                     token: first_token.clone(),
                     node: Box::new(NodeType::TupleDeclaration(TupleDeclaration {
-                        parameters: NodeParameters {
-                            parameters: tuple
-                        },
+                        parameters: tuple
                     }))
                 });
             }
@@ -2534,16 +2533,16 @@ impl Parser {
         all_tokens
     }
 
-    fn get_scoped_typed(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, mut is_ptr_or_ref: Vec<TypeMemoryModifier>) -> ScopedType {
+    fn get_scoped_typed(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, mut is_ptr_or_ref: Vec<TypeModifier>) -> ScopedType {
         let scope = self.get_type_scope(tokens, i);
-        
-        if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBracket) && tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::RBracket) {
-            self.error(line!(), "Incorrect type", "Incorrect type declaration. If you were trying to create an array, use: `Vec<>`", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()));
-        }
 
         while *i < tokens.len() {
             if tokens[*i].token_type == TokenType::Star {
-                is_ptr_or_ref.push(TypeMemoryModifier::Ptr);
+                is_ptr_or_ref.push(TypeModifier::Ptr);
+            } else if tokens[*i].token_type == TokenType::LBracket && tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::RBracket) {
+                is_ptr_or_ref.push(TypeModifier::Array);
+            } else if tokens[*i].token_type == TokenType::LBracket && !tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::RBracket) {
+                self.error(line!(), "Error getting scoped type for array", "Arrays `[]` do not have defined length, they get transpiled: `int[]` to `Vec<int>`", &tokens[*i].location);
             } else {
                 break;
             }
@@ -2569,10 +2568,13 @@ impl Parser {
             if token.token_type != TokenType::LessThan {
                 self.error(line!(), "Error getting type parameters", "Expected to start with `<`", &token.location);
                 return NodeParameters {
-                    parameters: vec![]
+                    parameters: vec![],
+                    token: Box::new(Token::new_empty()),
                 };
             }
         }
+
+        let token_parameter = tokens.get(*i).unwrap_or(tokens.get(0).unwrap_or(&Box::new(Token::new_empty()))).clone();
 
         for token in tokens.iter().skip(*i) {
             match token.token_type {
@@ -2638,7 +2640,8 @@ impl Parser {
         }
 
         NodeParameters {
-            parameters: return_tokens
+            parameters: return_tokens,
+            token: token_parameter,
         }
     }
 
@@ -2698,7 +2701,7 @@ impl Parser {
                 TokenType::Identifier => {
                     last_identifier_index = *i;
                     Self::inc(i);
-                    let mut type_parameters = Some(NodeParameters { parameters: vec![] });
+                    let mut type_parameters = Some(NodeParameters { parameters: vec![], token: token.clone() });
 
                     if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LessThan) {
                         let mut j = *i;
@@ -2797,7 +2800,7 @@ impl Parser {
                     // first_token = false;
                 }
                 TokenType::Identifier => {
-                    let mut maybe_type_parameters = NodeParameters { parameters: vec![] };
+                    let mut maybe_type_parameters = NodeParameters { parameters: vec![], token: token.clone() };
                     if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::LessThan) {
                         Self::inc(i);
 
@@ -2905,7 +2908,14 @@ impl Parser {
         let mut parameters = vec![];
         
         while *i < tokens.len() && tokens[*i].token_type != TokenType::RParen {
-            // first get the type
+            // first check the `const`
+            let mut is_const = false;
+            if tokens[*i].token_type == TokenType::Const {
+                is_const = true;
+                Self::inc(i);
+            }
+
+            // next get the type
             // go through tokens until `:`
             let mut type_tokens = vec![];
             while *i < tokens.len() && tokens[*i].token_type != TokenType::Colon {
@@ -2941,7 +2951,7 @@ impl Parser {
                 params = false;
             }
 
-            parameters.push(DefinedNodeParameter { name, ty, default_value, params });
+            parameters.push(DefinedNodeParameter { name, ty, default_value, params, is_const });
 
             // check if next token is `,` or `)` 
             if let Some(nt) = tokens.get(*i) {
@@ -2995,11 +3005,14 @@ impl Parser {
                 let mut reference = "".to_string();
                 for modifier in value.is_ptr_or_ref.iter() {
                     match modifier {
-                        TypeMemoryModifier::Ptr => {
+                        TypeModifier::Ptr => {
                             pointer += "*";
                         },
-                        TypeMemoryModifier::Ref => {
+                        TypeModifier::Ref => {
                             reference += "&";
+                        },
+                        TypeModifier::Array => {
+                            pointer += "[]";
                         },
                     };
                 }
@@ -3128,8 +3141,8 @@ impl Parser {
             NodeType::Indexer(ref value) => {
                 let object = Self::node_expr_to_string(&value.object, tab_level);
                 let mut index = "".to_string();
-                for (i, param) in value.index.iter().enumerate() {
-                    index += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.index.get(i + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                for (i, param) in value.index.parameters.iter().enumerate() {
+                    index += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.index.parameters.get(i + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("{}[{}]", object, index)
             }
@@ -3305,6 +3318,9 @@ impl Parser {
                 
                 let mut parameters = "(".to_string();
                 for param in value.parameters.iter() {
+                    if param.is_const {
+                        parameters += "const ";
+                    }
                     parameters += &Self::node_expr_to_string(&param.ty, tab_level);
                     parameters += ": ";
                     parameters += &param.name.value;

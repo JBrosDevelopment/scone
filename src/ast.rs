@@ -171,6 +171,7 @@ impl ASTNode {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct NodeParameters {
     pub parameters: Vec<Box<ASTNode>>,
+    pub token: Box<Token>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -178,7 +179,8 @@ pub struct DefinedNodeParameter {
     pub ty: Box<ASTNode>,
     pub name: Box<Token>,
     pub default_value: Option<Box<ASTNode>>,
-    pub params: bool
+    pub params: bool,
+    pub is_const: bool
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -362,20 +364,22 @@ pub struct TypeIdentifier {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ScopedType {
     pub scope: Vec<TypeIdentifier>,
-    pub is_ptr_or_ref: Vec<TypeMemoryModifier>,
+    pub is_ptr_or_ref: Vec<TypeModifier>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub enum TypeMemoryModifier {
+pub enum TypeModifier {
     Ptr,
-    Ref
+    Ref,
+    Array
 }
 
-impl TypeMemoryModifier {
+impl TypeModifier {
     pub fn to_string(&self) -> String {
         match self {
-            TypeMemoryModifier::Ptr => "*".to_string(),
-            TypeMemoryModifier::Ref => "&".to_string(),
+            TypeModifier::Ptr => "*".to_string(),
+            TypeModifier::Ref => "&".to_string(),
+            TypeModifier::Array => "[]".to_string(),
         }
     }
 }
@@ -402,7 +406,7 @@ pub struct TernaryConditional {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct IndexingExpression {
     pub object: Box<ASTNode>,
-    pub index: Vec<Box<ASTNode>>,
+    pub index: NodeParameters,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -440,6 +444,7 @@ pub enum ShebangAWEMessage {
     Unimplemented,
     Deprecated,
     NoEntrance,
+    Unsafe
 }
 
 impl ShebangAWEMessage {
@@ -450,6 +455,7 @@ impl ShebangAWEMessage {
             ShebangAWEMessage::Unimplemented => "unimplemented".to_string(),
             ShebangAWEMessage::Deprecated => "deprecated".to_string(),
             ShebangAWEMessage::NoEntrance => "no_entrance".to_string(),
+            ShebangAWEMessage::Unsafe => "unsafe".to_string(),
         }
     }
 }
@@ -459,7 +465,8 @@ pub enum Tag {
     Version(Box<Token>),
     Deprecated,
     Crumb,
-    Expose
+    Expose,
+    Entry
 }
 
 impl Tag {
@@ -469,6 +476,7 @@ impl Tag {
             Tag::Deprecated => "#! deprecated".to_string(),
             Tag::Crumb => "#! crumb".to_string(),
             Tag::Expose => "#! expose".to_string(),
+            Tag::Entry => "#! entry".to_string(),
         }
     }
 }

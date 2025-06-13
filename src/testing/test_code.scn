@@ -1,4 +1,12 @@
-use "HELPER";
+extern void: printf(const char* message, (void*):_ ...);
 
-int: i = 0;
-HELPER::something: value = i;
+Y: cast<T is Array, Y>(T: value, bool: debug) {
+    FALSE ? _ : printf("value = %d", value);
+    value as Y
+}
+
+i32: main() {
+    i8: x = 69 + 5;
+    u32: y = cast<i8, u32>(x / 9, true);
+    return y;
+}

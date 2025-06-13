@@ -3,7 +3,7 @@
 
 #! expose
 #! version 0.1
-pub unsafe struct Vec<T> {
+pub safe struct Vec<T> {
     #! expose
     T*: data;
     #! expose
@@ -13,11 +13,16 @@ pub unsafe struct Vec<T> {
 
     #! expose
     #! crumb
-    static Self: new(size_t: _capacity) {
-        Self: v = Self {};
-        v.data = malloc(sizeof(T) * _capacity) as T*;
-        v.size = 0;
-        v.capacity = _capacity;
+    static Self: new(T*: arr, size_t: length) {
+        Self v = Self {};
+        v.size = length;
+        v.capacity = (length > 0) ? length : 1;
+        v.data = malloc(sizeof(type) * v.capacity);
+        if !v.data {
+            fprintf(stderr, "Memory allocation failed\n");
+            exit(EXIT_FAILURE);
+        }
+        memcpy(v.data, data, sizeof(type) * length);
         return v;
     }
 
@@ -49,6 +54,7 @@ pub unsafe struct Vec<T> {
     #! expose
     void: free() {
         free(self.data);
+        self.data = null;
     }
 }
 
@@ -58,37 +64,44 @@ pub unsafe struct Vec<T> {
 /*
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #define VECTOR_DEFINE(type)                                         \
 typedef struct {                                                    \
-    T* data;                                                        \
+    type* data;                                                     \
     size_t size;                                                    \
     size_t capacity;                                                \
 } Vec_##type;                                                       \
-Vec_##type Vec_##type##_new(size_t capacity) {                      \
+Vec_##type Vec_##type##_new(type* data, size_t length) {            \
     Vec_##type v;                                                   \
-    v.size = 0;                                                     \
-    v.capacity = capacity;                                          \
-    v.data = malloc(sizeof(T) * v.capacity);                        \
+    v.size = length;                                                \
+    v.capacity = (length > 0) ? length : 1;                         \
+    v.data = malloc(sizeof(type) * v.capacity);                     \
+    if (!v.data) {                                                  \
+        fprintf(stderr, "Memory allocation failed\n");              \
+        exit(EXIT_FAILURE);                                         \
+    }                                                               \
+    memcpy(v.data, data, sizeof(type) * length);                    \
     return v;                                                       \
 }                                                                   \
-T* Vec_##type##_get(Vec_##type v, size_t index) {                   \
+type* Vec_##type##_get(Vec_##type* v, size_t index) {               \
     if (index >= v->size) {                                         \
         fprintf(stderr, "Out of bounds\n");                         \
         exit(EXIT_FAILURE);                                         \
     }                                                               \
     return &v->data[index];                                         \
 }                                                                   \
-void Vec_##type##_push(Vec_##type v, T element) {                   \
+void Vec_##type##_push(Vec_##type* v, type element) {               \
     if (v->size == v->capacity) {                                   \
         v->capacity *= 2;                                           \
-        v->data = realloc(v->data, v->capacity * sizeof(T));        \
+        v->data = realloc(v->data, v->capacity * sizeof(type));     \
     }                                                               \
     v->data[v->size++] = element;                                   \
 }                                                                   \
-void Vec_##type##_free(Vec_##type v) {                              \
+void Vec_##type##_free(Vec_##type* v) {                             \
     free(v->data);                                                  \
-}                                                                   \
+    v->data = NULL;                                                 \
+}
 */
 
 
@@ -100,10 +113,24 @@ typedef &Random__Structure* ref_Random__Structure_ptr;
 VECTOR_DEFINE(ref_Random__Structure_ptr);
 Vec_ref_Random__Structure_ptr a = Vec_ref_Random__Structure_ptr_new(&a);
 
+//from:
+int: main() {
+    int[] i = [1, 2, 3];
+    return i[0];
+}
+
+//to:
+VECTOR_DEFINE(int);
+
+int main() {
+    int temp1[] = {1, 2, 3};
+    Vec_int i = Vec_int_new(temp1, 3);
+    return *Vec_int_get(&i, 2);
+}
 */
 
 #! expose
-pub string: format(string: message, Tostring: params ...) {
+pub string: format(string: message, string[]: params ...) {
     u8: chars = message.to_chars();
     bool: in_escape = false;
     string: result = "";
@@ -139,14 +166,20 @@ pub string: format(string: message, Tostring: params ...) {
 }
 
 #! expose
-pub void: print(string: message, Tostring: params ...) {
-    string: m = format(message);
-    printf(message);
+pub void: print(string: message, string[]: params ...) {
+    string: m = format(message, params);
+    printf("%s", m);
 }
 
 #! expose
-pub string: input(String: message = "", ToString: params ...) { 
-    print(message.format(params...));
+pub void: println(string: message, string[]: params ...) {
+    string: m = format(message, params);
+    printf("%s\n", m);
+}
+
+#! expose
+pub string: input(string: message = "", string[]: params ...) { 
+    print(message, params);
 
     u8*: str = NULL;
     size_t: len = 0;
@@ -165,4 +198,62 @@ pub string: input(String: message = "", ToString: params ...) {
 
     // Return the string
     return string::from_u8_ptr(&str);
+}
+
+#! expose
+pub extern void: printf(const string: message, (void*)[]: ...);
+#! expose
+pub extern i32: scanf(const string: format, (void*)[]: ...);
+#! expose
+pub extern safe struct FILE {
+    u8*: _ptr;
+    i32: _cnt;
+    u8*: _base;
+    i32: _flag;
+    i32: _file;
+    i32: _charbuf;
+    i32: _bufsiz;
+    u8*: _tmpfname;
+}
+#! expose
+pub extern ssize_t: getline(u8**: input, size_t*: length, FILE*: stream);
+#! expose
+pub extern void: exit(size_t: exit_code);
+
+pub void: panic(string: message, string[]: params ...) {
+    string: err = format(message, params);
+    println("Panicked at %:%: %", SCONE_FILE, SCONE_CALLER_LINE, err);
+    exit(EXIT_FAILURE);
+}
+
+
+pub safe struct Option<T is Clonable> -> Free {
+    T*: value = NULL;
+
+    static Self: some(T: val) {
+        Self: o = Self {};
+        o.value = alloc<T>();
+        *o.value = val;
+        return o;
+    }
+
+    static Self: none() {
+        return Self {}; 
+    }
+
+    T: unwrap() {
+        if self.value == NULL {
+            panic("Unwrapped empty value");
+        }
+        return (*self.value).clone();
+    }
+
+    bool: is_some() => self.value != NULL;
+    bool: is_none() => self.value == NULL;
+
+    void: free() {
+        if self.value != NULL {
+            dealloc(self.value);
+        }
+    }
 }
