@@ -47,7 +47,7 @@ pub class Color -> ToString {
 
     // Implements the ToString trait
     string: to_string() {
-        format("Color: R: $, G: $, B: $", R, G, B)
+        format("Color: R: %, G: %, B: %", R, G, B)
     }
 }
 

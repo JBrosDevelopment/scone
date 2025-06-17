@@ -35,8 +35,8 @@ impl ErrorHandling {
     pub fn output(message_title: &str, message_type: MessageType, message: &str, help: &str, location: &Location, code: &String, file: &Option<String>) -> Message {
         let message_color = match message_type {
             MessageType::Error => (200, 50, 50),
-            MessageType::Warning => (225, 175, 75),
-            MessageType::Message => (160, 160, 180),
+            MessageType::Warning => (225, 200, 100),
+            MessageType::Message => (150, 200, 225),
         };
         
         let error_colored = Self::colored_text(message_color.0, message_color.1, message_color.2, message_title, true);

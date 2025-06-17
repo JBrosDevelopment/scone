@@ -123,6 +123,28 @@ pub enum ConstantType {
     Bool,
 }
 
+impl ConstantType {
+    pub fn to_string(&self) -> String {
+        match self {
+            ConstantType::I8 => "i8".to_string(),
+            ConstantType::I16 => "i16".to_string(),
+            ConstantType::I32 => "i32".to_string(),
+            ConstantType::I64 => "i64".to_string(),
+            ConstantType::I128 => "i128".to_string(),
+            ConstantType::U8 => "u8".to_string(),
+            ConstantType::U16 => "u16".to_string(),
+            ConstantType::U32 => "u32".to_string(),
+            ConstantType::U64 => "u64".to_string(),
+            ConstantType::U128 => "u128".to_string(),
+            ConstantType::F32 => "f32".to_string(),
+            ConstantType::F64 => "f64".to_string(),
+            ConstantType::String => "string".to_string(),
+            ConstantType::Char => "char".to_string(),
+            ConstantType::Bool => "bool".to_string(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub enum AccessModifier {
     None,
@@ -413,12 +435,6 @@ pub struct IndexingExpression {
 pub struct LambdaExpression {
     pub parameters: NodeParameters,
     pub body: BodyRegion,
-}
-
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct TypeDefinition {
-    pub left: Box<ASTNode>,
-    pub right: Box<ASTNode>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

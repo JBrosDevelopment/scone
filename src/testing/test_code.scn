@@ -1,4 +1,35 @@
-extern void: printf(const char* message, (void*):_ ...);
+extern i32: printf(const char*:_, void*:_ ...);
+
+void: a(i32*: q) {
+    printf("%d", *q)
+}
+
+void: main() {
+    i32: b = 10;
+    a(&b);
+}
+
+/*extern void: printf(const char*: message, (void*):_ ...);
+
+i32: add(i32: l, i32: r) {
+    l + r
+}
+
+void: main() {
+    i32: x = 50;
+    i32: y = x / 25;
+    i32: z = add(x, y);
+    printf("x: %d, y: %d, z: %d", x, y, z);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// add defer keyword
+// add `->` operator
+///////////////////////////////////////////////////////////////////////////////
+
+/*
+typedef O<A>: AA;
 
 Y: cast<T is Array, Y>(T: value, bool: debug) {
     FALSE ? _ : printf("value = %d", value);
@@ -7,6 +38,8 @@ Y: cast<T is Array, Y>(T: value, bool: debug) {
 
 i32: main() {
     i8: x = 69 + 5;
-    u32: y = cast<i8, u32>(x / 9, true);
+    u32: y = cast<AA, u32>(x / 9, true);
     return y;
 }
+
+// gcc src/testing/transpiler.out.c -o out.exe
