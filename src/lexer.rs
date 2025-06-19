@@ -82,12 +82,12 @@ pub enum TokenType {
     Priv,
     Virtual,
     Override,
-    Abstract,
     Extern,
     Match,
     Unsafe,
     Safe,
     TypeDef,
+    Defer,
 
     // constants
     BoolConstant,
@@ -132,7 +132,7 @@ macro_rules! operator_tokens {
 
 impl TokenType {
     pub fn is_access_modifier(&self) -> bool {
-        matches!(self, TokenType::Pub | TokenType::Priv | TokenType::Virtual | TokenType::Override | TokenType::Abstract | TokenType::Extern | TokenType::Unsafe | TokenType::Safe | TokenType::Const | TokenType::Static)
+        matches!(self, TokenType::Pub | TokenType::Priv | TokenType::Virtual | TokenType::Override | TokenType::Extern | TokenType::Unsafe | TokenType::Safe | TokenType::Const | TokenType::Static)
     }
     pub fn is_operator(&self) -> bool {
         matches!(self,
@@ -147,6 +147,17 @@ impl TokenType {
     }
     pub fn is_constant(&self) -> bool {
         matches!(self, TokenType::BoolConstant | TokenType::StringConstant | TokenType::CharConstant | TokenType::NumberConstant)
+    }
+    pub fn is_arrow_or_dot(&self) -> bool {
+        matches!(self, TokenType::RightArrow | TokenType::Dot)
+    }
+    pub fn scope_type(&self) -> Option<crate::ast::ScopeType> {
+        match self {
+            TokenType::Dot => Some(crate::ast::ScopeType::Dot),
+            TokenType::DoubleColon => Some(crate::ast::ScopeType::DoubleColon),
+            TokenType::RightArrow => Some(crate::ast::ScopeType::Arrow),
+            _ => None
+        }
     }
     pub fn precedence(&self) -> i32 {
         match self {
@@ -569,10 +580,10 @@ impl Lexer {
                     "override" => Token::new(TokenType::Override, name.clone(), current_location.clone()),
                     "match" => Token::new(TokenType::Match, name.clone(), current_location.clone()),
                     "extern" => Token::new(TokenType::Extern, name.clone(), current_location.clone()),
-                    "abstract" => Token::new(TokenType::Abstract, name.clone(), current_location.clone()),
                     "unsafe" => Token::new(TokenType::Unsafe, name.clone(), current_location.clone()),
                     "safe" => Token::new(TokenType::Safe, name.clone(), current_location.clone()),
                     "typedef" => Token::new(TokenType::TypeDef, name.clone(), current_location.clone()),
+                    "defer" => Token::new(TokenType::Defer, name.clone(), current_location.clone()),
                     "_" => Token::new(TokenType::Underscore, name.clone(), current_location.clone()),
                     _ => Token::new(TokenType::Identifier, name.clone(), current_location.clone()),
                 };

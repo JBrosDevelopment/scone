@@ -67,7 +67,7 @@ pub safe struct Vec<T> {
 #include <stdio.h>
 
 #define VECTOR_DEFINE(type)                                         \
-typedef struct {                                                    \
+typedef struct _Vector {                                            \
     type* data;                                                     \
     size_t size;                                                    \
     size_t capacity;                                                \
@@ -125,7 +125,11 @@ VECTOR_DEFINE(int);
 int main() {
     int temp1[] = {1, 2, 3};
     Vec_int i = Vec_int_new(temp1, 3);
-    return *Vec_int_get(&i, 2);
+    return *Vec_int_get(&i, 2); 
+    // fix so that:
+    // int temp2 = *Vec_int_get(&i, 2);
+    // Vec_int_free(&i);
+    // return temp2;
 }
 */
 

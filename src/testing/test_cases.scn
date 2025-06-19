@@ -1378,3 +1378,16 @@ struct Color -> Default, ToString {
 
 memcpy(data as char*);
 size += 1;
+
+
+
+ode->value;
+person->name = "Alice";
+result = ptr->data + 5;
+array[i]->next = NULL;
+(*foo)->bar = 10;
+if node->left->value == 0 {
+    return
+}
+object->method(arg1, arg2);
+(*ptr)->x->y->z += 1;

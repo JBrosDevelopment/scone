@@ -1,3 +1,5 @@
+use std::usize;
+
 use serde::Serialize;
 #[allow(unused_imports)]
 use crate::{ast::*, macros::*, lexer::*, error_handling::{ErrorHandling, DEBUGGING, Message}};
@@ -9,6 +11,8 @@ struct FunctionEntry {
     pub name: String,
     pub parameter_len: usize,
     pub returns: usize,
+    pub contains_params: bool,
+    pub first_default_param: usize
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -20,10 +24,8 @@ struct ValueTable {
 
 impl ValueTable {
     pub fn get_variable(&self, name: &String) -> Option<usize> { self.variables.iter().position(|x| x == name) }
-    pub fn get_function(&self, name: &String, parameter_len: usize) -> Option<usize> { self.functions.iter().position(|x| &x.name == name && x.parameter_len == parameter_len) }
     pub fn get_type(&self, name: &String) -> Option<usize> { self.types.iter().position(|x| x == name) }
-    pub fn last_variable_id(&mut self) -> usize { self.variables.len() }
-    pub fn last_function_id(&mut self) -> usize { self.functions.len() }
+    pub fn get_function(&self, name: &String, parameter_len: usize) -> Option<usize> { self.functions.iter().position(|x| &x.name == name && ((x.parameter_len == parameter_len) || (parameter_len > x.parameter_len && x.contains_params) || (parameter_len < x.parameter_len && parameter_len >= x.first_default_param))) }
     pub fn new() -> ValueTable {
         ValueTable {
             variables: vec![
@@ -55,6 +57,7 @@ struct Variable {
     pub id: usize,
     pub type_id: usize,
     pub has_value: bool,
+    pub needs_free: bool,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -234,6 +237,7 @@ impl Transpiler {
             //NodeType::Use(ref v) => self.evaluate_use(v, current_type),
             NodeType::VariableDeclaration(ref v) => self.evaluate_variable_declaration(v, current_type),
             //NodeType::While(ref v) => self.evaluate_while(v, current_type),
+            //NodeType::DeferStatement(ref v) => self.evaluate_defer_statement(v, current_type),
             _ => {
                 self.error(line!(), "Unknown node type", format!("Node type: {} not implemented yet", node.node.to_string()).as_str(), &node.token.location);
                 "".to_string()
@@ -270,7 +274,7 @@ impl Transpiler {
         modifiers
     }
 
-    fn add_to_scope(&mut self, err_location: &Location, name: &String, type_: &String, has_value: bool) {
+    fn add_to_scope(&mut self, err_location: &Location, name: &String, type_: &String, has_value: bool, is_ptr: bool) {
         if self.scope.last().is_none() {
             self.scope.push(vec![]);
         }
@@ -285,9 +289,9 @@ impl Transpiler {
             return;
         }
 
-        let id = self.table.last_variable_id();
+        let id = self.table.variables.len();
         let type_id = type_id.unwrap();
-        let variable = Variable { id, type_id, has_value };
+        let variable = Variable { id, type_id, has_value, needs_free: false };
         self.table.variables.push(name.clone());
         self.scope.last_mut().unwrap().push(variable);
     }
@@ -303,6 +307,29 @@ impl Transpiler {
         None
     }
 
+    fn remove_scope(&mut self) -> Vec<String> {
+        if self.scope.last().is_none() {
+            self.scope.push(vec![]);
+        }
+
+        let mut frees = vec![];
+
+        for variable in self.scope.last().unwrap() {
+            if variable.needs_free {
+                let name = self.table.variables[variable.id].clone();
+                if variable.type_id == self.table.get_type(&"string".to_string()).unwrap() { 
+                    //frees.push(format!("string_free({name});"));
+                } else {
+                    //frees.push(format!("safe_free({name});"));
+                }
+            }
+        }
+
+        self.scope.pop();
+
+        frees
+    }
+
     fn evaluate_variable_declaration(&mut self, node: &VariableDeclaration, current_type: Option<usize>) -> String {
         if current_type.is_some() {
             let ct = self.get_current_type(&node.var_name.location, current_type);
@@ -314,24 +341,26 @@ impl Transpiler {
         // type:
 
         let type_ = self.evaluate_node(&node.var_type, None, false);
-        let unconverted_type = Self::unconvert_type_name(&type_);
+        let fixed_type = Self::unconvert_type_name(&type_);
 
-        let type_id  = self.table.get_type(&unconverted_type);
+        let type_id  = self.table.get_type(&fixed_type);
         if type_id.is_none() {
-            self.error(line!(), "Type not defined", format!("Type `{}` is not defined in this scope", unconverted_type).as_str(), &node.var_name.location);
+            self.error(line!(), "Type not defined", format!("Type `{}` is not defined in this scope", fixed_type).as_str(), &node.var_name.location);
         }
 
         // name:
         let name = node.var_name.value.clone();
+
+        let is_ptr = fixed_type.ends_with("_ptr") || fixed_type == "string";
         
         if let Some(value) = &node.var_value {
             // value:
             let value = self.evaluate_node(value, type_id, false);
             
-            self.add_to_scope(&node.var_name.location, &name, &unconverted_type, true);
+            self.add_to_scope(&node.var_name.location, &name, &fixed_type, true, is_ptr);
             format!("{modifiers}{type_} {name} = {value};")
         } else {
-            self.add_to_scope(&node.var_name.location, &name, &unconverted_type, false);
+            self.add_to_scope(&node.var_name.location, &name, &fixed_type, false, is_ptr);
             format!("{modifiers}{type_} {name};")
         }
     }
@@ -369,6 +398,7 @@ impl Transpiler {
         } 
         match node.clone().unwrap() {
             ScopeType::DoubleColon => "__".to_string(),
+            ScopeType::Arrow => "___arrow____".to_string(),
             ScopeType::Dot => "___dot___".to_string() // shouldn't get here, but just in case
         }
     }
@@ -491,6 +521,7 @@ impl Transpiler {
             if !self.header.contains(format!("VECTOR_DEFINE({type_result_without_array});").as_str()) {
                 self.header += format!("VECTOR_DEFINE({type_result_without_array});\n").as_str();
             }
+            self.table.types.push(type_result.clone());
         }
 
         if let Some(id) = current_type {
@@ -507,19 +538,37 @@ impl Transpiler {
         let expected = self.get_current_type(&node.value.location, current_type);
         let found = node.constant_type.to_string();
         if found != expected {
-            if (expected == "long" && matches!(found.as_str(), "long" | "int" | "short" | "schar" | "char" | "ulong" | "uint" | "ushort")) ||
-               (expected == "int" && matches!(found.as_str(), "int" | "short" | "schar" | "char" | "uint" | "ushort")) ||
-               (expected == "short" && matches!(found.as_str(), "short" | "schar" | "char" | "ushort")) ||
-               (expected == "schar" && matches!(found.as_str(), "schar" | "char")) ||
-               (expected == "ulong" && matches!(found.as_str(), "ulong" | "uint" | "ushort" | "char")) ||
-               (expected == "uint" && matches!(found.as_str(), "uint" | "ushort" | "char")) ||
-               (expected == "ushort" && matches!(found.as_str(), "ushort" | "char")) ||
-               (expected == "double" && matches!(found.as_str(), "float" | "double" | "long" | "int" | "short" | "schar" | "char" | "ulong" | "uint" | "ushort")) ||
-               (expected == "float" && matches!(found.as_str(), "float" | "long" | "int" | "short" | "schar" | "char" | "ulong" | "uint" | "ushort")) 
+            if !((expected == "i64" && matches!(found.as_str(), "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) ||
+               (expected == "i32" && matches!(found.as_str(), "i32" | "i16" | "i8" | "u8" | "u32" | "u16")) ||
+               (expected == "i16" && matches!(found.as_str(), "i16" | "i8" | "u8" | "u16")) ||
+               (expected == "i8" && matches!(found.as_str(), "i8" | "u8")) ||
+               (expected == "u64" && matches!(found.as_str(), "u64" | "u32" | "u16" | "u8")) ||
+               (expected == "u32" && matches!(found.as_str(), "u32" | "u16" | "u8")) ||
+               (expected == "u16" && matches!(found.as_str(), "u16" | "u8")) ||
+               (expected == "f64" && matches!(found.as_str(), "f32" | "f64" | "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) ||
+               (expected == "f32" && matches!(found.as_str(), "f32" | "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")))
             {
                 self.error(line!(), "Type mismatch", format!("Expected type `{}` does not match constant type `{}`", expected, found).as_str(), &node.value.location);
+            } 
+        }
+
+        if node.constant_type.is_number() {
+            let number = node.value.value.replace("_", "");
+            if number.ends_with("f64") && !number.contains("0x") { return number.replace("f64", ""); }
+            else if number.ends_with("f32") && !number.contains("0x") { return number.replace("f32", ""); }
+            else if number.ends_with("u8") { return number.replace("u8", ""); }
+            else if number.ends_with("u16") { return number.replace("u16", ""); }
+            else if number.ends_with("u32") { return number.replace("u32", ""); }
+            else if number.ends_with("u64") { return number.replace("u64", ""); }
+            else if number.ends_with("i8") { return number.replace("i8", ""); }
+            else if number.ends_with("i16") { return number.replace("i16", ""); }
+            else if number.ends_with("i32") { return number.replace("i32", ""); }
+            else if number.ends_with("i64") { return number.replace("i64", ""); }
+            else {
+                return number;
             }
         }
+
         match node.constant_type.clone() {
             ConstantType::String => format!("\"{}\"", node.value.value),
             ConstantType::Char => format!("'{}'", node.value.value),
@@ -533,7 +582,10 @@ impl Transpiler {
     }
 
     fn evaluate_array_expression(&mut self, node: &NodeParameters, current_type: Option<usize>) -> String {
-        let type_ = self.get_current_type(&node.token.location, current_type);
+        let mut type_ = self.get_current_type(&node.token.location, current_type);
+        if type_.starts_with("Vec_") {
+            type_ = type_.chars().skip(4).collect();
+        }
         let name = self.get_temp_variable_name();
         let array_innerds = self.parse_node_parameters(&node, current_type);
         let c_array = format!("{{ {array_innerds} }}");
@@ -541,7 +593,9 @@ impl Transpiler {
         let line_before = format!("{type_} {name}[] = {c_array};");
         self.lines_before.push(line_before);
 
-        format!("Vec_{type_}_new({name})")
+        let len = node.parameters.len();
+
+        format!("Vec_{type_}_new({name}, {len})")
     }
 
     fn parse_identifier(&mut self, node: &Identifier, current_type: Option<usize>) -> String {
@@ -573,10 +627,11 @@ impl Transpiler {
 
         for (i, param) in node.iter().enumerate() {
             let type_ = self.evaluate_node(&param.ty, None, false);
+            let fixed_type = Self::unconvert_type_name(&type_);
             let name = param.name.value.clone();
 
-            if self.table.get_type(&type_).is_none() {
-                self.error(line!(), "Type not defined", format!("Type `{}` is not defined in this scope", type_).as_str(), &param.name.location);
+            if self.table.get_type(&fixed_type).is_none() {
+                self.error(line!(), "Type not defined", format!("Type `{}` is not defined in this scope", fixed_type).as_str(), &param.ty.token.location);
             }
 
             result.push_str(format!("{type_} {name}").as_str());
@@ -708,18 +763,57 @@ impl Transpiler {
         self.scope.push(parameters);
 
         let mut result = "{\n".to_string();
+        let mut return_expression = "".to_string();
+
+        let line_before_copy = self.lines_before.clone();
+        let line_after_copy = self.lines_after.clone();
+        self.lines_before.clear();
+        self.lines_after.clear();
 
         self.level += 1;
         for n in node.body.clone() {
-            let expression; 
-            if let NodeType::ReturnExpression(ref return_expression) = n.node.as_ref() {
-                expression = self.evaluate_return_expression(&return_expression, current_type);
-            } else {
-                expression = self.evaluate_node(&n, None, false);
+            if !return_expression.is_empty() {
+                self.warning(line!(), "Dead code", "Code will not be executed after return statement", &n.token.location);
+                break;
             }
+            if let NodeType::ReturnExpression(ref ret) = n.node.as_ref() {
+                return_expression = self.evaluate_return_expression(&ret, current_type);
+                continue;
+            } 
+
+            let expression = self.evaluate_node(&n, None, false);
+            
+            for line in self.lines_before.clone() {
+                result.push_str(self.level_string().as_str());
+                result.push_str(&line);
+                result.push(';');
+                result.push('\n');
+            }
+            
             result.push_str(&self.level_string());
             result.push_str(&expression);
             result.push(';');
+            result.push('\n');
+
+        
+            for line in self.lines_after.clone() {
+                result.push_str(self.level_string().as_str());
+                result.push_str(&line);
+                result.push('\n');
+                result.push(';');
+            }
+
+            self.lines_before.clear();
+            self.lines_after.clear();
+        }
+
+        self.lines_before = line_before_copy;
+        self.lines_after = line_after_copy;
+
+        let frees = self.remove_scope();
+        for free in frees {
+            result.push_str(&self.level_string());
+            result.push_str(&free);
             result.push('\n');
         }
         
@@ -729,13 +823,17 @@ impl Transpiler {
             result.push('\n');
         }
 
+        if !return_expression.is_empty() {
+            result.push_str(&self.level_string());
+            result.push_str(&return_expression);
+            result.push('\n');
+        }
+
         self.level -= 1;
 
         result.push_str(&self.level_string());
         result.push('}');
         result.push('\n');
-
-        self.scope.pop();
 
         result
     }
@@ -771,7 +869,7 @@ impl Transpiler {
 
         let name = node.name.value.clone();
         let parameters = self.parse_defined_node_parameters(&node.parameters);
-        let mut return_type = self.evaluate_node(&node.return_type, current_type, false);
+        let mut return_type = self.evaluate_node(&node.return_type, None, false);
 
         let mut returns = self.table.get_type(&Self::unconvert_type_name(&return_type));
         if returns.is_none() {
@@ -785,31 +883,51 @@ impl Transpiler {
             function_parameters.push(Parameter {
                 is_const: p.is_const,
                 type_id: {
-                    let type_node_str = self.evaluate_node(&p.ty, current_type, false);
-                    self.table.get_type(&type_node_str).unwrap_or_else(|| {
-                        self.error(line!(), "Type not defined", format!("Type `{}` is not defined in this scope", type_node_str).as_str(), &p.ty.token.location);
+                    let type_node_str = self.evaluate_node(&p.ty, None, false);
+                    let type_node_str_fixed = Self::unconvert_type_name(&type_node_str);
+                    self.table.get_type(&type_node_str_fixed).unwrap_or_else(|| {
+                        self.error(line!(), "Type not defined", format!("Type `{}` is not defined in this scope", type_node_str_fixed).as_str(), &p.ty.token.location);
                         return 0
                     })
                 },
                 id: variable_len_before_function + i,
-                default: if p.default_value.is_none() { "".to_string() } else { self.evaluate_node(&p.default_value.as_ref().unwrap(), current_type, true) },
+                default: {
+                    if p.default_value.is_none() { 
+                        "".to_string() 
+                    } else { 
+                        let type_node_str = self.evaluate_node(&p.ty, None, false);
+                        let type_node_str_fixed = Self::unconvert_type_name(&type_node_str);
+                        let type_id = self.table.get_type(&type_node_str_fixed).unwrap_or_else(|| {
+                            self.error(line!(), "Type not defined", format!("Type `{}` is not defined in this scope", type_node_str_fixed).as_str(), &p.ty.token.location);
+                            return 0
+                        });
+                        self.evaluate_node(&p.default_value.as_ref().unwrap(), Some(type_id), true) 
+                    }
+                },
                 is_params: p.params
             });
         }
 
         let function = Function { 
-            id: self.table.last_function_id(),
+            id: self.table.functions.len(),
             type_id: returns.unwrap(),
             has_body: node.body.is_some(),
             parameters: function_parameters.clone(),
         };
         self.functions.push(function);
-        self.table.functions.push(FunctionEntry {name: name.clone(), parameter_len: node.parameters.len(), returns: returns.unwrap()});
+        self.table.functions.push(FunctionEntry {
+            name: name.clone(), 
+            parameter_len: node.parameters.len(), 
+            returns: returns.unwrap(), 
+            contains_params: node.parameters.iter().any(|x| x.params) ,
+            first_default_param: node.parameters.iter().position(|x| x.default_value.is_some()).unwrap_or(usize::MAX)
+        });
   
         let variables: Vec<Variable> = function_parameters.iter().map(|x| Variable {
             has_value: true,
             id: x.id,
-            type_id: x.type_id
+            type_id: x.type_id,
+            needs_free: false // don't want to free a parameter
         }).collect();
         
         if include_io {
@@ -842,9 +960,13 @@ impl Transpiler {
         }
     }
 
-    fn evaluate_return_expression(&mut self, node: &Box<ASTNode>, current_type: Option<usize>) -> String {
-        let expression = self.evaluate_node(node, current_type, false);
-        format!("return {expression};")
+    fn evaluate_return_expression(&mut self, node: &Option<Box<ASTNode>>, current_type: Option<usize>) -> String {
+        if let Some(node) = node.clone() { 
+            let expression = self.evaluate_node(&node, current_type, false); 
+            format!("return {expression};")
+        } else {
+            "return;".to_string()
+        }
     }
 
     fn evaluate_identifier(&mut self, node: &Box<Token>, current_type: Option<usize>) -> String {
@@ -852,7 +974,7 @@ impl Transpiler {
             if current_type.is_some() && var.type_id != current_type.unwrap() {
                 let expected = self.get_current_type(&node.location, current_type);
                 let found = self.get_current_type(&node.location, Some(var.type_id));
-                if !(expected == "void_ptr" && found.ends_with("_ptr")) {
+                if !(expected.starts_with("void") && found.ends_with("_ptr")) {
                     self.error(line!(), "Error parsing variable", format!("Expected type `{}` but found type `{}`", expected, found).as_str(), &node.location);
                 }
             }
@@ -939,11 +1061,28 @@ impl Transpiler {
         let function = self.functions[function_id].clone();
         let mut result = "".to_string();
         for (i, parameter) in node.parameters.iter().enumerate() {
-            let parameter = self.evaluate_node(&parameter, Some(function.parameters[i].type_id), false);
+            if function.parameters[i].is_params {
+                // handle params
+                // go to line before and initialize array
+                // pass the pointer into the function
+                break;
+            }
+            let parameter = self.evaluate_node(&parameter, Some(function.parameters[i].type_id), function.parameters[i].is_const);
             result.push_str(&parameter);
-            if i < node.parameters.len() - 1 {
+            if i < function.parameters.len() - 1 {
                 result.push(',');
                 result.push(' ');
+            }
+        }
+        if function.parameters.len() > node.parameters.len() {
+            // handle default parameters
+            for i in node.parameters.len()..function.parameters.len() {
+                let default_value = function.parameters[i].default.clone();
+                result.push_str(&default_value);
+                if i < function.parameters.len() - 1 {
+                    result.push(',');
+                    result.push(' ');
+                }                
             }
         }
         result
@@ -983,8 +1122,24 @@ impl Transpiler {
         format!("typedef {type_body} {type_name};")
     }
 
-    fn evaluate_unary_operator(&mut self, node: &UnaryExpression, current_type: Option<usize>) -> String {
+    fn evaluate_unary_operator(&mut self, node: &UnaryExpression, mut current_type: Option<usize>) -> String {
         let operator = node.operator.value.clone();
+
+        let ct = self.get_current_type(&node.operator.location, current_type);
+        if operator == "&" && ct.ends_with("_ptr") {
+            let new_ct_unfixed = ct.clone().chars().take(ct.len() - 4).collect::<String>();
+            let new_ct = Self::unconvert_type_name(&new_ct_unfixed);
+            let mut new_ct_id = self.table.get_type(&new_ct);
+            if new_ct_id.is_none() {
+                if !self.header.contains(format!("typedef {ct}* {new_ct};").as_str()) {
+                    self.header += format!("typedef {ct}* {new_ct};\n").as_str();
+                }
+                new_ct_id = Some(self.table.types.len());
+            }
+            self.table.types.push(new_ct);
+            current_type = new_ct_id;
+        }
+
         let expression = self.evaluate_node(&node.operand, current_type, false);
         format!("{operator}{expression}")
     }

@@ -21,7 +21,8 @@ pub enum NodeType {
     ScopedExpression(ScopedIdentifier),
     FunctionCall(FunctionCall),
     TupleExpression(NodeParameters),
-    ReturnExpression(Box<ASTNode>),
+    ReturnExpression(Option<Box<ASTNode>>),
+    DeferStatement(Box<ASTNode>),
     TernaryOperator(TernaryConditional),
     UnaryOperator(UnaryExpression),
     ArrayExpression(NodeParameters),
@@ -100,6 +101,7 @@ impl NodeType {
             NodeType::TraitDeclaration(_) => "TraitDeclaration".to_string(),
             NodeType::EnumDeclaration(_) => "EnumDeclaration".to_string(),
             NodeType::TypeDef(_) => "TypeDef".to_string(),
+            NodeType::DeferStatement(_) => "DeferStatement".to_string(),
         }
     }
 }
@@ -110,12 +112,10 @@ pub enum ConstantType {
     I16,
     I32,
     I64,
-    I128,
     U8,
     U16,
     U32,
     U64,
-    U128,
     F32,
     F64,
     String,
@@ -130,17 +130,30 @@ impl ConstantType {
             ConstantType::I16 => "i16".to_string(),
             ConstantType::I32 => "i32".to_string(),
             ConstantType::I64 => "i64".to_string(),
-            ConstantType::I128 => "i128".to_string(),
             ConstantType::U8 => "u8".to_string(),
             ConstantType::U16 => "u16".to_string(),
             ConstantType::U32 => "u32".to_string(),
             ConstantType::U64 => "u64".to_string(),
-            ConstantType::U128 => "u128".to_string(),
             ConstantType::F32 => "f32".to_string(),
             ConstantType::F64 => "f64".to_string(),
             ConstantType::String => "string".to_string(),
             ConstantType::Char => "char".to_string(),
             ConstantType::Bool => "bool".to_string(),
+        }
+    }
+    pub fn is_number(&self) -> bool {
+        match self {
+            ConstantType::I8 => true,
+            ConstantType::I16 => true,
+            ConstantType::I32 => true,
+            ConstantType::I64 => true,
+            ConstantType::U8 => true,
+            ConstantType::U16 => true,
+            ConstantType::U32 => true,
+            ConstantType::U64 => true,
+            ConstantType::F32 => true,
+            ConstantType::F64 => true,
+            _ => false,
         }
     }
 }
@@ -299,12 +312,13 @@ pub struct Assignment {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub enum ScopeType { Dot, DoubleColon }  // scope for type before, meaning: Scope::Into.dot -> Scope has none, Into has DoubleColon, dot has Dot
+pub enum ScopeType { Dot, DoubleColon, Arrow }  // scope for type before, meaning: Scope::Into.dot -> Scope has none, Into has DoubleColon, dot has Dot
 impl ScopeType {
     pub fn to_string(&self) -> String {
         match self {
             ScopeType::Dot => ".".to_string(),
             ScopeType::DoubleColon => "::".to_string(),
+            ScopeType::Arrow => "->".to_string(),
         }
     }
 }

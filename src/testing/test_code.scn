@@ -1,7 +1,26 @@
-extern i32: printf(const char*:_, void*:_ ...);
+(a,b,c,d).e.f->g->h->i.j().k->l
+
+
+/*
+
+void: main() {
+    i32[]: s = [1, 2, 3];
+}
+
+/*extern i32: printf(string:_, void*:_);
+
+i32: func(i32: a = 11, i32: b = 9) {
+    a * b
+}
+void: main() {
+    printf("%d", &func());
+}
+
+
+/*
 
 void: a(i32*: q) {
-    printf("%d", *q)
+    printf("%d %d", *q, 10)
 }
 
 void: main() {
@@ -9,7 +28,7 @@ void: main() {
     a(&b);
 }
 
-/*extern void: printf(const char*: message, (void*):_ ...);
+/*
 
 i32: add(i32: l, i32: r) {
     l + r
