@@ -1,64 +1,45 @@
-(a,b,c,d).e.f->g->h->i.j().k->l
-
-
-/*
-
+//ArrayExpression
 void: main() {
-    i32[]: s = [1, 2, 3];
-}
-
-/*extern i32: printf(string:_, void*:_);
-
-i32: func(i32: a = 11, i32: b = 9) {
-    a * b
-}
-void: main() {
-    printf("%d", &func());
-}
-
-
-/*
-
-void: a(i32*: q) {
-    printf("%d %d", *q, 10)
-}
-
-void: main() {
-    i32: b = 10;
-    a(&b);
-}
-
-/*
-
-i32: add(i32: l, i32: r) {
-    l + r
-}
-
-void: main() {
-    i32: x = 50;
-    i32: y = x / 25;
-    i32: z = add(x, y);
-    printf("x: %d, y: %d, z: %d", x, y, z);
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-// add defer keyword
-// add `->` operator
-///////////////////////////////////////////////////////////////////////////////
-
-/*
-typedef O<A>: AA;
-
-Y: cast<T is Array, Y>(T: value, bool: debug) {
-    FALSE ? _ : printf("value = %d", value);
-    value as Y
-}
-
-i32: main() {
-    i8: x = 69 + 5;
-    u32: y = cast<AA, u32>(x / 9, true);
-    return y;
-}
-
-// gcc src/testing/transpiler.out.c -o out.exe
+    i32[]: arr = []; // in declaration
+    arr.push(99); // pushing
+    (u8, u8)[][]: b = [[(0, 0)], [], [(1, 1)]]; // complex type
+    use_array([0, 1, 2]); // used in function
+} 
+//AsCast
+//Assignment
+//Break
+//ClassDeclaration
+//CodeBlock
+//Constant
+//Continue
+//Discard
+//EnumDeclaration
+//EnumDeclaration
+//For
+//ForEach
+//FunctionCall
+//FunctionDeclaration
+//Identifier
+//Indexer
+//If
+//IsCheck
+//LambdaExpression
+//Match
+//ObjectInstantiation
+//Operator
+//ReturnExpression
+//ScopedExpression
+//Shebang
+//StructDeclaration
+//TernaryOperator
+//TraitDeclaration
+//TupleDeclaration
+//TupleExpression
+//TypeDef
+//TypeDefinition
+//TypeIdentifier
+//UnaryOperator
+//Use
+//VariableDeclaration
+//While
+//DeferStatement

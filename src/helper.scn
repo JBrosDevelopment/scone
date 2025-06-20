@@ -66,7 +66,7 @@ pub safe struct Vec<T> {
 #include <string.h>
 #include <stdio.h>
 
-#define VECTOR_DEFINE(type)                                         \
+#define DEFINE_VEC(type)                                            \
 typedef struct _Vector {                                            \
     type* data;                                                     \
     size_t size;                                                    \
@@ -102,6 +102,41 @@ void Vec_##type##_free(Vec_##type* v) {                             \
     free(v->data);                                                  \
     v->data = NULL;                                                 \
 }
+
+#define CONCAT_INNER(x, y) x##y
+#define CONCAT(x, y) CONCAT_INNER(x, y)
+#define UNIQUE_NAME() CONCAT(_t, __LINE__)
+#define UNIQUE_NAME(base) CONCAT(base, __LINE__)
+
+#define COUNT_ARGS_IMPL(_1,_2,_3,_4,_5,_6,_7,_8,_9,_10,N,...) N
+#define COUNT_ARGS(...) COUNT_ARGS_IMPL(__VA_ARGS__,10,9,8,7,6,5,4,3,2,1)
+
+#define VEC_LITERAL_VAR(name, T, ...) \
+    T temp_##name##_arr[] = { __VA_ARGS__ }; \
+    Vec_##T name = Vec_##T##_new(temp_##name##_arr, COUNT_ARGS(__VA_ARGS__));
+
+#define VEC_LITERAL_VAR_EMPTY(name, T) \
+    Vec_##T name = Vec_##T##_new(NULL, 0);
+
+#define DEFINE_TUPLE(name, ...) \
+    typedef struct _Struct_##name { __VA_ARGS__ } name;
+
+#define MAKE_VEC_EXPR(T, ...) \
+    ({ \
+        static T _vec_tmp_data[] = { __VA_ARGS__ }; \
+        Vec_##T _vec_tmp = Vec_##T##_new(_vec_tmp_data, COUNT_ARGS(__VA_ARGS__)); \
+        _vec_tmp; \
+    })
+
+#define WITH_VEC(VTYPE, VNAME, VALUES, CALL_EXPR) \
+    do { \
+        typeof(((VTYPE*)0)->data[0]) CONCAT(_arr_, __LINE__)[] = VALUES; \
+        VTYPE VNAME = VTYPE##_new(CONCAT(_arr_, __LINE__), COUNT_ARGS VALUES); \
+        CALL_EXPR; \
+        VTYPE##_free(VNAME); \
+    } while (0)
+
+
 */
 
 
@@ -110,7 +145,7 @@ void Vec_##type##_free(Vec_##type* v) {                             \
 Vec<&Random::Structure*>: a = [];
 //to:
 typedef &Random__Structure* ref_Random__Structure_ptr;
-VECTOR_DEFINE(ref_Random__Structure_ptr);
+DEFINE_VEC(ref_Random__Structure_ptr);
 Vec_ref_Random__Structure_ptr a = Vec_ref_Random__Structure_ptr_new(&a);
 
 //from:
@@ -120,7 +155,7 @@ int: main() {
 }
 
 //to:
-VECTOR_DEFINE(int);
+DEFINE_VEC(int);
 
 int main() {
     int temp1[] = {1, 2, 3};

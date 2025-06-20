@@ -198,7 +198,6 @@ impl Transpiler {
             self.error(line!(), "Cannot use non-constant in constant expression", "Expected a constant expression here. Cannot use non-constant in constant expression", &node.token.location);
         }
         match node.node.as_ref() {
-            //NodeType::AnonymousType(ref v) => self.evaluate_anonymous_type(v, current_type),
             NodeType::ArrayExpression(ref v) => self.evaluate_array_expression(v, current_type),
             //NodeType::AsCast(ref v) => self.evaluate_as_cast(v, current_type),
             //NodeType::Assignment(ref v) => self.evaluate_assignment(v, current_type),
@@ -231,7 +230,6 @@ impl Transpiler {
             //NodeType::TupleDeclaration(ref v) => self.evaluate_tuple_declaration(v, current_type),
             //NodeType::TupleExpression(ref v) => self.evaluate_tuple_expression(v, current_type),
             NodeType::TypeDef(ref v) => self.evaluate_type_def(v, current_type),
-            //NodeType::TypeDefinition(ref v) => self.evaluate_type_definition(v, current_type),
             NodeType::TypeIdentifier(ref v) => self.evaluate_type_identifier(v, current_type),
             NodeType::UnaryOperator(ref v) => self.evaluate_unary_operator(v, current_type),
             //NodeType::Use(ref v) => self.evaluate_use(v, current_type),

@@ -12,7 +12,6 @@ pub enum NodeType {
     // identifiers
     Identifier(Box<Token>),
     TypeIdentifier(ScopedType),
-    AnonymousType(AnonymousType),
 
     // assignment
     Assignment(Assignment),
@@ -68,7 +67,6 @@ impl NodeType {
             NodeType::Operator(_) => "Operator".to_string(),
             NodeType::Identifier(_) => "Identifier".to_string(),
             NodeType::TypeIdentifier(_) => "TypeIdentifier".to_string(),
-            NodeType::AnonymousType(_) => "AnonymousType".to_string(),
             NodeType::Assignment(_) => "Assignment".to_string(),
             NodeType::ScopedExpression(_) => "ScopedExpression".to_string(),
             NodeType::FunctionCall(_) => "FunctionCall".to_string(),
