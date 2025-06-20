@@ -1,16 +1,42 @@
 //ArrayExpression
-void: main() {
+void: arrays() {
     i32[]: arr = []; // in declaration
     arr.push(99); // pushing
     (u8, u8)[][]: b = [[(0, 0)], [], [(1, 1)]]; // complex type
     use_array([0, 1, 2]); // used in function
+    // pointers in arrays and array pointers
+    bool: val = false;
+    bool*[]: bp_array: [&val];
+    bool*[]*: bp_array_ptr = &bp_array;
+    free(bp_array_ptr)
 } 
 //AsCast
+void: as_cast() {
+    i32: a = 0;
+    u8: c = a as u8;
+    f32*: arr = malloc(sizeof(f32) * 5) as f32*;
+    free(arr);
+}
 //Assignment
-//Break
-//ClassDeclaration
-//CodeBlock
+void: assignment() {
+    i32: a = 0;
+    a += 25;
+    a = fancy_function(0, 1, 2, [9]);
+}
+//Break                 - transpiled directly
+//ClassDeclaration      - not supported
+//CodeBlock             - transpiled directly
 //Constant
+void: constants() {
+    string: s = func("John");
+    print(s);
+}
+string: func(string: name) {
+    // strings
+    string: s = "hello, " + name;
+    s += "!";
+    return s;
+}
 //Continue
 //Discard
 //EnumDeclaration
