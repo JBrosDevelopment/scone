@@ -56,6 +56,16 @@ pub safe struct Vec<T> {
         free(self.data);
         self.data = null;
     }
+
+
+    Y: select<Y>(Fn<Y, T>: fn) {
+        Y[]: result = [];
+        for element in self {
+            Y: item = fn(element);
+            result.push(item);
+        }
+        return result;
+    }
 }
 
 

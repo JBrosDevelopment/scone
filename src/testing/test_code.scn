@@ -9,7 +9,28 @@ void: arrays() {
     bool*[]: bp_array: [&val];
     bool*[]*: bp_array_ptr = &bp_array;
     free(bp_array_ptr)
-} 
+    //get array
+    bool[]: bools = get_bool_array();
+    for b in bools { print(b); }
+}
+bool[]: get_bool_array() {
+    [false, true, false]
+}
+pub struct Vec<Y> {
+    Y: select<Y>(Fn<Y, T>: fn) {
+        Y[]: result = [];
+        for element in self {
+            Y: item = fn(element);
+            result.push(item);
+        }
+        return result;
+    }
+}
+void select_test() {
+    i32[]: arr = [1, 2, 3, 4, 5];
+    char[] result = arr.select<char>(x => x as char);
+    // some_other_value = result;
+}
 //AsCast
 void: as_cast() {
     i32: a = 0;
@@ -23,9 +44,9 @@ void: assignment() {
     a += 25;
     a = fancy_function(0, 1, 2, [9]);
 }
-//Break                 - transpiled directly
-//ClassDeclaration      - not supported
-//CodeBlock             - transpiled directly
+//Break
+//ClassDeclaration
+//CodeBlock
 //Constant
 void: constants() {
     string: s = func("John");
@@ -39,10 +60,52 @@ string: func(string: name) {
 }
 //Continue
 //Discard
+void: discard() {
+    _ = 0 + hmm();
+    i32[]: arr = ;
+    for _ in [0, 1, 2] {
+        nothing();
+    }
+    arr.select(_ => something());
+}
 //EnumDeclaration
-//EnumDeclaration
+enum Options {
+    Yes,
+    No,
+    Maybe
+}
+enum Atrributes {
+    ThisThing = 0b00,
+    ThatThing = 0b10,
+    OtherThing = 0b01,
+}
 //For
+void for_loop() {
+    i32[]: n = [];
+    for i32: i = 0, i < 10, i += 1 {
+        for i32: j = 0, j < 10, j += 2 {
+            n.push(i * j);
+        }
+    }
+    for index, i32: i = n.size / 4, i < n.size * 0.75, i += index {
+        print(n[i]);
+    }
+}
 //ForEach
+void for_each_loop() {
+    for b in [true, false, false, true] {
+        print(b);
+    }
+    for (x, y) in z() {
+        print(x);
+        print(y);
+    }
+    i32: collection = 100;
+    for i, item in collection.as_range() {
+        print(i);
+    }
+}
+(char, char) z() => (0, 0);
 //FunctionCall
 //FunctionDeclaration
 //Identifier

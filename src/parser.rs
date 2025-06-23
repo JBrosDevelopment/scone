@@ -778,7 +778,9 @@ impl Parser {
             if let NodeType::Operator(ref in_expression) = segments.parameters[if segments.parameters.len() == 1 {0} else {1}].node.as_ref() {
                 iter_value = in_expression.left.clone();
                 iter_range = in_expression.right.clone();
-                if let NodeType::Identifier(_) = in_expression.left.node.as_ref() { } else {
+                if let NodeType::Identifier(_) = in_expression.left.node.as_ref() { 
+                } else if let NodeType::TupleExpression(_) = in_expression.left.node.as_ref() {
+                } else {
                     self.error(line!(), "Unable to parse `for` statement, incorrect value for iterator", "Expected a single identifier token as the iterator value for the `for` statement: `for VALUE in RANGE {}`", &in_expression.operator.location);
                     return ASTNode::err();
                 }
