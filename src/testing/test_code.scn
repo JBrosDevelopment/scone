@@ -107,7 +107,36 @@ void for_each_loop() {
 }
 (char, char) z() => (0, 0);
 //FunctionCall
+void: function_call() {
+    i32: result = add(1, 2);
+    print(result);
+
+    (char, char)[] aaa: = z();
+
+    i32: bbb = generics<i32, f32, u32>(1.5, 2);
+}
+i32: add(i32: a, i32: b) {
+    return a + b;
+}
+T: generics<T, G, F>(G: g, F: f) {
+    T: result = g as T;
+    result += f as T;
+    return result;
+
+}
 //FunctionDeclaration
+void: function_declaration() {
+    i32: a = parse<i32>("123");
+    
+    (i32, f32)[]*: b = lot<i32, f32, string>((25, "string"));
+    free(b);
+}
+T: parse<T>(string: s) { }
+(T, G)[]*: lot<T, G, Q>((T, Q): g) {
+    (T, G)[]*: result = malloc(sizeof(T) + sizeof(G)) as (T, G)[]*;
+    result[0]->a = g.a;
+    return result;
+}
 //Identifier
 //Indexer
 //If
