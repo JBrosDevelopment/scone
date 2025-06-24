@@ -138,6 +138,12 @@ T: parse<T>(string: s) { }
     return result;
 }
 //Identifier
+void: identifer() {
+    i32: a = 0;
+    f32: b = 1.5;
+    u32: c = a + b;
+    printf("a: %d, b: %f, c: %u", a, b, c);
+}
 //Indexer
 //If
 //IsCheck
