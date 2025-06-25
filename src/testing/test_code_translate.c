@@ -40,6 +40,21 @@ type* Vec_lt_##type##_gt_get(Vec_lt_##type##_gt* v, size_t index) { \
     }                                                               \
     return &v->data[index];                                         \
 }                                                                   \
+void Vec_lt_##type##_gt_set(Vec_lt_##type##_gt* v, size_t index, type value) { \
+    if (index >= v->size) {                                         \
+        fprintf(stderr, "Out of bounds\n");                         \
+        exit(EXIT_FAILURE);                                         \
+    }                                                               \
+    v->data[index] = value;                                         \
+}                                                                   \
+i32 Vec_lt_##type##_gt_index_of_cmp(Vec_lt_##type##_gt* v, type element, bool (*cmp)(type, type)) { \
+    for (size_t i = 0; i < v->size; i++) {                          \
+        if (cmp(v->data[i], element)) {                             \
+            return (i32)i;                                          \
+        }                                                           \
+    }                                                               \
+    return -1;                                                      \
+}                                                                   \
 void Vec_lt_##type##_gt_push(Vec_lt_##type##_gt* v, type element) { \
     if (v->size == v->capacity) {                                   \
         v->capacity *= 2;                                           \
@@ -309,6 +324,14 @@ void constants() {
     );
 }
 //Continue
+//DeferStatement
+void defer_statement() {
+    i32* ptr = malloc(sizeof(i32));
+    *ptr = 42;
+    printf("%d", *ptr);
+    // defer free(ptr);
+    free(ptr);
+}
 //Discard
 i32 lambda2(i32 _) {
     return something();
@@ -434,11 +457,77 @@ void identifier() {
     u32 var_2 = var_0 + var_1;
     // printf("a: %d, b: %f, c: %u", a, b, c);
     printf("a: %d, b: %f, c: %u\n", var_0, var_1, var_2);
-
 }
 //Indexer
+DEFINE_VEC(string)
+bool i32_cmp(i32 a, i32 b) {
+    return a == b;
+}
+#define DEFINE_STRUCT_MAP(name, K, V, COMPARE) \
+typedef struct { \
+    Vec_lt_##K##_gt keys; \
+    Vec_lt_##V##_gt values; \
+} name##_lt_##K##_##V##_gt; \
+V name##_lt_##K##_##V##_op_indexer(name##_lt_##K##_##V##_gt *self, K key) { \
+    i32 index = Vec_lt_##K##_gt_index_of_cmp(&self->keys, key, COMPARE); \
+    if (index < 0) { \
+        fprintf(stderr, "Key not found\n"); \
+        exit(EXIT_FAILURE); \
+    } \
+    return Vec_lt_##V##_gt_op_index_get(&self->values, index); \
+} \
+void name##_lt_##K##_##V##_op_index_set(name##_lt_##K##_##V##_gt *self, K key, V value) { \
+    i32 index = Vec_lt_##K##_gt_index_of_cmp(&self->keys, key, COMPARE); \
+    if (index == -1) { \
+        Vec_lt_##K##_gt_push(&self->keys, key); \
+        Vec_lt_##V##_gt_push(&self->values, value); \
+        return; \
+    } \
+    Vec_lt_##V##_gt_set(&self->values, index, value); \
+} \
+name##_lt_##K##_##V##_gt name##_lt_##K##_##V##_gt_new() { \
+    name##_lt_##K##_##V##_gt map; \
+    return map; \
+}
+
+DEFINE_STRUCT_MAP(Map, string, i32, string_equals);
+
+void indexer() {
+    // i32[]: arr = [1, 2, 3, 4, 5];
+    WITH_VEC(i32, arr, temp1, BRACE(1, 2, 3, 4, 5), 5, 
+    // i32: value = arr[2];
+    i32 value = *Vec_lt_i32_gt_get(&arr, 2);
+    // arr[0] = 10;
+    Vec_lt_i32_gt_set(&arr, 0, 10);
+    // printf("%d", value);
+    );
+
+    // Map<string, i32>: map = Map::new<string, i32>();
+    Map_lt_string_i32_gt map = Map_lt_string_i32_gt_new();
+    // map["key"] = 32;
+    STRING_LIFETIME(temp2, string_new("key"),
+    Map_lt_string_i32_op_index_set(&map, temp2, 32);
+    );
+}
 //If
+void if_statement() {
+    i32 a = 10;
+
+    if (a > 5) {
+        printf("a is greater than 5");
+    } else if (a < 5) {
+        printf("a is less than 5");
+    } else {
+        printf("a is equal to 5");
+    }
+}
 //IsCheck
+void is_check() {
+    i32 a = 10;
+    if (true) { // Is handled by the compiler: a is i32 -> true
+        printf("a is an i32");
+    }
+}
 //LambdaExpression
 //Match
 //ObjectInstantiation
@@ -458,4 +547,3 @@ void identifier() {
 //Use
 //VariableDeclaration
 //While
-//DeferStatement

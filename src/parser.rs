@@ -2063,11 +2063,12 @@ impl Parser {
                             "unused" => ShebangAWEMessage::Unused,
                             "unreachable" => ShebangAWEMessage::Unreachable,
                             "unimplemented" => ShebangAWEMessage::Unimplemented,
+                            "undeclared" => ShebangAWEMessage::Undeclared,
                             "deprecated" => ShebangAWEMessage::Deprecated,
                             "no_entrance" => ShebangAWEMessage::NoEntrance,
                             "unsafe" => ShebangAWEMessage::Unsafe,
                             _ => {
-                                let messages = ["unused", "unreachable", "unimplemented", "deprecated", "no_entrance"];
+                                let messages = ["unused", "unreachable", "unimplemented", "undeclared", "deprecated", "no_entrance"];
                                 self.error(line!(), "Unexpected Shebang token", format!("Shebang `#! {}` has invalid message: `{:?}`", token.value, messages).as_str(), &tokens[*i].location);
                                 return Box::new(ASTNode::err());
                             }   

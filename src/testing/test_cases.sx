@@ -614,7 +614,7 @@ use "parser";
 
 
 void: main() {
-    string: path = "src/testing/test_code.scn".to_string();
+    string: path = "src/testing/test_code.sx".to_string();
     string: code = std::fs::read_to_string(&path).unwrap();
     
     // lexer

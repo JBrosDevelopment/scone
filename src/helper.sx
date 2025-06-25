@@ -40,6 +40,19 @@ pub safe struct Vec<T> {
         return ((self.data as char*) + index * sizeof(T)) as T*;        
     }
 
+    T: set(size_t: index, T: value) {
+        if index < 0 {
+            print("Negative integers cannot be used to index");
+            exit(EXIT_FAILURE);
+        }
+        if index >= self.size {
+            print("Index out of bounds");
+            exit(EXIT_FAILURE);
+        }
+
+        memcpy((self.data as char*) + index * sizeof(T), value, sizeof(T));
+    }
+
     #! expose
     void: push(T: element) {
         if self.size == self.capacity {
@@ -66,6 +79,13 @@ pub safe struct Vec<T> {
         }
         return result;
     }
+    
+    T: op_index_get(size_t: index) {
+        return *self.get(index);
+    }
+    void: op_index_set(size_t: index, T: v) {
+        self.set(index, v);
+    } 
 }
 
 

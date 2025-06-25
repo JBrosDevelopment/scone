@@ -6,7 +6,7 @@ pub mod parser;
 pub mod transpiler;
 
 fn main() {
-    let path = "src/testing/test_code.scn".to_string();
+    let path = "src/testing/test_code.sx".to_string();
     let code = std::fs::read_to_string(&path).unwrap();
     
     // lexer
@@ -29,7 +29,7 @@ fn main() {
         ast_string.push(';');
         ast_string.push('\n');
     }
-    std::fs::write("src/testing/ast.out.scn", ast_string).unwrap();
+    std::fs::write("src/testing/ast.out.sx", ast_string).unwrap();
 
     let fmt_json = serde_json::to_string_pretty(&ast).unwrap();
     std::fs::write("src/testing/parser.out.json", fmt_json).unwrap();

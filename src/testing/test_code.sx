@@ -59,6 +59,13 @@ string: func(string: name) {
     return s;
 }
 //Continue
+//DeferStatement
+void: defer_statement() {
+    i32*: ptr = malloc(sizeof(i32));
+    defer free(ptr);
+    *ptr = 42;
+    print(*ptr);
+}
 //Discard
 void: discard() {
     _ = 0 + hmm();
@@ -145,8 +152,57 @@ void: identifer() {
     printf("a: %d, b: %f, c: %u", a, b, c);
 }
 //Indexer
+struct Map<K, V> {
+    K[]: keys = [];
+    V[]: values = [];
+    V: op_index_get(K: key) {
+        i32: index = self.keys.index_of(key);
+        if (index == -1) {
+            panic("Key not found");
+        }
+        return self.values[index];
+    }
+    void: op_index_set(K: key, V: value) {
+        i32: index = self.keys.index_of(key);
+        if (index == -1) {
+            self.keys.push(key);
+            self.values.push(value);
+            return;
+        }
+        self.values[index] = value;
+    }
+}
+void: indexer() {
+    i32[]: arr = [1, 2, 3, 4, 5];
+    i32: value = arr[2]; // accessing index
+    arr[0] = 10; // setting index
+    print(value);
+
+    (f32, f32)[][]: points = [[(1.0, 2.0), (3.0, 4.0)]];
+    points[0][0] = (5.0, 6.0); 
+    print(points[0][0]);
+
+    Map<string, i32>: map = Map::new<string, i32>();
+    map["key"] = 32;
+}
 //If
+void: if_statement() {
+    i32: a = 10;
+    if a > 5 {
+        print("a is greater than 5");
+    } else if a < 5 {
+        print("a is less than 5");
+    } else {
+        print("a is equal to 5");
+    }
+}
 //IsCheck
+void: is_check() {
+    i32: a = 10;
+    if a is i32 {
+        print("a is an i32");
+    }
+}
 //LambdaExpression
 //Match
 //ObjectInstantiation
@@ -166,4 +222,3 @@ void: identifer() {
 //Use
 //VariableDeclaration
 //While
-//DeferStatement

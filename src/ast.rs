@@ -470,6 +470,7 @@ pub enum ShebangAWEMessage {
     Unused, 
     Unreachable,
     Unimplemented,
+    Undeclared,
     Deprecated,
     NoEntrance,
     Unsafe
@@ -481,6 +482,7 @@ impl ShebangAWEMessage {
             ShebangAWEMessage::Unused => "unused".to_string(),
             ShebangAWEMessage::Unreachable => "unreachable".to_string(),
             ShebangAWEMessage::Unimplemented => "unimplemented".to_string(),
+            ShebangAWEMessage::Undeclared => "undeclared".to_string(),
             ShebangAWEMessage::Deprecated => "deprecated".to_string(),
             ShebangAWEMessage::NoEntrance => "no_entrance".to_string(),
             ShebangAWEMessage::Unsafe => "unsafe".to_string(),
