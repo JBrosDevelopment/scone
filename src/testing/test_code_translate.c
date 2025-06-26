@@ -68,8 +68,45 @@ void Vec_lt_##type##_gt_free(Vec_lt_##type##_gt* v) {               \
 }                                                                   \
 size_t Vec_lt_##type##_gt_len(Vec_lt_##type##_gt* v) {              \
     return v->size;                                                 \
+}                                                                   \
+type Vec_lt_##type##_gt_op_index_get(Vec_lt_##type##_gt* v, size_t index) { \
+    return *Vec_lt_##type##_gt_get(v, index);                        \
 }
 
+#define DEFINE_VEC_SELECT(T, Y) \
+Vec_lt_##Y##_gt Vec_lt_##T##_gt_select_##Y(Vec_lt_##T##_gt *v, Y (*fn)(T)) { \
+    VEC_LITERAL_VAR_EMPTY(result, Y); \
+    for (size_t temp1 = 0; temp1 < Vec_lt_##T##_gt_len(v); temp1++) { \
+        T temp2 = v->data[temp1]; \
+        Y item = fn(temp2); \
+        Vec_lt_##Y##_gt_push(&result, item); \
+    } \
+    return result; \
+}
+
+#define DEFINE_VEC_SELECT_INDEX(T, Y) \
+Vec_lt_##Y##_gt Vec_lt_##T##_gt_select_##Y##_index(Vec_lt_##T##_gt *v, Y (*fn)(T, i32)) { \
+    VEC_LITERAL_VAR_EMPTY(result, Y); \
+    for (size_t temp1 = 0; temp1 < Vec_lt_##T##_gt_len(v); temp1++) { \
+        T temp2 = v->data[temp1]; \
+        Y item = fn(temp2, temp1); \
+        Vec_lt_##Y##_gt_push(&result, item); \
+    } \
+    return result; \
+}
+
+#define DEFINE_VEC_WHERE(T) \
+Vec_lt_##T##_gt Vec_lt_##T##_gt_where(Vec_lt_##T##_gt *v, bool (*fn)(T)) { \
+    VEC_LITERAL_VAR_EMPTY(result, T); \
+    for (size_t temp1 = 0; temp1 < Vec_lt_##T##_gt_len(v); temp1++) { \
+        T temp2 = v->data[temp1]; \
+        bool temp3 = fn(temp2); \
+        if (temp2) { \
+            Vec_lt_##T##_gt_push(&result, temp2); \
+        } \
+    } \
+    return result; \
+}
 
 #define FOR_LOOP(set, condition, increment, expression) \
 for (set; condition; increment) { \
@@ -86,7 +123,7 @@ for (i32 name = 0; name < condition; name++) { \
     expression; \
 }
 
-#define FOR_EACH_LOOP_WITH_VEC(type, temp, item, arr, expression) \
+#define FOR_EACH_LOOP(type, temp, item, arr, expression) \
 for (i32 temp = 0; temp < Vec_lt_##type##_gt_len(&arr); temp++) { \
     type* item = Vec_lt_##type##_gt_get(&arr, temp); \
     expression; \
@@ -113,9 +150,14 @@ for (i32 temp = 0; temp < Vec_lt_##type##_gt_len(&arr); temp++) { \
     *temp = Vec_lt_##type##_gt_new(NULL, 0); \
     return temp; 
 
-#define WITH_VEC(TYPE, NAME, TEMP_NAME, VALUES, LEN, CALL_EXPR) \
+#define VEC_LIFETIME_AUTO(TYPE, NAME, TEMP_NAME, VALUES, LEN, CALL_EXPR) \
     TYPE TEMP_NAME[] = VALUES; \
     Vec_lt_##TYPE##_gt NAME = Vec_lt_##TYPE##_gt_new(TEMP_NAME, LEN); \
+    CALL_EXPR; \
+    Vec_lt_##TYPE##_gt_free(&NAME); 
+
+#define VEC_LIFETIME(TYPE, NAME, VALUE, CALL_EXPR) \
+    Vec_lt_##TYPE##_gt NAME = VALUE; \
     CALL_EXPR; \
     Vec_lt_##TYPE##_gt_free(&NAME); 
 
@@ -212,16 +254,7 @@ Vec_lt_i32_gt Vec_lt_i32_gt_select__(Vec_lt_i32_gt *a, i32 (*fn)(i32)) {}
 void main() {}
 
 //ArrayExpression
-// pub struct Vec<T> { Y: select<Y>(Fn<Y, T>: fn) where T = i32, Y = u8
-Vec_lt_u8_gt Vec_lt_i32_gt_select_u8(Vec_lt_i32_gt *v, u8 (*fn)(i32)) {
-    VEC_LITERAL_VAR_EMPTY(result, u8);
-    for (i32 temp1 = 0; temp1 < Vec_lt_i32_gt_len(v); temp1++) {
-        i32 temp2 = v->data[temp1];
-        u8 item = fn(temp2);
-        Vec_lt_u8_gt_push(&result, item);
-    }
-    return result;
-}
+DEFINE_VEC_SELECT(i32, u8);
 u8 lambda1(i32 x) {
     return (u8)x;
 }
@@ -257,7 +290,7 @@ void arrays() {
     VEC_LITERAL_VAR(b, Vec_lt_tuple_lp_u8_u8_rp_gt, 3, temp1, temp2, temp3);
     
     // use_array([0, 1, 2])
-    WITH_VEC(u8, temp4, temp5, BRACE(0, 1, 2), 3, use_array(temp4));
+    VEC_LIFETIME_AUTO(u8, temp4, temp5, BRACE(0, 1, 2), 3, use_array(temp4));
 
     // bool: val = false; 
     bool val = false;
@@ -270,7 +303,7 @@ void arrays() {
 
     // bool[]: bools = get_bool_array();
     Vec_lt_bool_gt* bools = get_bool_array();
-    FOR_EACH_LOOP_WITH_VEC(bool, temp6, i, *bools, printf("%d", b));
+    FOR_EACH_LOOP(bool, temp6, i, *bools, printf("%d", b));
 
     Vec_lt_bool_gt_free(bools);
     Vec_lt_i32_gt_free(&arr);
@@ -296,7 +329,7 @@ void assignment() {
     // a += 25;
     a = a + 25;
     // a = fancy_function(0, 1, 2, [9]);
-    WITH_VEC(i32, temp1, temp2, BRACE(9), 1, a = fancy_function(0, 1, 2, temp1));
+    VEC_LIFETIME_AUTO(i32, temp1, temp2, BRACE(9), 1, a = fancy_function(0, 1, 2, temp1));
 }
 //Break
 //ClassDeclaration
@@ -341,7 +374,7 @@ void discard() {
     0 + hmm();
     // i32: arr = [1, 2, 3];
     // for _ in arr { nothing(); }
-    WITH_VEC(i32, arr, temp1, BRACE(1, 2, 3), 3, {
+    VEC_LIFETIME_AUTO(i32, arr, temp1, BRACE(1, 2, 3), 3, {
         for (i32 temp2 = 0; temp2 < Vec_lt_i32_gt_len(&arr); temp2++) {
             nothing();
         }
@@ -379,14 +412,14 @@ Vec_lt_i32_gt i32_as_range(i32* this) {
     return Vec_lt_i32_gt_new(NULL, *this);
 }
 void for_each_loop() {
-    WITH_VEC(bool, temp1, temp2, BRACE(true, false, false, true), 4, {
-        FOR_EACH_LOOP_WITH_VEC(bool, temp3, i, temp1, {
+    VEC_LIFETIME_AUTO(bool, temp1, temp2, BRACE(true, false, false, true), 4, {
+        FOR_EACH_LOOP(bool, temp3, i, temp1, {
             printf("%d", i);
         });
     });
     
     Vec_lt_tuple_lp_u8_u8_rp_gt* temp4 = z();
-    FOR_EACH_LOOP_WITH_VEC(tuple_lp_u8_u8_rp, temp5, as_tuple_x_y, *temp4, {
+    FOR_EACH_LOOP(tuple_lp_u8_u8_rp, temp5, as_tuple_x_y, *temp4, {
         printf("%d", as_tuple_x_y->a);
         printf("%d", as_tuple_x_y->b);
     });
@@ -394,7 +427,7 @@ void for_each_loop() {
 
     i32 collection = 100;
     Vec_lt_i32_gt temp6 = i32_as_range(&collection);
-    FOR_EACH_LOOP_WITH_VEC(i32, i, item, temp6, {
+    FOR_EACH_LOOP(i32, i, item, temp6, {
         printf("%d", i);
     });
     Vec_lt_i32_gt_free(&temp6);
@@ -494,7 +527,7 @@ DEFINE_STRUCT_MAP(Map, string, i32, string_equals);
 
 void indexer() {
     // i32[]: arr = [1, 2, 3, 4, 5];
-    WITH_VEC(i32, arr, temp1, BRACE(1, 2, 3, 4, 5), 5, 
+    VEC_LIFETIME_AUTO(i32, arr, temp1, BRACE(1, 2, 3, 4, 5), 5, 
     // i32: value = arr[2];
     i32 value = *Vec_lt_i32_gt_get(&arr, 2);
     // arr[0] = 10;
@@ -529,9 +562,123 @@ void is_check() {
     }
 }
 //LambdaExpression
+DEFINE_VEC_SELECT(i32, i32);
+DEFINE_VEC_SELECT_INDEX(i32, u8);
+DEFINE_VEC_WHERE(u8);
+i32 lambda3(i32 x) {
+    return x * x;
+}
+i32 double_lambda(i32 x, i32(*fn)(i32)) {
+    return fn(x) * 2;
+}
+i32 lambda4(i32 x) {
+    return x + 1;
+}
+u8 lambda5(i32 x, i32 y) {
+    return x + 48 - y;
+}
+bool lambda6(u8 x) {
+    return x >= '0' && x <= '9';
+}
+void lambda() {
+    VEC_LIFETIME_AUTO(i32, arr, temp1, BRACE(1, 2, 3, 4, 5), 5,
+    VEC_LIFETIME(i32, temp2, Vec_lt_i32_gt_select_i32(&arr, lambda3), 
+    VEC_LIFETIME(i32, squared, temp2, 
+        FOR_EACH_LOOP(i32, temp3, item, squared, 
+            printf("%d", *item);
+        )
+        double_lambda(10, lambda4);
+        
+    VEC_LIFETIME(u8, temp5, Vec_lt_i32_gt_select_u8_index(&squared, lambda5), 
+    VEC_LIFETIME(u8, temp6, Vec_lt_u8_gt_where(&temp5, lambda6), 
+    u8 ch = *Vec_lt_u8_gt_get(&temp6, 0);
+    printf("%c", ch);
+    );
+    );
+    );
+    );
+    );
+}
 //Match
+#define MATCH_CASE(condition, expression) \
+    case condition: \
+        expression; \
+        break;
+#define MATCH_DEFAULT(expression) \
+    default: \
+        expression; \
+        break;
+
+DEFINE_TUPLE(tuple_lp_string_i32_rp, string a; i32 b;);
+void match_statement() {
+    i32 a = 10;
+    switch (a)
+    {
+        MATCH_CASE(0, printf("a is zero");)
+        MATCH_CASE(1, printf("a is one");)
+        MATCH_CASE(2, printf("a is two");)
+        MATCH_DEFAULT(printf("a is something else");)
+    }
+
+    STRING_LIFETIME(temp1, string_new("hello"),
+    STRING_LIFETIME(temp2, string_new("bye"),
+    GET_TUPLE_VAR(tuple_lp_string_i32_rp, pair, temp1, 42);
+    GET_TUPLE_VAR(tuple_lp_string_i32_rp, temp3, temp1, 42);
+    GET_TUPLE_VAR(tuple_lp_string_i32_rp, temp4, temp1, 0);
+    if (string_equals(pair.a, temp3.a) && pair.b == temp3.b) {
+        printf("Matched hello and 42");
+    } else if (string_equals(pair.a, temp4.a) && pair.b == temp4.b) {
+        printf("Matched bye and 0 again");
+    } else {
+        printf("No match found");
+    }
+    );
+    );
+}
 //ObjectInstantiation
+typedef struct {
+    f32 x;
+    f32 y;
+} Position;
+Position position_new(f32 x, f32 y) {
+    Position p;
+    p.x = x;
+    p.y = y;
+    return p;
+}
+void position_add(Position* p, Position other) {
+    p->x += other.x;
+    p->y += other.y;
+}
+void object_instantiation() {
+    Position p = position_new(1, 2);
+    Position temp1;
+    temp1.x = 1;
+    temp1.y = 5;
+    position_add(&p, temp1);
+    printf("Position (%d, %d)", p.x, p.y);
+}
 //Operator
+string i32_to_string(i32 value) {
+    // convert i32 to string
+    return string_new("42"); // placeholder implementation
+}
+void operator() {
+    i32 a = 5 * 2;
+    i32 b = a + 3;
+
+    STRING_LIFETIME(temp1, string_new("Hello, "), 
+    STRING_LIFETIME(temp2, string_new("World!"),
+    STRING_LIFETIME(str, string_concat(temp1, temp2),
+    STRING_LIFETIME(temp3, i32_to_string(b),
+    if (string_equals(str, temp3) || a > b) {
+        printf("Stuff");
+    }
+    );
+    );
+    );
+    );
+}
 //ReturnExpression
 //ScopedExpression
 //Shebang

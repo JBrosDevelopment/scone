@@ -28,7 +28,7 @@ pub struct Vec<Y> {
 }
 void select_test() {
     i32[]: arr = [1, 2, 3, 4, 5];
-    char[] result = arr.select<char>(x => x as char);
+    u8[] result = arr.select<u8>(x => x as u8);
     // some_other_value = result;
 }
 //AsCast
@@ -112,13 +112,13 @@ void for_each_loop() {
         print(i);
     }
 }
-(char, char) z() => (0, 0);
+(u8, u8) z() => (0, 0);
 //FunctionCall
 void: function_call() {
     i32: result = add(1, 2);
     print(result);
 
-    (char, char)[] aaa: = z();
+    (u8, u8)[] aaa: = z();
 
     i32: bbb = generics<i32, f32, u32>(1.5, 2);
 }
@@ -204,9 +204,67 @@ void: is_check() {
     }
 }
 //LambdaExpression
+void: lambda() {
+    i32[]: arr = [1, 2, 3, 4, 5];
+    i32[]: squared = arr.select(x => x * x);
+    for item in squared {
+        print(item);
+    }
+
+    double_lambda(10, x => x + 1);
+
+    u8: ch = squared.select<u8>((x, y) => x + 48 - y).where(x => x >= '0' && x <= '9').first();
+    print(ch);
+}
+i32: double_lambda(i32: x, Fn<i32, i32>: fn) {
+    fn(x) * 2
+}
 //Match
+void: match_statement() {
+    i32: a = 10;
+    match a {
+        0 => print("a is zero"),
+        1 => print("a is one"),
+        2 => print("a is two"),
+        _ => print("a is something else")
+    }
+
+    (string, i32): pair = ("hello", 42);
+    match pair {
+        ("hello", 42) => print("Matched hello and 42"),
+        ("bye", 0) => print("Matched bye and 0"),
+        _ => print("No match found")
+    }
+}
 //ObjectInstantiation
+struct Position {
+    f32: x = 5;
+    f32: y = 5;
+    #! crumb
+    Position: new(f32: x, f32: y) {
+        self.x = x;
+        self.y = y;
+    }
+    void: add(Position: other) {
+        self.x += other.x;
+        self.y += other.y;
+    }
+}
+void: object_instantiation() {
+    Position: p = new(1.0, 2.0);
+    p.add(Position{ x = 1 });
+    print("Position: (" + p.x + ", " + p.y + ")");
+}
 //Operator
+void: operator() {
+    i32: a = 5 * 2;
+    i32: b = a + 3;
+
+    string: str = "Hello, " + "World!";
+    if str == b.to_string() || a > b {
+        print("Stuff");
+    }
+}
 //ReturnExpression
 //ScopedExpression
 //Shebang
