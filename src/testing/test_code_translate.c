@@ -56,7 +56,7 @@ i32 Vec_lt_##type##_gt_index_of_cmp(Vec_lt_##type##_gt* v, type element, bool (*
     return -1;                                                      \
 }                                                                   \
 void Vec_lt_##type##_gt_push(Vec_lt_##type##_gt* v, type element) { \
-    if (v->size == v->capacity) {                                   \
+    if (v->size >= v->capacity) {                                   \
         v->capacity *= 2;                                           \
         v->data = realloc(v->data, v->capacity * sizeof(type));     \
     }                                                               \
@@ -70,7 +70,19 @@ size_t Vec_lt_##type##_gt_len(Vec_lt_##type##_gt* v) {              \
     return v->size;                                                 \
 }                                                                   \
 type Vec_lt_##type##_gt_op_index_get(Vec_lt_##type##_gt* v, size_t index) { \
-    return *Vec_lt_##type##_gt_get(v, index);                        \
+    return *Vec_lt_##type##_gt_get(v, index);                       \
+}                                                                   \
+Vec_lt_##type##_gt Vec_lt_##type##_gt_clone(Vec_lt_##type##_gt* v) { \
+    Vec_lt_##type##_gt clone;                                       \
+    clone.size = v->size;                                           \
+    clone.capacity = v->capacity;                                   \
+    clone.data = malloc(sizeof(type) * v->capacity);                \
+    if (!clone.data) {                                              \
+        fprintf(stderr, "Memory allocation failed in clone\n");     \
+        exit(EXIT_FAILURE);                                         \
+    }                                                               \
+    memcpy(clone.data, v->data, sizeof(type) * v->size);            \
+    return clone;                                                   \
 }
 
 #define DEFINE_VEC_SELECT(T, Y) \
@@ -128,6 +140,15 @@ for (i32 temp = 0; temp < Vec_lt_##type##_gt_len(&arr); temp++) { \
     type* item = Vec_lt_##type##_gt_get(&arr, temp); \
     expression; \
 }
+
+#define MATCH_CASE(condition, expression) \
+    case condition: \
+        expression; \
+        break;
+#define MATCH_DEFAULT(expression) \
+    default: \
+        expression; \
+        break;
 
 #define CONCAT(x, y) x##y
 
@@ -251,7 +272,6 @@ i32 fancy_function(i32 a, i32 b, i32 c, Vec_lt_i32_gt d) {}
 i32 something() {}
 void nothing() {}
 Vec_lt_i32_gt Vec_lt_i32_gt_select__(Vec_lt_i32_gt *a, i32 (*fn)(i32)) {}
-void main() {}
 
 //ArrayExpression
 DEFINE_VEC_SELECT(i32, u8);
@@ -303,7 +323,7 @@ void arrays() {
 
     // bool[]: bools = get_bool_array();
     Vec_lt_bool_gt* bools = get_bool_array();
-    FOR_EACH_LOOP(bool, temp6, i, *bools, printf("%d", b));
+    FOR_EACH_LOOP(bool, temp6, b, *bools, printf("%d\n", *b));
 
     Vec_lt_bool_gt_free(bools);
     Vec_lt_i32_gt_free(&arr);
@@ -351,7 +371,7 @@ void constants() {
     // string: s = func("John");
     USE_STRING(temp1, "John", 
         STRING_LIFETIME(s, func(temp1), 
-            // printf("%d", s);
+            // printf("%d\n", s);
             printf("%s\n", s.data);
         )
     );
@@ -361,7 +381,7 @@ void constants() {
 void defer_statement() {
     i32* ptr = malloc(sizeof(i32));
     *ptr = 42;
-    printf("%d", *ptr);
+    printf("%d\n", *ptr);
     // defer free(ptr);
     free(ptr);
 }
@@ -388,10 +408,23 @@ typedef enum {
     Options_Maybe,
 } Options;
 typedef enum {
-    Attributes_ThisTihng = 0b00,
+    Attributes_ThisThing = 0b00,
     Attributes_ThatThing = 0b01,
     Attributes_OtherThing = 0b10,
 } Attributes;
+void enums() {
+    Options option = Options_Yes;
+    switch (option) {
+        MATCH_CASE(Options_Yes, printf("Yes\n"))
+        MATCH_CASE(Options_No, printf("No\n"))
+        MATCH_CASE(Options_Maybe, printf("Maybe\n"))
+    }
+
+    Attributes attr = Attributes_ThisThing | Attributes_ThatThing;
+    if ((attr & Attributes_ThisThing) != 0) {
+        printf("ThisThing is set\n");
+    }
+}
 //For
 void for_loop() {
     VEC_LITERAL_VAR_EMPTY(n, i32);
@@ -401,7 +434,7 @@ void for_loop() {
         })
     });
     FOR_LOOP_WITH_INDEX(index, i32 i = Vec_lt_i32_gt_len(&n) / 4, i < Vec_lt_i32_gt_len(&n) * 0.75, i = i + index, {
-        printf("%d", Vec_lt_i32_gt_get(&n, i));        
+        printf("%d\n", *Vec_lt_i32_gt_get(&n, i));        
     })
 }
 //ForEach
@@ -409,26 +442,32 @@ Vec_lt_tuple_lp_u8_u8_rp_gt* z() {
     VEC_EMPTY_RETURN_PTR(tuple_lp_u8_u8_rp, temp1); 
 }
 Vec_lt_i32_gt i32_as_range(i32* this) {
-    return Vec_lt_i32_gt_new(NULL, *this);
+    i32 count = *this;
+    i32* data = malloc(sizeof(i32) * count);
+    for (i32 i = 0; i < count; i++) {
+        data[i] = i;
+    }
+    return Vec_lt_i32_gt_new(data, count);
 }
+
 void for_each_loop() {
     VEC_LIFETIME_AUTO(bool, temp1, temp2, BRACE(true, false, false, true), 4, {
         FOR_EACH_LOOP(bool, temp3, i, temp1, {
-            printf("%d", i);
+            printf("%d\n", *i);
         });
     });
     
     Vec_lt_tuple_lp_u8_u8_rp_gt* temp4 = z();
     FOR_EACH_LOOP(tuple_lp_u8_u8_rp, temp5, as_tuple_x_y, *temp4, {
-        printf("%d", as_tuple_x_y->a);
-        printf("%d", as_tuple_x_y->b);
+        printf("%d\n", as_tuple_x_y->a);
+        printf("%d\n", as_tuple_x_y->b);
     });
     Vec_lt_tuple_lp_u8_u8_rp_gt_free(temp4);
 
     i32 collection = 100;
     Vec_lt_i32_gt temp6 = i32_as_range(&collection);
     FOR_EACH_LOOP(i32, i, item, temp6, {
-        printf("%d", i);
+        printf("%d\n", i);
     });
     Vec_lt_i32_gt_free(&temp6);
 }
@@ -445,7 +484,7 @@ i32 add(i32 a, i32 b) {
 }
 void function_call() {
     i32 result = add(1, 2);
-    printf("%d", result);
+    printf("%d\n", result);
     Vec_lt_tuple_lp_u8_u8_rp_gt* aaa = z();
     i32 bbb = generics_lt_i32_f32_u32_gt(3.14, 42);
     Vec_lt_tuple_lp_u8_u8_rp_gt_free(aaa);
@@ -460,24 +499,19 @@ DEFINE_TUPLE(tuple_lp_##T##_##G##_rp, T a; G b;); \
 typedef tuple_lp_##T##_##G##_rp* tuple_lp_##T##_##G##_rp_ptr; \
 DEFINE_VEC(tuple_lp_##T##_##G##_rp); \
 typedef Vec_lt_tuple_lp_##T##_##G##_rp_gt* Vec_lt_tuple_lp_##T##_##G##_rp_gt_ptr; \
-Vec_lt_tuple_lp_##T##_##G##_rp_gt_ptr lot_lt_##T##_##G##_##Q##_gt(tuple_lp_##T##_##Q##_rp g) { \
-    Vec_lt_tuple_lp_##T##_##G##_rp_gt_ptr result = (Vec_lt_tuple_lp_##T##_##G##_rp_gt_ptr)malloc(sizeof(T) + sizeof(G)); \
-    tuple_lp_##T##_##G##_rp_ptr temp1 = Vec_lt_tuple_lp_##T##_##G##_rp_gt_get(result, 0); \
-    temp1->a = g.a; \
-    return result; \
-};
+Vec_lt_tuple_lp_##T##_##G##_rp_gt_ptr lot_lt_##T##_##G##_##Q##_gt(tuple_lp_##T##_##Q##_rp g) {}
 
 DEFINE_LOT_3_1(i32, f32, string);
 
 void function_declaration() {
-    STRING_LIFETIME(temp, string_new("123"), 
-        i32 a = parse_lt_i32_rt(temp);
+    STRING_LIFETIME(temp1, string_new("123"), 
+        i32 a = parse_lt_i32_rt(temp1);
     );
 
-    STRING_LIFETIME(temp2, string_new("string"), 
+    STRING_LIFETIME(temp2, string_new("string"),
         GET_TUPLE_VAR(tuple_lp_i32_string_rp, temp3, 25, temp2);
         Vec_lt_tuple_lp_i32_f32_rp_gt_ptr b = lot_lt_i32_f32_string_gt(temp3);
-        Vec_lt_tuple_lp_i32_f32_rp_gt_free(b);
+        // Vec_lt_tuple_lp_i32_f32_rp_gt_free(b); // commented out to avoid segment fault because real "lot" function isn't defined
     );
 }
 //Identifier
@@ -520,6 +554,8 @@ void name##_lt_##K##_##V##_op_index_set(name##_lt_##K##_##V##_gt *self, K key, V
 } \
 name##_lt_##K##_##V##_gt name##_lt_##K##_##V##_gt_new() { \
     name##_lt_##K##_##V##_gt map; \
+    map.keys = Vec_lt_##K##_gt_new(NULL, 0); \
+    map.values = Vec_lt_##V##_gt_new(NULL, 0); \
     return map; \
 }
 
@@ -532,7 +568,7 @@ void indexer() {
     i32 value = *Vec_lt_i32_gt_get(&arr, 2);
     // arr[0] = 10;
     Vec_lt_i32_gt_set(&arr, 0, 10);
-    // printf("%d", value);
+    // printf("%d\n", value);
     );
 
     // Map<string, i32>: map = Map::new<string, i32>();
@@ -547,18 +583,18 @@ void if_statement() {
     i32 a = 10;
 
     if (a > 5) {
-        printf("a is greater than 5");
+        printf("a is greater than 5\n");
     } else if (a < 5) {
-        printf("a is less than 5");
+        printf("a is less than 5\n");
     } else {
-        printf("a is equal to 5");
+        printf("a is equal to 5\n");
     }
 }
 //IsCheck
 void is_check() {
     i32 a = 10;
     if (true) { // Is handled by the compiler: a is i32 -> true
-        printf("a is an i32");
+        printf("a is an i32\n");
     }
 }
 //LambdaExpression
@@ -583,16 +619,16 @@ bool lambda6(u8 x) {
 void lambda() {
     VEC_LIFETIME_AUTO(i32, arr, temp1, BRACE(1, 2, 3, 4, 5), 5,
     VEC_LIFETIME(i32, temp2, Vec_lt_i32_gt_select_i32(&arr, lambda3), 
-    VEC_LIFETIME(i32, squared, temp2, 
+    VEC_LIFETIME(i32, squared, Vec_lt_i32_gt_clone(&temp2), 
         FOR_EACH_LOOP(i32, temp3, item, squared, 
-            printf("%d", *item);
+            printf("%d\n", *item);
         )
         double_lambda(10, lambda4);
         
     VEC_LIFETIME(u8, temp5, Vec_lt_i32_gt_select_u8_index(&squared, lambda5), 
     VEC_LIFETIME(u8, temp6, Vec_lt_u8_gt_where(&temp5, lambda6), 
     u8 ch = *Vec_lt_u8_gt_get(&temp6, 0);
-    printf("%c", ch);
+    printf("%c\n", ch);
     );
     );
     );
@@ -600,24 +636,15 @@ void lambda() {
     );
 }
 //Match
-#define MATCH_CASE(condition, expression) \
-    case condition: \
-        expression; \
-        break;
-#define MATCH_DEFAULT(expression) \
-    default: \
-        expression; \
-        break;
-
 DEFINE_TUPLE(tuple_lp_string_i32_rp, string a; i32 b;);
 void match_statement() {
     i32 a = 10;
     switch (a)
     {
-        MATCH_CASE(0, printf("a is zero");)
-        MATCH_CASE(1, printf("a is one");)
-        MATCH_CASE(2, printf("a is two");)
-        MATCH_DEFAULT(printf("a is something else");)
+        MATCH_CASE(0, printf("a is zero\n");)
+        MATCH_CASE(1, printf("a is one\n");)
+        MATCH_CASE(2, printf("a is two\n");)
+        MATCH_DEFAULT(printf("a is something else\n");)
     }
 
     STRING_LIFETIME(temp1, string_new("hello"),
@@ -626,11 +653,11 @@ void match_statement() {
     GET_TUPLE_VAR(tuple_lp_string_i32_rp, temp3, temp1, 42);
     GET_TUPLE_VAR(tuple_lp_string_i32_rp, temp4, temp1, 0);
     if (string_equals(pair.a, temp3.a) && pair.b == temp3.b) {
-        printf("Matched hello and 42");
+        printf("Matched hello and 42\n");
     } else if (string_equals(pair.a, temp4.a) && pair.b == temp4.b) {
-        printf("Matched bye and 0 again");
+        printf("Matched bye and 0 again\n");
     } else {
-        printf("No match found");
+        printf("No match found\n");
     }
     );
     );
@@ -656,7 +683,7 @@ void object_instantiation() {
     temp1.x = 1;
     temp1.y = 5;
     position_add(&p, temp1);
-    printf("Position (%d, %d)", p.x, p.y);
+    printf("Position (%d, %d)\n", p.x, p.y);
 }
 //Operator
 string i32_to_string(i32 value) {
@@ -672,7 +699,7 @@ void operator() {
     STRING_LIFETIME(str, string_concat(temp1, temp2),
     STRING_LIFETIME(temp3, i32_to_string(b),
     if (string_equals(str, temp3) || a > b) {
-        printf("Stuff");
+        printf("Stuff\n");
     }
     );
     );
@@ -694,3 +721,51 @@ void operator() {
 //Use
 //VariableDeclaration
 //While
+
+
+
+
+int main() {
+    printf("ARRAYS: \n");
+    arrays();
+    printf("\nSELECT: \n");
+    select_test();
+    printf("\nAS_CAST: \n");
+    as_cast();
+    printf("\nASSIGNMENT: \n");
+    assignment();
+    printf("\nCONSTANTS: \n");
+    constants();
+    printf("\nDEFER: \n");
+    defer_statement();
+    printf("\nDISCARD: \n");
+    discard();
+    printf("\nENUMS: \n");
+    enums();
+    printf("\nFOR: \n");
+    for_loop();
+    printf("\nFOR_EACH: \n");
+    for_each_loop();
+    printf("\nFUNCTION_CALL: \n");
+    function_call();
+    printf("\nFUNCTION_DECLARATION: \n");
+    function_declaration();
+    printf("\nIDENTIFIER: \n");
+    identifier();
+    printf("\nINDEXER: \n");
+    indexer();
+    printf("\nIF: \n");
+    if_statement();
+    printf("\nIS_CHECK: \n");
+    is_check();
+    printf("\nLAMBDA: \n");
+    lambda();
+    printf("\nMATCH: \n");
+    match_statement();
+    printf("\nOBJECT_INSTANTIATION: \n");
+    object_instantiation();
+    printf("\nOPERATOR: \n");
+    operator();
+
+    return 0;
+}

@@ -86,6 +86,19 @@ enum Atrributes {
     ThatThing = 0b10,
     OtherThing = 0b01,
 }
+void enums() {
+    Options: option = Options::Yes;
+    switch option {
+        Options::Yes => print("Option is Yes"),
+        Options::No => print("Option is No"),
+        Options::Maybe => print("Option is Maybe")
+    }
+
+    Atrributes: attr = Atrributes::ThisThing | Atrributes::ThatThing;
+    if (attr & Atrributes::ThisThing) != 0 {
+        print("ThisThing is set");
+    }
+}
 //For
 void for_loop() {
     i32[]: n = [];
@@ -139,11 +152,8 @@ void: function_declaration() {
     free(b);
 }
 T: parse<T>(string: s) { }
-(T, G)[]*: lot<T, G, Q>((T, Q): g) {
-    (T, G)[]*: result = malloc(sizeof(T) + sizeof(G)) as (T, G)[]*;
-    result[0]->a = g.a;
-    return result;
-}
+(T, G)[]*: lot<T, G, Q>((T, Q): g) { }
+
 //Identifier
 void: identifer() {
     i32: a = 0;
@@ -155,6 +165,9 @@ void: identifer() {
 struct Map<K, V> {
     K[]: keys = [];
     V[]: values = [];
+    Map<K, V>: new() {
+        Map<K, V> {}
+    }
     V: op_index_get(K: key) {
         i32: index = self.keys.index_of(key);
         if (index == -1) {
