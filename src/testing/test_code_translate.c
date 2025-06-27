@@ -63,6 +63,7 @@ void Vec_lt_##type##_gt_push(Vec_lt_##type##_gt* v, type element) { \
     v->data[v->size++] = element;                                   \
 }                                                                   \
 void Vec_lt_##type##_gt_free(Vec_lt_##type##_gt* v) {               \
+    /*if T is string { for s in Self { if s != NULL { s.free();}}}*/\
     free(v->data);                                                  \
     v->data = NULL;                                                 \
 }                                                                   \
@@ -137,7 +138,7 @@ for (i32 name = 0; name < condition; name++) { \
 
 #define FOR_EACH_LOOP(type, temp, item, arr, expression) \
 for (i32 temp = 0; temp < Vec_lt_##type##_gt_len(&arr); temp++) { \
-    type* item = Vec_lt_##type##_gt_get(&arr, temp); \
+    type item = Vec_lt_##type##_gt_op_index_get(&arr, temp); \
     expression; \
 }
 
@@ -182,10 +183,15 @@ for (i32 temp = 0; temp < Vec_lt_##type##_gt_len(&arr); temp++) { \
     CALL_EXPR; \
     Vec_lt_##TYPE##_gt_free(&NAME); 
 
-#define VEC_LITTERAL_PTR(name, T, LEN, ...) \
+#define VEC_LITERAL_PTR(name, T, LEN, ...) \
     T temp_##name##_arr[] = { __VA_ARGS__ }; \
     Vec_lt_##T##_gt* name = malloc(sizeof(Vec_lt_##T##_gt)); \
     *name = Vec_lt_##T##_gt_new(temp_##name##_arr, LEN);
+
+#define VEC_FROM_FUNCTION(TYPE, NAME, FUNCTION, EXPRESSION) \
+    Vec_lt_##TYPE##_gt_ptr NAME = FUNCTION; \
+    EXPRESSION; \
+    Vec_lt_##TYPE##_gt_free(NAME); 
 
 #define GET_TUPLE_VAR(type, name, ...) \
     type name = (type){ __VA_ARGS__ }; 
@@ -253,7 +259,6 @@ bool string_equals(string a, string b) {
     expression; 
 
 
-
 typedef bool* bool_ptr;
 typedef u8* u8_ptr;
 typedef f32* f32_ptr;
@@ -292,8 +297,9 @@ void select_test() {
     Vec_lt_u8_gt_free(&result);
 }
 
+
 Vec_lt_bool_gt* get_bool_array() {
-    VEC_LITTERAL_PTR(temp1, bool, 3, false, true, false);
+    VEC_LITERAL_PTR(temp1, bool, 3, false, true, false);
     return temp1;
 }
 
@@ -323,7 +329,7 @@ void arrays() {
 
     // bool[]: bools = get_bool_array();
     Vec_lt_bool_gt* bools = get_bool_array();
-    FOR_EACH_LOOP(bool, temp6, b, *bools, printf("%d\n", *b));
+    FOR_EACH_LOOP(bool, temp6, b, *bools, printf("%d\n", b));
 
     Vec_lt_bool_gt_free(bools);
     Vec_lt_i32_gt_free(&arr);
@@ -453,14 +459,14 @@ Vec_lt_i32_gt i32_as_range(i32* this) {
 void for_each_loop() {
     VEC_LIFETIME_AUTO(bool, temp1, temp2, BRACE(true, false, false, true), 4, {
         FOR_EACH_LOOP(bool, temp3, i, temp1, {
-            printf("%d\n", *i);
+            printf("%d\n", i);
         });
     });
     
     Vec_lt_tuple_lp_u8_u8_rp_gt* temp4 = z();
     FOR_EACH_LOOP(tuple_lp_u8_u8_rp, temp5, as_tuple_x_y, *temp4, {
-        printf("%d\n", as_tuple_x_y->a);
-        printf("%d\n", as_tuple_x_y->b);
+        printf("%d\n", as_tuple_x_y.a);
+        printf("%d\n", as_tuple_x_y.b);
     });
     Vec_lt_tuple_lp_u8_u8_rp_gt_free(temp4);
 
@@ -621,7 +627,7 @@ void lambda() {
     VEC_LIFETIME(i32, temp2, Vec_lt_i32_gt_select_i32(&arr, lambda3), 
     VEC_LIFETIME(i32, squared, Vec_lt_i32_gt_clone(&temp2), 
         FOR_EACH_LOOP(i32, temp3, item, squared, 
-            printf("%d\n", *item);
+            printf("%d\n", item);
         )
         double_lambda(10, lambda4);
         
@@ -707,6 +713,48 @@ void operator() {
     );
 }
 //ReturnExpression
+string return_string() {
+    // return "Hello, World!";
+    return string_new("Hello, World!");
+}
+string return_string_with_param(string p) {
+    // string: s = "Hello, World!";
+    STRING_LIFETIME_RETURNS(s, string_new("Hello, World!"),
+    // s += p;
+    string_add(&s, p);
+    return s;
+    );
+}
+typedef Vec_lt_string_gt* Vec_lt_string_gt_ptr;
+Vec_lt_string_gt_ptr return_string_array() {
+    // return ["Hello", "World"];
+    VEC_LITERAL_PTR(temp, string, 2, string_new("Hello"), string_new("World"));
+    return temp;
+}
+i32 return_int() {
+    // return 42;
+    return 42;
+}
+void return_expression() {
+    STRING_LIFETIME(result, return_string(), 
+    STRING_LIFETIME(temp1, string_new(" from Scone!"), 
+    STRING_LIFETIME(result_with_param, return_string_with_param(temp1), 
+    VEC_FROM_FUNCTION(string, temp2, return_string_array(), 
+    VEC_LIFETIME(string, result_array, Vec_lt_string_gt_clone(temp2), 
+    i32 result_int = return_int();
+    
+    printf("%s\n", result.data);
+    printf("%s\n", result_with_param.data);
+    FOR_EACH_LOOP(string, temp3, item, result_array, 
+        printf("%s\n", item.data);
+    );
+    printf("%d\n", result_int);
+    );
+    );
+    );
+    );
+    );
+}
 //ScopedExpression
 //Shebang
 //StructDeclaration
@@ -766,6 +814,8 @@ int main() {
     object_instantiation();
     printf("\nOPERATOR: \n");
     operator();
+    printf("\nRETURN_EXPRESSION: \n");
+    return_expression();
 
     return 0;
 }

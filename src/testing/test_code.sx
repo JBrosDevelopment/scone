@@ -279,6 +279,32 @@ void: operator() {
     }
 }
 //ReturnExpression
+void: return_expression() {
+    string: result = return_string();
+    string: result_with_param = return_string(" from Scone");
+    string[]: result_array = return_string_array();
+    i32: result_int = return_int();
+    print(result);
+    print(result_with_param);
+    for item in result_array {
+        print(item);
+    }
+    print(result_int);
+}
+string: return_string() {
+    "Hello, World!";
+}
+string: return_string_with_param(string: p) {
+    string: s = "Hello, World!";
+    s += p;
+    return s;
+}
+string[]: return_string_array() {
+    return ["Hello", "World"];
+}
+i32: return_int() {
+    return 42;
+}
 //ScopedExpression
 //Shebang
 //StructDeclaration

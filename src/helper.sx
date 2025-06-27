@@ -66,6 +66,13 @@ pub safe struct Vec<T> {
 
     #! expose
     void: free() {
+        if T is string {
+            for s in Self {
+                if s != NULL {
+                    s.free();
+                }
+            }
+        }
         free(self.data);
         self.data = null;
     }
