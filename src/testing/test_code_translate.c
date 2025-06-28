@@ -259,6 +259,18 @@ bool string_equals(string a, string b) {
     expression; 
 
 
+#define DEFINE_STATIC_MEMBER(OWNER, TYPE, NAME, INIT)           \
+    static TYPE OWNER##__##NAME = {0};                          \
+    static bool OWNER##__##NAME##_initialized = false;          \
+    TYPE* OWNER##_get_##NAME() {                                \
+        if (!OWNER##__##NAME##_initialized) {                   \
+            OWNER##__##NAME = (INIT);                           \
+            OWNER##__##NAME##_initialized = true;               \
+        }                                                       \
+        return &OWNER##__##NAME;                                \
+    }
+
+
 typedef bool* bool_ptr;
 typedef u8* u8_ptr;
 typedef f32* f32_ptr;
@@ -694,7 +706,7 @@ void object_instantiation() {
 //Operator
 string i32_to_string(i32 value) {
     // convert i32 to string
-    return string_new("42"); // placeholder implementation
+    return string_new("PLACEHOLDER"); // placeholder implementation
 }
 void operator() {
     i32 a = 5 * 2;
@@ -756,19 +768,117 @@ void return_expression() {
     );
 }
 //ScopedExpression
+typedef struct {
+    string name;
+} This;
+This This_new_default() {
+    This self;
+    self.name = string_new("This");
+    return self;
+}
+This This_new_static_this() {
+    This self;
+    self.name = string_new("OO");
+    return self;
+}
+string This_thing(This* self, i32 value) {
+    // return self.name + " is: " + value;
+    STRING_LIFETIME(temp1, string_concat(self->name, string_new(" is: ")),
+    STRING_LIFETIME_RETURNS(temp2, string_concat(temp1, i32_to_string(value)),
+    )
+    );
+    return temp2;
+}
+
+DEFINE_STATIC_MEMBER(This, This, this, This_new_static_this());
+
+void scoped_expression() {
+    This* temp1 = This_get_this();
+    STRING_LIFETIME(s, This_thing(temp1, 20),
+    printf("%s\n", s.data);
+    );
+
+    i32 temp2 = abs(-2);
+    STRING_LIFETIME(temp3, i32_to_string(temp2),
+    printf("%d\n", temp2);
+    );
+}
 //Shebang
 //StructDeclaration
+typedef struct {
+    f32 x;
+    f32 y;
+    f32 z;
+} Vector3;
+Vector3 Vector3_new_default() {
+    Vector3 v;
+    v.x = 0;
+    v.y = 0;
+    v.z = 0;
+    return v;
+}
+Vector3 Vector3_new(f32 x, f32 y, f32 z) {
+    Vector3 v;
+    v.x = x;
+    v.y = y;
+    v.z = z;
+    return v;
+}
+void Vector3_add(Vector3* v, Vector3 other) {
+    v->x += other.x;
+    v->y += other.y;
+    v->z += other.z;
+}
+Vector3 Vector3_op_add(Vector3 l, Vector3 r) {
+    Vector3 result;
+    result.x = l.x + r.x;
+    result.y = l.y + r.y;
+    result.z = l.z + r.z;
+    return result;
+}
+string Vector3_to_string(Vector3* v) {
+    // return "Vector3(" + v.x + ", " + v.y + ", " + v.z + ")";
+    STRING_LIFETIME(temp1, i32_to_string((i32)v->x),
+    STRING_LIFETIME(temp2, i32_to_string((i32)v->y),
+    STRING_LIFETIME_RETURNS(result, string_concat(string_concat(string_new("Vector3("), temp1), string_concat(string_concat(string_new(", "), temp2), string_concat(string_new(", "), string_concat(i32_to_string((i32)v->z), string_new(")"))))),
+    )
+    );
+    );
+    return result;
+}
+void struct_declaration() {
+    Vector3 v1 = Vector3_new(1.0f, 2.0f, 3.0f);
+    Vector3 v2 = Vector3_op_add(v1, Vector3_new(4.0f, 5.0f, 6.0f));
+    STRING_LIFETIME(v1_str, Vector3_to_string(&v1),
+    printf("%s\n", v1_str.data);
+    );
+}
 //TernaryOperator
 //TraitDeclaration
+void trait_declaration() {
+}
 //TupleDeclaration
+void tuple_declaration() {
+}
 //TupleExpression
+void tuple_expression() {
+}
 //TypeDef
-//TypeDefinition
+void typedef_statement() {
+}
 //TypeIdentifier
+void type_identifier() {
+}
 //UnaryOperator
+void unary_operator() {
+}
 //Use
 //VariableDeclaration
+void variable_declaration() {
+}
 //While
+void while_statement() {
+}
 
 
 
@@ -816,6 +926,26 @@ int main() {
     operator();
     printf("\nRETURN_EXPRESSION: \n");
     return_expression();
+    printf("\nSCOPED_EXPRESSION: \n");
+    scoped_expression();
+    printf("\nSTRUCT_DECLARATION: \n");
+    struct_declaration();
+    printf("\nTRAIT_DECLARATION: \n");
+    trait_declaration();
+    printf("\nTUPLE_DECLARATION: \n");
+    tuple_declaration();
+    printf("\nTUPLE_EXPRESSION: \n");
+    tuple_expression();
+    printf("\nTYPEDEF: \n");
+    typedef_statement();
+    printf("\nTYPE_IDENTIFIER: \n");
+    type_identifier();
+    printf("\nUNARY_OPERATOR: \n");
+    unary_operator();
+    printf("\nVARIABLE_DECLARATION: \n");
+    variable_declaration();
+    printf("\nWHILE: \n");
+    while_statement();
 
     return 0;
 }
