@@ -59,7 +59,7 @@ pub struct ParameterHolder {
     pub name: String,
     pub id: Id,
     pub type_id: Id,
-    pub default_value: Option<ASTNode>,
+    pub default_value: Option<String>,
     pub is_params: bool,
     pub is_const: bool
 }
@@ -103,7 +103,7 @@ pub struct TraitHolder {
 pub struct EnumMemberHolder {
     pub name: String,
     pub id: Id,
-    pub index: Option<ASTNode>,
+    pub index: Option<u32>,
     pub scope: Scope,
 }
 
@@ -125,14 +125,14 @@ pub struct TypeHolder {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct CodegenTable {
-    pub types: Vec<TypeHolder>,
-    pub type_parameters: Vec<TypeParameterHolder>,
+    types: Vec<TypeHolder>,
+    type_parameters: Vec<TypeParameterHolder>,
 
-    pub enums: Vec<EnumHolder>,
-    pub structs: Vec<StructHolder>,
-    pub traits: Vec<TraitHolder>,
-    pub functions: Vec<FunctionHolder>,
-    pub variables: Vec<VariableHolder>,
+    enums: Vec<EnumHolder>,
+    structs: Vec<StructHolder>,
+    traits: Vec<TraitHolder>,
+    functions: Vec<FunctionHolder>,
+    variables: Vec<VariableHolder>,
     
     last_id: Id,
     last_type_id: Id,
@@ -206,7 +206,6 @@ impl CodegenTable {
             IdentifierType::Function(function) => self.functions.push(function),
             IdentifierType::Variable(variable) => self.variables.push(variable),
         }
-        self.last_id += 1;
     }
 
     pub fn add_type_scope(&mut self, type_: TypeType) { 
@@ -214,10 +213,10 @@ impl CodegenTable {
             TypeType::Type(type_) => self.types.push(type_),
             TypeType::TypeParameter(type_parameter) => self.type_parameters.push(type_parameter),
         }
-        self.last_type_id += 1;
     }
 
     fn remove_all_scope_index(&mut self, scope: Scope) {
+        self.types = self.types.iter().filter(|x| x.scope < scope).cloned().collect();
         self.type_parameters = self.type_parameters.iter().filter(|x| x.scope < scope).cloned().collect();
         self.enums = self.enums.iter().filter(|x| x.scope < scope).cloned().collect();
         self.structs = self.structs.iter().filter(|x| x.scope < scope).cloned().collect();
@@ -245,8 +244,9 @@ impl CodegenTable {
         }
     }
 
-    pub fn generate_variable(&self, name: String, type_id: Id, has_value: bool, requires_free: bool, access_modifier: Vec<AccessModifier>) -> VariableHolder {
-        VariableHolder {
+    pub fn generate_variable(&mut self, name: String, type_id: Id, has_value: bool, requires_free: bool, access_modifier: Vec<AccessModifier>) -> IdentifierType {
+        self.last_id += 1;
+        IdentifierType::Variable(VariableHolder {
             id: self.last_id,
             scope: self.scope,
             name,
@@ -254,11 +254,12 @@ impl CodegenTable {
             has_value,
             requires_free,
             access_modifier,
-        }
+        })
     }
 
-    pub fn generate_function(&self, name: String, type_id: Id, access_modifier: Vec<AccessModifier>, has_body: bool, parameters: Vec<ParameterHolder>, type_parameters: Vec<TypeParameterHolder>) -> FunctionHolder {
-        FunctionHolder {
+    pub fn generate_function(&mut self, name: String, type_id: Id, access_modifier: Vec<AccessModifier>, has_body: bool, parameters: Vec<ParameterHolder>, type_parameters: Vec<TypeParameterHolder>) -> IdentifierType {
+        self.last_id += 1;
+        IdentifierType::Function(FunctionHolder {
             id: self.last_id,
             scope: self.scope,
             name,
@@ -267,10 +268,11 @@ impl CodegenTable {
             has_body,
             parameters,
             type_parameters
-        }
+        })
     }
 
-    pub fn generate_parameter(&self, name: String, type_id: Id, is_const: bool, is_params: bool, default_value: Option<ASTNode>) -> ParameterHolder {
+    pub fn generate_parameter(&mut self, name: String, type_id: Id, is_const: bool, is_params: bool, default_value: Option<String>) -> ParameterHolder {
+        self.last_id += 1;
         ParameterHolder {
             id: self.last_id,
             name,
@@ -281,24 +283,27 @@ impl CodegenTable {
         }
     }
 
-    pub fn generate_type(&self, name: String) -> TypeHolder {
-        TypeHolder {
+    pub fn generate_type(&mut self, name: String) -> TypeType {
+        self.last_type_id += 1;
+        TypeType::Type(TypeHolder {
             type_id: self.last_type_id,
             scope: self.scope,
             name
-        }
+        })
     }
 
-    pub fn generate_type_parameter(&self, name: String) -> TypeParameterHolder {
-        TypeParameterHolder {
+    pub fn generate_type_parameter(&mut self, name: String) -> TypeType {
+        self.last_type_id += 1;
+        TypeType::TypeParameter(TypeParameterHolder {
             type_id: self.last_type_id,
             scope: self.scope,
             name,
-        }
+        })
     }
 
-    pub fn generate_struct(&self, name: String, methods: Vec<FunctionHolder>, members: Vec<VariableHolder>, access_modifier: Vec<AccessModifier>, type_parameters: Vec<TypeParameterHolder>, inherits: Vec<TraitHolder>) -> StructHolder {
-        StructHolder {
+    pub fn generate_struct(&mut self, name: String, methods: Vec<FunctionHolder>, members: Vec<VariableHolder>, access_modifier: Vec<AccessModifier>, type_parameters: Vec<TypeParameterHolder>, inherits: Vec<TraitHolder>) -> IdentifierType {
+        self.last_id += 1;
+        IdentifierType::Struct(StructHolder {
             id: self.last_id,
             scope: self.scope,
             name,
@@ -307,11 +312,12 @@ impl CodegenTable {
             access_modifier,
             type_parameters,
             inherits
-        }
+        })
     }
 
-    pub fn generate_trait(&self, name: String, methods: Vec<FunctionHolder>, members: Vec<VariableHolder>, access_modifier: Vec<AccessModifier>, inherits: Vec<TraitHolder>) -> TraitHolder {
-        TraitHolder {
+    pub fn generate_trait(&mut self, name: String, methods: Vec<FunctionHolder>, members: Vec<VariableHolder>, access_modifier: Vec<AccessModifier>, inherits: Vec<TraitHolder>) -> IdentifierType {
+        self.last_id += 1;
+        IdentifierType::Trait(TraitHolder {
             id: self.last_id,
             scope: self.scope,
             name,
@@ -319,20 +325,22 @@ impl CodegenTable {
             members,
             access_modifier,
             inherits
-        }
+        })
     }
 
-    pub fn generate_enum(&self, name: String, access_modifier: Vec<AccessModifier>, members: Vec<EnumMemberHolder>) -> EnumHolder {
-        EnumHolder {
+    pub fn generate_enum(&mut self, name: String, access_modifier: Vec<AccessModifier>, members: Vec<EnumMemberHolder>) -> IdentifierType {
+        self.last_id += 1;
+        IdentifierType::Enum(EnumHolder {
             id: self.last_id,
             scope: self.scope,
             name,
             members,
             access_modifier
-        }
+        })
     }
 
-    pub fn generate_enum_member(&self, name: String, index: Option<ASTNode>) -> EnumMemberHolder {
+    pub fn generate_enum_member(&mut self, name: String, index: Option<u32>) -> EnumMemberHolder {
+        self.last_id += 1;
         EnumMemberHolder {
             id: self.last_id,
             scope: self.scope,
