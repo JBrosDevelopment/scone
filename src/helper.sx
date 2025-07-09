@@ -1,5 +1,72 @@
+/*
+every structure needs to have constructor, destructor, and clone
+*/
+
+
+
+
+
+
 #! ifndef HELPER
 #! def HELPER
+
+// Tuple struct will simulate tuples
+#! expose; pub safe struct Tuple<A, B> {
+    #! expose; A: a;
+    #! expose; B: b;
+    #! expose; static Tuple<A, B>: new(A: a, B: b) => Tuple<A, B> { a = a, b = b }
+}
+#! expose; pub safe struct Tuple<A, B, C> {
+    #! expose; A: a;
+    #! expose; B: b;
+    #! expose; C: c;
+    #! expose; static Tuple<A, B, C>: new(A: a, B: b, C: c) => Tuple<A, B, C> { a = a, b = b, c = c }
+}
+#! expose; pub safe struct Tuple<A, B, C, D> {
+    #! expose; A: a;
+    #! expose; B: b;
+    #! expose; C: c;
+    #! expose; D: d;
+    #! expose; static Tuple<A, B, C, D>: new(A: a, B: b, C: c, D: d) => Tuple<A, B, C, D> { a = a, b = b, c = c, d = d }
+}
+
+(string, i32, (bool, bool)): a = ("a", 25, (false, false));
+Tuple<string, i32, Tuple<bool, bool>>: a = Tuple::new<string, i32, Tuple<bool, bool>>("a", 25, Tuple::new<bool, bool>(false, false));
+
+
+/*
+#! expose; pub unsafe struct vector_header {
+    #! expose; size: size;
+    #! expose; size: capacity;
+    #! expose; u8[]: data;
+}
+#! expose; unsafe vector_header*: vector_get_header(void*: vec) => ((vec as u8*) - sizeof(vector_header)) as vector_header*;
+#! expose; unsafe void vector_free(void*: vec) => free(vector_get_header(vec));
+#! expose; unsafe size vector_size(void*: vec) => vector_get_header(vec)->size;
+#! expose; unsafe size vector_capacity(void*: vec) => vector_get_header(vec)->capacity;
+#! expose; unsafe void*: vector_create() {
+    vector_header* h = malloc<vector_header>(sizeof(vector_header));
+    h->capacity = 0;
+    h->size = 0;
+    return &h->data;
+}
+#! expose; unsafe vector_header*: vector_realloc(vector_header*: h, size: type_size) {
+	size: new_capacity = (h->capacity == 0) ? 1 : h->capacity * 2;
+	vector_header*: new_h = realloc<vector_get_header>(h, sizeof(vector_header) + new_capacity * type_size);
+	new_h->capacity = new_capacity;
+	return new_h;
+}
+#! expose; unsafe bool: vector_has_space(vector_header*: h) => h->capacity - h->size > 0;
+#! exposel unsafe void*: vector_add_dst(void**: vec_addr, size: type_size) {
+    vector_header*: h = vector_get_header(*vec_addr);
+    if !vector_has_space(h) {
+        h = vector_realloc(h, type_size);
+        *vec_addr = h-> data;
+    }
+    h->size += 1;
+    return &h->data[type_size * h->size];
+}
+*/
 
 #! expose
 #! version 0.1
@@ -333,3 +400,5 @@ pub safe struct Option<T is Clonable> -> Free {
         }
     }
 }
+
+#! endif

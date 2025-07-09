@@ -4,6 +4,7 @@ pub mod lexer;
 pub mod ast;
 pub mod parser;
 pub mod transpiler;
+pub mod codegen;
 
 fn main() {
     let path = "src/testing/test_code.sx".to_string();
@@ -29,6 +30,7 @@ fn main() {
         ast_string.push(';');
         ast_string.push('\n');
     }
+    ast_string = ast_string.replace(" ;", ";").replace(";;", ";");
     std::fs::write("src/testing/ast.out.sx", ast_string).unwrap();
 
     let fmt_json = serde_json::to_string_pretty(&ast).unwrap();
@@ -40,7 +42,7 @@ fn main() {
     }
 
     // transpiler
-    let (out_code, output) = transpiler::codegen(ast, &code, Some(path.clone()), macros);
+    let (out_code, output) = transpiler::transpile(ast, &code, Some(path.clone()), macros);
 
     std::fs::write("src/testing/transpiler.out.c", out_code.clone()).unwrap();
 

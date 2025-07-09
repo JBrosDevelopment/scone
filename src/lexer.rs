@@ -62,6 +62,8 @@ pub enum TokenType {
 
     // keywords
     Return,
+    ReturnTrue,
+    ReturnFalse,
     If,
     Else,
     For,
@@ -558,6 +560,8 @@ impl Lexer {
                 let new_token = match name.as_str() {
                     "true" | "false" => Token::new(TokenType::BoolConstant, name.clone(), current_location.clone()),
                     "return" => Token::new(TokenType::Return, name.clone(), current_location.clone()),
+                    "return_true" => Token::new(TokenType::ReturnTrue, name.clone(), current_location.clone()),
+                    "return_false" => Token::new(TokenType::ReturnFalse, name.clone(), current_location.clone()),
                     "if" => Token::new(TokenType::If, name.clone(), current_location.clone()),
                     "else" => Token::new(TokenType::Else, name.clone(), current_location.clone()),
                     "for" => Token::new(TokenType::For, name.clone(), current_location.clone()),

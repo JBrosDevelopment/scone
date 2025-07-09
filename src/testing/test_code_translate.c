@@ -767,6 +767,15 @@ void return_expression() {
     );
     );
 }
+//ReturnConditionalExpression
+bool return_conditional_expression() {
+    VEC_LIFETIME_AUTO(i32, temp1, temp2, BRACE(1, 2, 3), 3,
+    FOR_EACH_LOOP(i32, temp3, obj, temp1,
+        if (obj == 5) return true;
+    )
+    );
+    return false;
+}
 //ScopedExpression
 typedef struct {
     string name;
@@ -855,30 +864,52 @@ void struct_declaration() {
 }
 //TernaryOperator
 //TraitDeclaration
+typedef bool Dog;
+typedef bool Cat;
+void Dog_Speak() {
+    printf("Woof!\n");
+}
+void Cat_Speak() {
+    printf("Meow!\n");
+}
+#define DEFINE_ANIMAL_SPEAK_1_1(T) \
+void animal_speak_##T(T animal) { \
+    T##_Speak(); \
+}
+DEFINE_ANIMAL_SPEAK_1_1(Dog);
+DEFINE_ANIMAL_SPEAK_1_1(Cat);
 void trait_declaration() {
+    Dog d;
+    Cat c;
+    animal_speak_Dog(d);
+    animal_speak_Cat(c);
 }
 //TupleDeclaration
+DEFINE_TUPLE(tuple_lp_u8_bool_rp, u8 a; bool b;);
+DEFINE_TUPLE(tuple_lp_bool_lp_up_bool_rp_rp, bool a; tuple_lp_u8_bool_rp b;);
 void tuple_declaration() {
+    GET_TUPLE_VAR(tuple_lp_u8_bool_rp, temp1, 1, true);
+    GET_TUPLE_VAR(tuple_lp_bool_lp_up_bool_rp_rp, a, false, temp1);
+    printf("%d\n", a.a);
+    printf("%d\n", a.b.a);
+    printf("%d\n", a.b.b);
 }
 //TupleExpression
 void tuple_expression() {
+    GET_TUPLE_VAR(tuple_lp_u8_u8_rp, a, 0, 0);
+    printf("%d\n", a.a);
+    printf("%d\n", a.b);
 }
 //TypeDef
+typedef i32 number;
 void typedef_statement() {
+    number a = 0;
 }
 //TypeIdentifier
-void type_identifier() {
-}
 //UnaryOperator
-void unary_operator() {
-}
 //Use
 //VariableDeclaration
-void variable_declaration() {
-}
 //While
-void while_statement() {
-}
 
 
 
@@ -926,6 +957,8 @@ int main() {
     operator();
     printf("\nRETURN_EXPRESSION: \n");
     return_expression();
+    printf("\nRETURN_CONDITIONAL_EXPRESSION: \n");
+    return_conditional_expression();
     printf("\nSCOPED_EXPRESSION: \n");
     scoped_expression();
     printf("\nSTRUCT_DECLARATION: \n");
@@ -938,14 +971,6 @@ int main() {
     tuple_expression();
     printf("\nTYPEDEF: \n");
     typedef_statement();
-    printf("\nTYPE_IDENTIFIER: \n");
-    type_identifier();
-    printf("\nUNARY_OPERATOR: \n");
-    unary_operator();
-    printf("\nVARIABLE_DECLARATION: \n");
-    variable_declaration();
-    printf("\nWHILE: \n");
-    while_statement();
 
     return 0;
 }

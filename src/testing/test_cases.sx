@@ -1391,3 +1391,14 @@ if node->left->value == 0 {
 }
 object->method(arg1, arg2);
 (*ptr)->x->y->z += 1;
+
+pub safe struct Pair<A, B> {
+    A: a;
+    B: b;
+    
+    static Pair<A, B>: new(A: left, B: right) {
+        Pair<A, B> {
+            a = left, b = right
+        }
+    }
+}

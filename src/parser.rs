@@ -336,7 +336,7 @@ impl Parser {
             else if let NodeType::VariableDeclaration(_) = thing.node.as_ref() {
             } 
             else {
-                self.error(line!(), format!("Error while parsing {} body", class_or_struct).as_str(), format!("Expected only a function or variable declaration for {A}: `{A} NAME {{ TYPE: NAME = VALUEl; TYPE: NAME() {{ ... }} }}`", A = class_or_struct).as_str(), &thing.token.location);
+                self.error(line!(), format!("Error while parsing {} body", class_or_struct).as_str(), format!("Expected only a function or variable declaration for {A}, but got a `{B}`: `{A} NAME {{ TYPE: NAME = VALUEl; TYPE: NAME() {{ ... }} }}`", A = class_or_struct, B = thing.node.to_string()).as_str(), &thing.token.location);
             }
         }
 
@@ -779,6 +779,7 @@ impl Parser {
                 iter_value = in_expression.left.clone();
                 iter_range = in_expression.right.clone();
                 if let NodeType::Identifier(_) = in_expression.left.node.as_ref() { 
+                } else if let NodeType::Discard(_) = in_expression.left.node.as_ref() { 
                 } else if let NodeType::TupleExpression(_) = in_expression.left.node.as_ref() {
                 } else {
                     self.error(line!(), "Unable to parse `for` statement, incorrect value for iterator", "Expected a single identifier token as the iterator value for the `for` statement: `for VALUE in RANGE {}`", &in_expression.operator.location);
@@ -1026,7 +1027,20 @@ impl Parser {
             scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LessThan) && valid_lt_as_type_parameter {
-            scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement)
+            let gt_pos = tokens.iter().skip(*i).rposition(|t| t.token_type == TokenType::GreaterThan);
+            let lp_pos = tokens.iter().skip(gt_pos.unwrap() + *i).rposition(|t| t.token_type == TokenType::LParen);
+            let lb_pos = tokens.iter().skip(*i).rposition(|t| t.token_type == TokenType::LBrace);
+            if lb_pos.is_none() {
+                scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement) // if no `{` -> function call
+            } else if lp_pos.is_none() {
+                scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc) // if no `(` -> object instantiation
+            } else if lp_pos.unwrap() < lb_pos.unwrap() {
+                scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement) // if `(` is before `{` -> function call
+            } else if lp_pos.unwrap() > lb_pos.unwrap() {
+                scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc) // if `{` is before `(` -> object instantiation
+            } else {
+                scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement) // assume function call if unsure
+            }
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) && !is_in_statement {
             scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc)
@@ -1060,7 +1074,20 @@ impl Parser {
             scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement)
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LessThan) && valid_lt_as_type_parameter {
-            scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement)
+            let gt_pos = tokens.iter().skip(*i).rposition(|t| t.token_type == TokenType::GreaterThan);
+            let lp_pos = tokens.iter().skip(gt_pos.unwrap() + *i).rposition(|t| t.token_type == TokenType::LParen);
+            let lb_pos = tokens.iter().skip(*i).rposition(|t| t.token_type == TokenType::LBrace);
+            if lb_pos.is_none() {
+                scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement) // if no `{` -> function call
+            } else if lp_pos.is_none() {
+                scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc) // if no `(` -> object instantiation
+            } else if lp_pos.unwrap() < lb_pos.unwrap() {
+                scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement) // if `(` is before `{` -> function call
+            } else if lp_pos.unwrap() > lb_pos.unwrap() {
+                scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc) // if `{` is before `(` -> object instantiation
+            } else {
+                scope = self.function_call(tokens, Some(scope), i, last_punc, is_in_statement) // assume function call if unsure
+            }
         }
         else if tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBrace) && !is_in_statement {
             scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc)
@@ -1206,6 +1233,12 @@ impl Parser {
 
     fn get_object_instantiation(&mut self, tokens: &mut Vec<Box<Token>>, scope: Option<ScopedIdentifier>, i: &mut usize, last_punc: Option<ScopeType>) -> ScopedIdentifier {
         let name_token = tokens.get(*i - 1).unwrap_or(&self.try_get_last_token(tokens)).clone();
+        let type_parameters;
+        if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LessThan) {
+            type_parameters = Some(self.get_type_parameters(tokens, i));
+        } else {
+            type_parameters = None;
+        }
         let scope_is_empty = scope.is_none(); // because if not, it's coming from scope_call_with_scope and there is another `Parser::dec(i)` in there that will cause issues
         
         if self.__curent_parsing_line >= self.lines.len() {
@@ -1242,10 +1275,8 @@ impl Parser {
 
         let object_instantiation = ObjectInstantiation {
             properties,
-            object_type: Box::new(ASTNode {
-                token: name_token.clone(),
-                node: Box::new(NodeType::Identifier(name_token.clone()))
-            }),
+            object_type: name_token.clone(),
+            type_parameters
         };
 
         let mut scope = scope.unwrap_or(ScopedIdentifier {
@@ -1477,9 +1508,6 @@ impl Parser {
 
                     let function = self.declaring_function(tokens, i);
                     if function != ASTNode::err() {
-                        if expr_stack.len() > 1 {
-                            self.error(line!(), "Function declaration error", "Unable to parse funcion declaration, there is more than one expression in type declaration", &token.location);
-                        }
                         expr_stack.clear();
                         op_stack.clear();
                         expr_stack.push(Box::new(function));
@@ -1592,13 +1620,16 @@ impl Parser {
                                 if angle_bracket_level == 0 {
                                     last_was_ident = tokens.get(j + 1).map_or(false, |t| 
                                         t.token_type == TokenType::LParen || 
+                                        t.token_type == TokenType::LBrace || 
                                         t.token_type == TokenType::DoubleColon || 
                                         t.token_type == TokenType::Dot || 
                                         t.token_type == TokenType::RightArrow || 
                                         { // is apart of variable declaration.
                                             let position_of_colon = tokens.iter().position(|a| a.token_type == TokenType::Colon);
                                             if let Some(pos) = position_of_colon {
-                                                pos > *i && tokens.get(pos + 2).map_or(false, |a| a.token_type == TokenType::Assign)
+                                                pos > *i && 
+                                                tokens.get(pos + 2).map_or(false, |a| a.token_type == TokenType::Assign) ||
+                                                (tokens.get(pos + 1).map_or(false, |a| a.token_type == TokenType::Identifier && tokens.get(pos + 2).map_or(false, |b| matches!(b.token_type, TokenType::LParen | TokenType::LessThan))))
                                             } else {
                                                 false
                                             }
@@ -1679,9 +1710,19 @@ impl Parser {
                             *i = position - 2;
                             continue;
                         }
+                    } else {
+                        let colon_position = tokens.iter().rposition(|t| t.token_type == TokenType::Colon);
+                        if let Some(position) = colon_position {
+                            if position > *i && tokens.get(position - 1).is_some_and(|t| t.token_type == TokenType::GreaterThan && tokens.get(position + 1).is_some_and(|t| t.token_type == TokenType::Identifier) && tokens.get(position + 2).is_some_and(|t| matches!(t.token_type, TokenType::LParen | TokenType::LessThan))) {
+                                // part of function declaration: TYPE: NAME()
+                                *i = position;
+                                continue;
+                            }
+                        }
                     }
                 }
 
+                
                 if last_was_ident && token.token_type == TokenType::LessThan && tokens.get(*i - 1).map_or(false, |t: &Box<Token>| t.token_type == TokenType::Identifier) {
                     // part of function call: function<TYPE>()
                     expr_stack.push(Box::new(ASTNode {
@@ -2008,6 +2049,20 @@ impl Parser {
                         node: Box::new(NodeType::ReturnExpression(Some(return_node)))
                     }));
                 }
+            } else if matches!(token.token_type, TokenType::ReturnTrue | TokenType::ReturnFalse) {
+                let return_true = token.token_type == TokenType::ReturnTrue;
+                let return_string = if return_true { "return_true" } else { "return_false" };
+                Self::inc(i);
+                let return_node = self.get_expression(tokens, i, until);
+                if *return_node == ASTNode::err() {
+                    self.error(line!(), "Return expression error", format!("{return_string} expression must have a value: `{return_string} EXPR`").as_str(), &token.location);
+                    return Box::new(ASTNode::err());
+                } else {
+                    expr_stack.push(Box::new(ASTNode {
+                        token: token.clone(),
+                        node: Box::new(NodeType::ReturnConditionalExpression(ReturnConditional { condition: return_true, value: return_node }))
+                    }));
+                }
             } else if token.token_type == TokenType::Defer {
                 Self::inc(i);
                 let expression = self.get_expression(tokens, i, until);
@@ -2121,7 +2176,7 @@ impl Parser {
                             node: Box::new(NodeType::Shebang(ShebangType::C(tokens.iter().skip(*i).map(|t| t.clone()).collect())))
                         });
                     }
-                    "crumb" | "deprecated" | "version"| "expose" | "entry" => {
+                    "crumb" | "deprecated" | "version"| "expose" | "entry"| "alias" => {
                         let tag_tokens: Vec<Box<Token>> = tokens.iter().skip(*i).map(|t| t.clone()).collect();
                         match tag_tokens.first().map_or("", |t| t.value.as_str()) {
                             "crumb" => {
@@ -2137,11 +2192,18 @@ impl Parser {
                                 if let Some(version_token) = tag_tokens.get(1) {
                                     self.__current_tags.push(Tag::Version(version_token.clone()));
                                 } else {
-                                    self.error(line!(), "Unexpected tag syntax", "Version tag requires version number: `#! version 1.2.3`", &token.location);
+                                    self.error(line!(), "Unexpected tag syntax", "Version tag requires version number: `#! version 0.1`", &token.location);
+                                }
+                            }
+                            "alias" => {
+                                if let Some(alias_token) = tag_tokens.get(1) {
+                                    self.__current_tags.push(Tag::Alias(alias_token.clone()));
+                                } else {
+                                    self.error(line!(), "Unexpected tag syntax", "alias tag requires alias name: `#! alias my_alias`", &token.location);
                                 }
                             }
                             _ => {
-                                self.error(line!(), "Unexpected tag", "Tag not recognized, expected `crumb`, `expose`, `entry`, `deprecated` or `version", &token.location);
+                                self.error(line!(), "Unexpected tag", "Tag not recognized, expected `crumb`, `expose`, `entry`, `deprecated`, `alias` or `version", &token.location);
                             }
                         }
                         if self.lines.get(self.__curent_parsing_line + 1).is_some_and(|l| !l.iter().any(|t| matches!(t.token_type, TokenType::Class | TokenType::Struct | TokenType::Trait))) {
@@ -2463,9 +2525,6 @@ impl Parser {
             }
             else if first_token.token_type == TokenType::LParen {
                 let tuple = self.get_tuple_node_parameters(&mut copy_tokens, i);
-                if tokens.get(*i).is_some_and(|t| t.token_type == TokenType::LBracket) {
-                    self.error(line!(), "Incorrect type", "Incorrect type declaration. If you were trying to create an array, use: `Vec<>`", &tokens.get(*i + 1).map_or(tokens[0].location.clone(), |t| t.location.clone()))
-                }
                 return Box::new(ASTNode {
                     token: first_token.clone(),
                     node: Box::new(NodeType::TupleDeclaration(TupleDeclaration {
@@ -2758,7 +2817,7 @@ impl Parser {
                             else if tokens[j].token_type == TokenType::GreaterThan {
                                 angle_bracket_level -= 1;
                                 if angle_bracket_level == 0 {
-                                    if tokens.get(j + 1).map_or(false, |t| t.token_type == TokenType::LParen || tokens[j + 1].token_type == TokenType::DoubleColon || tokens[j + 1].token_type == TokenType::Dot || tokens[j + 1].token_type == TokenType::RightArrow) {
+                                    if tokens.get(j + 1).map_or(false, |t| t.token_type == TokenType::LParen || t.token_type == TokenType::LBrace || tokens[j + 1].token_type == TokenType::DoubleColon || tokens[j + 1].token_type == TokenType::Dot || tokens[j + 1].token_type == TokenType::RightArrow) {
                                         let tp = self.get_type_parameters(tokens, i);
                                         type_parameters = Some(tp);
                                     }
@@ -3197,15 +3256,23 @@ impl Parser {
             }
             NodeType::ObjectInstantiation(ref value) => {
                 let mut object = "".to_string();
-                let object_type = Self::node_expr_to_string(&value.object_type, tab_level);
+                let object_type = &value.object_type.value;
                 for (index, param) in value.properties.iter().enumerate() {
                     object += format!("{} = {}{}", param.name.value, Self::node_expr_to_string(&param.value, tab_level).as_str(), value.properties.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                }
+                let mut type_parameters = "".to_string();
+                if value.type_parameters.is_some() {
+                    type_parameters += "<";
+                    for (index, param) in value.type_parameters.clone().unwrap().parameters.iter().enumerate() {
+                        type_parameters += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.type_parameters.clone().unwrap().parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    }
+                    type_parameters += ">";
                 }
                 if object.is_empty() {
                     format!("{} {{}}", object_type)
                 }
                 else {
-                    format!("{} {{ {} }}", object_type, object)
+                    format!("{}{} {{ {} }}", object_type, type_parameters, object)
                 }
             }
             NodeType::CodeBlock(ref value) => {
@@ -3222,6 +3289,13 @@ impl Parser {
                     format!("return {}", Self::node_expr_to_string(&value.clone().unwrap(), tab_level))
                 } else {
                     "return".to_string()
+                }
+            }
+            NodeType::ReturnConditionalExpression(ref value) => {
+                if value.condition {
+                    format!("return_true {}", Self::node_expr_to_string(&value.value.clone(), tab_level))
+                } else {
+                    format!("return_false {}", Self::node_expr_to_string(&value.value.clone(), tab_level))
                 }
             }
             NodeType::LambdaExpression(ref value) => {

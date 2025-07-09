@@ -20,7 +20,6 @@ pub enum NodeType {
     ScopedExpression(ScopedIdentifier),
     FunctionCall(FunctionCall),
     TupleExpression(NodeParameters),
-    ReturnExpression(Option<Box<ASTNode>>),
     DeferStatement(Box<ASTNode>),
     TernaryOperator(TernaryConditional),
     UnaryOperator(UnaryExpression),
@@ -28,17 +27,19 @@ pub enum NodeType {
     Indexer(IndexingExpression),
     ObjectInstantiation(ObjectInstantiation),
     LambdaExpression(LambdaExpression),
-
+    
     // flow
     If(ConditionalRegion),
     While(ConditionalRegion),
     ForEach(ForEachLoop),
     For(ForLoop),
     Match(MatchRegion),
-
+    
     // control
     Break(Box<Token>),
     Continue(Box<Token>),
+    ReturnExpression(Option<Box<ASTNode>>),
+    ReturnConditionalExpression(ReturnConditional),
 
     // other
     Use(Box<Token>),
@@ -100,6 +101,7 @@ impl NodeType {
             NodeType::EnumDeclaration(_) => "EnumDeclaration".to_string(),
             NodeType::TypeDef(_) => "TypeDef".to_string(),
             NodeType::DeferStatement(_) => "DeferStatement".to_string(),
+            NodeType::ReturnConditionalExpression(_) => "ReturnConditionalExpression".to_string(),
         }
     }
 }
@@ -426,7 +428,8 @@ pub struct UnaryExpression {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ObjectInstantiation {
-    pub object_type: Box<ASTNode>,
+    pub object_type: Box<Token>,
+    pub type_parameters: Option<NodeParameters>,
     pub properties: Vec<NodeProperty>,
 }
 
@@ -493,6 +496,7 @@ impl ShebangAWEMessage {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub enum Tag {
     Version(Box<Token>),
+    Alias(Box<Token>),
     Deprecated,
     Crumb,
     Expose,
@@ -503,10 +507,17 @@ impl Tag {
     pub fn to_string(&self) -> String {
         match self {
             Tag::Version(version) => format!("#! version {}", version.value),
+            Tag::Alias(alias) => format!("#! alias {}", alias.value),
             Tag::Deprecated => "#! deprecated".to_string(),
             Tag::Crumb => "#! crumb".to_string(),
             Tag::Expose => "#! expose".to_string(),
             Tag::Entry => "#! entry".to_string(),
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct ReturnConditional {
+    pub condition: bool,
+    pub value: Box<ASTNode>
 }

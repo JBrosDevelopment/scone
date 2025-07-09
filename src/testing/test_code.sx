@@ -8,7 +8,7 @@ void: arrays() {
     bool: val = false;
     bool*[]: bp_array: [&val];
     bool*[]*: bp_array_ptr = &bp_array;
-    free(bp_array_ptr)
+    free(bp_array_ptr);
     //get array
     bool[]: bools = get_bool_array();
     for b in bools { print(b); }
@@ -26,9 +26,9 @@ pub struct Vec<Y> {
         return result;
     }
 }
-void select_test() {
+void: select_test() {
     i32[]: arr = [1, 2, 3, 4, 5];
-    u8[] result = arr.select<u8>(x => x as u8);
+    u8[]: result = arr.select<u8>(x => x as u8);
     // some_other_value = result;
 }
 //AsCast
@@ -86,9 +86,9 @@ enum Atrributes {
     ThatThing = 0b10,
     OtherThing = 0b01,
 }
-void enums() {
+void: enums() {
     Options: option = Options::Yes;
-    switch option {
+    match option {
         Options::Yes => print("Option is Yes"),
         Options::No => print("Option is No"),
         Options::Maybe => print("Option is Maybe")
@@ -100,7 +100,7 @@ void enums() {
     }
 }
 //For
-void for_loop() {
+void: for_loop() {
     i32[]: n = [];
     for i32: i = 0, i < 10, i += 1 {
         for i32: j = 0, j < 10, j += 2 {
@@ -112,7 +112,7 @@ void for_loop() {
     }
 }
 //ForEach
-void for_each_loop() {
+void: for_each_loop() {
     for b in [true, false, false, true] {
         print(b);
     }
@@ -125,13 +125,13 @@ void for_each_loop() {
         print(i);
     }
 }
-(u8, u8) z() => (0, 0);
+(u8, u8): z() => (0, 0);
 //FunctionCall
 void: function_call() {
     i32: result = add(1, 2);
     print(result);
 
-    (u8, u8)[] aaa: = z();
+    (u8, u8)[]: aaa = z();
 
     i32: bbb = generics<i32, f32, u32>(1.5, 2);
 }
@@ -305,6 +305,13 @@ string[]: return_string_array() {
 i32: return_int() {
     return 42;
 }
+//ReturnConditionalExpression
+bool: return_conditional_expression() {
+    for obj in [1, 2, 3] {
+        return_true obj == 5;
+    }
+    return false;
+}
 //ScopedExpression
 struct This {
     string: name = "Value";
@@ -316,7 +323,7 @@ struct Inside {
     static This: this = This{name = "OO"};
 }
 void: scoped_expression() {
-    string s: Inside::this.thing(5);
+    string: s = Inside::this.thing(5);
     print(s);
 
     print(-2.abs().to_string());
@@ -357,10 +364,51 @@ void: struct_declaration() {
     print(v2.to_string());
 }
 //TernaryOperator
+void: ternary_operator() {
+    i32: a = 0 == 0 ? 25 : -9;
+}
 //TraitDeclaration
+trait Speakable {
+    void: speak();
+}
+struct Dog -> Speakable {
+    void: speak() {
+        print("Woof!");
+    }
+}
+struct Cat -> Speakable {
+    void: speak() {
+        print("Meow!");
+    }
+}
+void: animal_speak<T is Speakable>(T: animal) {
+    animal.speak();
+}
+void: trait_demo() {
+    Dog: d = Dog {};
+    Cat: c = Cat {};
+
+    animal_speak(d);
+    animal_speak(c);
+}
 //TupleDeclaration
+void: tuple_declaration() {
+    (bool, (u8, bool)): a = (false, (1, true));
+    print(a.a);
+    print(a.b.a);
+    print(a.b.b);
+}
 //TupleExpression
+void: tuple_expression() {
+    (u8, u8): a = (1, 0);
+    print(a.a);
+    print(a.b);
+}
 //TypeDef
+typedef i32: number;
+void: typedef_statement() {
+    number: a = 0;
+}
 //TypeIdentifier
 //UnaryOperator
 //Use
