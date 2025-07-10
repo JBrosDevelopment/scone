@@ -1,0 +1,416 @@
+//ArrayExpression
+void: arrays() {
+    i32[]: arr = []; // in declaration
+    arr.push(99); // pushing
+    (u8, u8)[][]: b = [[(0, 0)], [], [(1, 1)]]; // complex type
+    use_array([0, 1, 2]); // used in function
+    // pointers in arrays and array pointers
+    bool: val = false;
+    bool*[]: bp_array: [&val];
+    bool*[]*: bp_array_ptr = &bp_array;
+    free(bp_array_ptr);
+    //get array
+    bool[]: bools = get_bool_array();
+    for b in bools { print(b); }
+}
+bool[]: get_bool_array() {
+    [false, true, false]
+}
+pub struct Vec<Y> {
+    Y: select<Y>(Fn<Y, T>: fn) {
+        Y[]: result = [];
+        for element in self {
+            Y: item = fn(element);
+            result.push(item);
+        }
+        return result;
+    }
+}
+void: select_test() {
+    i32[]: arr = [1, 2, 3, 4, 5];
+    u8[]: result = arr.select<u8>(x => x as u8);
+    // some_other_value = result;
+}
+//AsCast
+void: as_cast() {
+    i32: a = 0;
+    u8: c = a as u8;
+    f32*: arr = malloc(sizeof(f32) * 5) as f32*;
+    free(arr);
+}
+//Assignment
+void: assignment() {
+    i32: a = 0;
+    a += 25;
+    a = fancy_function(0, 1, 2, [9]);
+}
+//Break
+//ClassDeclaration
+//CodeBlock
+//Constant
+void: constants() {
+    string: s = func("John");
+    print(s);
+}
+string: func(string: name) {
+    // strings
+    string: s = "hello, " + name;
+    s += "!";
+    return s;
+}
+//Continue
+//DeferStatement
+void: defer_statement() {
+    i32*: ptr = malloc(sizeof(i32));
+    defer free(ptr);
+    *ptr = 42;
+    print(*ptr);
+}
+//Discard
+void: discard() {
+    _ = 0 + hmm();
+    i32[]: arr = ;
+    for _ in [0, 1, 2] {
+        nothing();
+    }
+    arr.select(_ => something());
+}
+//EnumDeclaration
+enum Options {
+    Yes,
+    No,
+    Maybe
+}
+enum Atrributes {
+    ThisThing = 0b00,
+    ThatThing = 0b10,
+    OtherThing = 0b01,
+}
+void: enums() {
+    Options: option = Options::Yes;
+    match option {
+        Options::Yes => print("Option is Yes"),
+        Options::No => print("Option is No"),
+        Options::Maybe => print("Option is Maybe")
+    }
+
+    Atrributes: attr = Atrributes::ThisThing | Atrributes::ThatThing;
+    if (attr & Atrributes::ThisThing) != 0 {
+        print("ThisThing is set");
+    }
+}
+//For
+void: for_loop() {
+    i32[]: n = [];
+    for i32: i = 0, i < 10, i += 1 {
+        for i32: j = 0, j < 10, j += 2 {
+            n.push(i * j);
+        }
+    }
+    for index, i32: i = n.size / 4, i < n.size * 0.75, i += index {
+        print(n[i]);
+    }
+}
+//ForEach
+void: for_each_loop() {
+    for b in [true, false, false, true] {
+        print(b);
+    }
+    for (x, y) in z() {
+        print(x);
+        print(y);
+    }
+    i32: collection = 100;
+    for i, item in collection.as_range() {
+        print(i);
+    }
+}
+(u8, u8): z() => (0, 0);
+//FunctionCall
+void: function_call() {
+    i32: result = add(1, 2);
+    print(result);
+
+    (u8, u8)[]: aaa = z();
+
+    i32: bbb = generics<i32, f32, u32>(1.5, 2);
+}
+i32: add(i32: a, i32: b) {
+    return a + b;
+}
+T: generics<T, G, F>(G: g, F: f) {
+    T: result = g as T;
+    result += f as T;
+    return result;
+
+}
+//FunctionDeclaration
+void: function_declaration() {
+    i32: a = parse<i32>("123");
+    
+    (i32, f32)[]*: b = lot<i32, f32, string>((25, "string"));
+    free(b);
+}
+T: parse<T>(string: s) { }
+(T, G)[]*: lot<T, G, Q>((T, Q): g) { }
+
+//Identifier
+void: identifer() {
+    i32: a = 0;
+    f32: b = 1.5;
+    u32: c = a + b;
+    printf("a: %d, b: %f, c: %u", a, b, c);
+}
+//Indexer
+struct Map<K, V> {
+    K[]: keys = [];
+    V[]: values = [];
+    Map<K, V>: new() {
+        Map<K, V> {}
+    }
+    V: op_index_get(K: key) {
+        i32: index = self.keys.index_of(key);
+        if (index == -1) {
+            panic("Key not found");
+        }
+        return self.values[index];
+    }
+    void: op_index_set(K: key, V: value) {
+        i32: index = self.keys.index_of(key);
+        if (index == -1) {
+            self.keys.push(key);
+            self.values.push(value);
+            return;
+        }
+        self.values[index] = value;
+    }
+}
+void: indexer() {
+    i32[]: arr = [1, 2, 3, 4, 5];
+    i32: value = arr[2]; // accessing index
+    arr[0] = 10; // setting index
+    print(value);
+
+    (f32, f32)[][]: points = [[(1.0, 2.0), (3.0, 4.0)]];
+    points[0][0] = (5.0, 6.0); 
+    print(points[0][0]);
+
+    Map<string, i32>: map = Map::new<string, i32>();
+    map["key"] = 32;
+}
+//If
+void: if_statement() {
+    i32: a = 10;
+    if a > 5 {
+        print("a is greater than 5");
+    } else if a < 5 {
+        print("a is less than 5");
+    } else {
+        print("a is equal to 5");
+    }
+}
+//IsCheck
+void: is_check() {
+    i32: a = 10;
+    if a is i32 {
+        print("a is an i32");
+    }
+}
+//LambdaExpression
+void: lambda() {
+    i32[]: arr = [1, 2, 3, 4, 5];
+    i32[]: squared = arr.select(x => x * x);
+    for item in squared {
+        print(item);
+    }
+
+    double_lambda(10, x => x + 1);
+
+    u8: ch = squared.select<u8>((x, y) => x + 48 - y).where(x => x >= '0' && x <= '9').first();
+    print(ch);
+}
+i32: double_lambda(i32: x, Fn<i32, i32>: fn) {
+    fn(x) * 2
+}
+//Match
+void: match_statement() {
+    i32: a = 10;
+    match a {
+        0 => print("a is zero"),
+        1 => print("a is one"),
+        2 => print("a is two"),
+        _ => print("a is something else")
+    }
+
+    (string, i32): pair = ("hello", 42);
+    match pair {
+        ("hello", 42) => print("Matched hello and 42"),
+        ("bye", 0) => print("Matched bye and 0"),
+        _ => print("No match found")
+    }
+}
+//ObjectInstantiation
+struct Position {
+    f32: x = 5;
+    f32: y = 5;
+    #! crumb
+    Position: new(f32: x, f32: y) {
+        self.x = x;
+        self.y = y;
+    }
+    void: add(Position: other) {
+        self.x += other.x;
+        self.y += other.y;
+    }
+}
+void: object_instantiation() {
+    Position: p = new(1.0, 2.0);
+    p.add(Position{ x = 1 });
+    print("Position: (" + p.x + ", " + p.y + ")");
+}
+//Operator
+void: operator() {
+    i32: a = 5 * 2;
+    i32: b = a + 3;
+
+    string: str = "Hello, " + "World!";
+    if str == b.to_string() || a > b {
+        print("Stuff");
+    }
+}
+//ReturnExpression
+void: return_expression() {
+    string: result = return_string();
+    string: result_with_param = return_string(" from Scone");
+    string[]: result_array = return_string_array();
+    i32: result_int = return_int();
+    print(result);
+    print(result_with_param);
+    for item in result_array {
+        print(item);
+    }
+    print(result_int);
+}
+string: return_string() {
+    "Hello, World!";
+}
+string: return_string_with_param(string: p) {
+    string: s = "Hello, World!";
+    s += p;
+    return s;
+}
+string[]: return_string_array() {
+    return ["Hello", "World"];
+}
+i32: return_int() {
+    return 42;
+}
+//ReturnConditionalExpression
+bool: return_conditional_expression() {
+    for obj in [1, 2, 3] {
+        return_true obj == 5;
+    }
+    return false;
+}
+//ScopedExpression
+struct This {
+    string: name = "Value";
+    string: thing(i32: value) {
+        return self.name + " is: " + value.to_string();
+    }
+}
+struct Inside {
+    static This: this = This{name = "OO"};
+}
+void: scoped_expression() {
+    string: s = Inside::this.thing(5);
+    print(s);
+
+    print(-2.abs().to_string());
+}
+//Shebang
+//StructDeclaration
+trait ToString {
+    string: to_string();
+}
+struct Vector3 -> ToString {
+    f32: x = 0.0;
+    f32: y = 0.0;
+    f32: z = 0.0;
+
+    static Vector3: new(f32: x, f32: y, f32: z) {
+        self.x = x;
+        self.y = y;
+        self.z = z;
+    }
+
+    void: add(Vector3: other) {
+        self.x += other.x;
+        self.y += other.y;
+        self.z += other.z;
+    }
+
+    static Self: op_add(Self: l, Self: r) {
+        Self::new(l.x + r.x, l.y + r.y, l.z + r.z)
+    }
+
+    string: to_string() {
+        "Vector3(" + self.x.to_string() + ", " + self.y.to_string() + ", " + self.z.to_string() + ")";
+    }
+}
+void: struct_declaration() {
+    Vector3: v1 = Vector3::new(1.0, 2.0, 3.0);
+    Vector3: v2 = v1 + Vector3::new(4.0, 5.0, 6.0);
+    print(v2.to_string());
+}
+//TernaryOperator
+void: ternary_operator() {
+    i32: a = 0 == 0 ? 25 : -9;
+}
+//TraitDeclaration
+trait Speakable {
+    void: speak();
+}
+struct Dog -> Speakable {
+    void: speak() {
+        print("Woof!");
+    }
+}
+struct Cat -> Speakable {
+    void: speak() {
+        print("Meow!");
+    }
+}
+void: animal_speak<T is Speakable>(T: animal) {
+    animal.speak();
+}
+void: trait_demo() {
+    Dog: d = Dog {};
+    Cat: c = Cat {};
+
+    animal_speak(d);
+    animal_speak(c);
+}
+//TupleDeclaration
+void: tuple_declaration() {
+    (bool, (u8, bool)): a = (false, (1, true));
+    print(a.a);
+    print(a.b.a);
+    print(a.b.b);
+}
+//TupleExpression
+void: tuple_expression() {
+    (u8, u8): a = (1, 0);
+    print(a.a);
+    print(a.b);
+}
+//TypeDef
+typedef i32: number;
+void: typedef_statement() {
+    number: a = 0;
+}
+//TypeIdentifier
+//UnaryOperator
+//Use
+//VariableDeclaration
+//While

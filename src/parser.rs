@@ -1583,20 +1583,16 @@ impl Parser {
                     node: Box::new(NodeType::None),
                 });
 
-                if let Ok(constant_type) = Self::constant_type(&token) {
-                    node.node = Box::new(NodeType::Constant(ConstantNode {
-                        value: token.clone(),
-                        constant_type: constant_type.clone(),
-                    }));
+                let constant_type = self.get_constant(&token);
+                node.node = Box::new(NodeType::Constant(ConstantNode {
+                    value: token.clone(),
+                    constant_type: constant_type.clone(),
+                }));
 
-                    if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::Dot) {
-                        last_was_ident = true;
-                    } else {
-                        expr_stack.push(node);
-                    }
+                if tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::Dot) {
+                    last_was_ident = true;
                 } else {
-                    self.error(line!(), "Could not parse constant", "Couldn't decide type from constant", &token.location);
-                    return Box::new(ASTNode::err());
+                    expr_stack.push(node);
                 }
             } else if token.token_type == TokenType::Identifier {
                 if last_was_ident {
@@ -2781,10 +2777,7 @@ impl Parser {
                         expression: Box::new(ASTNode { 
                             token: token.clone(), 
                             node: Box::new(NodeType::Constant(ConstantNode {
-                                constant_type: Self::constant_type(&token).unwrap_or_else(|_| {
-                                    self.error(line!(), "Error getting constant type", "Could not parse constant. This may be because of invalid type in number. As an example of valid number typing: `100_f32`", &token.location);
-                                    ConstantType::Bool
-                                }),
+                                constant_type: self.get_constant(&token),
                                 value: token.clone()
                             })) 
                         }), 
@@ -3593,6 +3586,83 @@ impl Parser {
             _ => {
                 node.token.value.clone()
             }
+        }
+    }
+
+    fn get_constant(&mut self, token: &Token) -> ConstantType {
+        if let Ok(constant_type) = Self::constant_type(token) {
+            if token.value.contains("0x") || token.value.contains("0b") || token.value.contains("e") {
+                return constant_type
+            }
+            let number = token.value.to_lowercase().replace("_", "").replace("u8", "").replace("i8", "").replace("u16", "").replace("i16", "").replace("u32", "").replace("i32", "").replace("u64", "").replace("i64", "").replace("f32", "").replace("f64", "");
+            if constant_type.is_number() {
+                if let ConstantType::U8 = constant_type {
+                    if let Ok(value) = number.parse::<u8>() {
+                        if value >= u8::MIN && value <= u8::MAX {
+                            return constant_type;
+                        } 
+                    }
+                } else if let ConstantType::I8 = constant_type {
+                    if let Ok(value) = number.parse::<i8>() {
+                        if value >= i8::MIN && value <= i8::MAX {
+                            return constant_type;
+                        } 
+                    }
+                } else if let ConstantType::U16 = constant_type {
+                    if let Ok(value) = number.parse::<u16>() {
+                        if value >= u16::MIN && value <= u16::MAX {
+                            return constant_type;
+                        } 
+                    }
+                } else if let ConstantType::I16 = constant_type {
+                    if let Ok(value) = number.parse::<i16>() {
+                        if value >= i16::MIN && value <= i16::MAX {
+                            return constant_type;
+                        } 
+                    }
+                } else if let ConstantType::U32 = constant_type {
+                    if let Ok(value) = number.parse::<u32>() {
+                        if value >= u32::MIN && value <= u32::MAX {
+                            return constant_type;
+                        } 
+                    }
+                } else if let ConstantType::I32 = constant_type {
+                    if let Ok(value) = number.parse::<i32>() {
+                        if value >= i32::MIN && value <= i32::MAX {
+                            return constant_type;
+                        } 
+                    }
+                } else if let ConstantType::U64 = constant_type {
+                    if let Ok(value) = number.parse::<u64>() {
+                        if value >= u64::MIN && value <= u64::MAX {
+                            return constant_type;
+                        } 
+                    }
+                } else if let ConstantType::I64 = constant_type {
+                    if let Ok(value) = number.parse::<i64>() {
+                        if value >= i64::MIN && value <= i64::MAX {
+                            return constant_type;
+                        } 
+                    }
+                } else if let ConstantType::F32 = constant_type {
+                    if let Ok(value) = number.parse::<f32>() {
+                        if value.is_finite() {
+                            return constant_type;
+                        } 
+                    }
+                } else if let ConstantType::F64 = constant_type {
+                    if let Ok(value) = number.parse::<f64>() {
+                        if value.is_finite() {
+                            return constant_type;
+                        } 
+                    }
+                }
+                self.error(line!(), "Constant type is not valid", "Expected constant number to be within its type's range, for example: `100_u8` is valid but `300_u8` is not because u8 range is from 0 to 255", &token.location);
+            } 
+            return constant_type;
+        } else {
+            self.error(line!(), "Error getting constant type", "Could not parse constant. This may be because of invalid type in number. As an example of valid number typing: `100_f32`", &token.location);
+            ConstantType::U8
         }
     }
 

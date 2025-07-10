@@ -10,10 +10,11 @@ pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros:
     (code, transpiler.output)
 }
 
+#[derive(Clone, Debug)]
 pub struct Transpiler {
-    ast: Vec<ASTNode>,
-    output: ErrorHandling,
-    macros: Macros,
+    pub ast: Vec<ASTNode>,
+    pub output: ErrorHandling,
+    pub macros: Macros,
 }
 
 impl Transpiler {
@@ -33,42 +34,43 @@ pub fn function_is_static(func: FunctionHolder) -> bool {
     func.access_modifier.contains(&AccessModifier::Static)
 }
 
-type Id = u32;
-type Scope = u32;
+pub type Id = u32;
+pub type TypeId = u32;
+pub type Scope = u32;
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct VariableHolder {
     pub name: String,
     pub id: Id,
-    pub type_id: Id,
+    pub type_id: TypeId,
     pub has_value: bool,
     pub requires_free: bool,
     pub access_modifier: Vec<AccessModifier>,
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct TypeParameterHolder {
     pub name: String,
-    pub type_id: Id,
+    pub type_id: TypeId,
     pub scope: Scope
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ParameterHolder {
     pub name: String,
     pub id: Id,
-    pub type_id: Id,
+    pub type_id: TypeId,
     pub default_value: Option<String>,
     pub is_params: bool,
     pub is_const: bool
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct FunctionHolder {
     pub name: String,
     pub id: Id,
-    pub type_id: Id,
+    pub type_id: TypeId,
     pub has_body: bool,
     pub type_parameters: Vec<TypeParameterHolder>,
     pub parameters: Vec<ParameterHolder>,
@@ -76,7 +78,7 @@ pub struct FunctionHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct StructHolder {
     pub name: String,
     pub id: Id,
@@ -88,7 +90,7 @@ pub struct StructHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct TraitHolder {
     pub name: String,
     pub id: Id,
@@ -99,7 +101,7 @@ pub struct TraitHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct EnumMemberHolder {
     pub name: String,
     pub id: Id,
@@ -107,7 +109,7 @@ pub struct EnumMemberHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct EnumHolder {
     pub name: String,
     pub id: Id,
@@ -116,14 +118,14 @@ pub struct EnumHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct TypeHolder {
     pub name: String,
-    pub type_id: Id,
+    pub type_id: TypeId,
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize)]
 pub struct CodegenTable {
     types: Vec<TypeHolder>,
     type_parameters: Vec<TypeParameterHolder>,
@@ -135,7 +137,7 @@ pub struct CodegenTable {
     variables: Vec<VariableHolder>,
     
     last_id: Id,
-    last_type_id: Id,
+    last_type_id: TypeId,
     scope: Scope
 }
 
@@ -166,7 +168,7 @@ impl CodegenTable {
             scope: 0
         }
     }
-    pub fn get_identifer_type(&self, id: Id) -> Result<IdentifierType, ()> {
+    pub fn get_identifer_type_by_id(&self, id: Id) -> Result<IdentifierType, ()> {
         if let Some(enum_) = self.enums.iter().find(|enum_| enum_.id == id) {
             Ok(IdentifierType::Enum(enum_.clone()))
         } else if let Some(struct_) = self.structs.iter().find(|struct_| struct_.id == id) {
@@ -234,7 +236,11 @@ impl CodegenTable {
         self.scope -= 1;
     }
 
-    pub fn get_type(&mut self, name: String) -> Result<TypeType, ()> {
+    pub fn scope(&self) -> Scope {
+        self.scope
+    }
+
+    pub fn get_type_name(&mut self, name: String) -> Result<TypeType, ()> {
         if let Some(type_) = self.types.iter().find(|type_| type_.name == name) {
             Ok(TypeType::Type(type_.clone()))
         } else if let Some(type_) = self.type_parameters.iter().find(|type_| type_.name == name) {
@@ -244,7 +250,17 @@ impl CodegenTable {
         }
     }
 
-    pub fn generate_variable(&mut self, name: String, type_id: Id, has_value: bool, requires_free: bool, access_modifier: Vec<AccessModifier>) -> IdentifierType {
+    pub fn get_type_id(&mut self, type_id: TypeId) -> Result<TypeType, ()> {
+        if let Some(type_) = self.types.iter().find(|type_| type_.type_id == type_id) {
+            Ok(TypeType::Type(type_.clone()))
+        } else if let Some(type_) = self.type_parameters.iter().find(|type_| type_.type_id == type_id) {
+            Ok(TypeType::TypeParameter(type_.clone()))
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn generate_variable(&mut self, name: String, type_id: TypeId, has_value: bool, requires_free: bool, access_modifier: Vec<AccessModifier>) -> IdentifierType {
         self.last_id += 1;
         IdentifierType::Variable(VariableHolder {
             id: self.last_id,
@@ -257,7 +273,7 @@ impl CodegenTable {
         })
     }
 
-    pub fn generate_function(&mut self, name: String, type_id: Id, access_modifier: Vec<AccessModifier>, has_body: bool, parameters: Vec<ParameterHolder>, type_parameters: Vec<TypeParameterHolder>) -> IdentifierType {
+    pub fn generate_function(&mut self, name: String, type_id: TypeId, access_modifier: Vec<AccessModifier>, has_body: bool, parameters: Vec<ParameterHolder>, type_parameters: Vec<TypeParameterHolder>) -> IdentifierType {
         self.last_id += 1;
         IdentifierType::Function(FunctionHolder {
             id: self.last_id,
@@ -271,7 +287,7 @@ impl CodegenTable {
         })
     }
 
-    pub fn generate_parameter(&mut self, name: String, type_id: Id, is_const: bool, is_params: bool, default_value: Option<String>) -> ParameterHolder {
+    pub fn generate_parameter(&mut self, name: String, type_id: TypeId, is_const: bool, is_params: bool, default_value: Option<String>) -> ParameterHolder {
         self.last_id += 1;
         ParameterHolder {
             id: self.last_id,
