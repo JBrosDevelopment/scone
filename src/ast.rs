@@ -11,7 +11,7 @@ pub enum NodeType {
 
     // identifiers
     Identifier(Box<Token>),
-    TypeIdentifier(ScopedType),
+    ScopedType(ScopedType),
 
     // assignment
     Assignment(Assignment),
@@ -67,7 +67,7 @@ impl NodeType {
             NodeType::Constant(_) => "Constant".to_string(),
             NodeType::Operator(_) => "Operator".to_string(),
             NodeType::Identifier(_) => "Identifier".to_string(),
-            NodeType::TypeIdentifier(_) => "TypeIdentifier".to_string(),
+            NodeType::ScopedType(_) => "TypeIdentifier".to_string(),
             NodeType::Assignment(_) => "Assignment".to_string(),
             NodeType::ScopedExpression(_) => "ScopedExpression".to_string(),
             NodeType::FunctionCall(_) => "FunctionCall".to_string(),
@@ -399,14 +399,14 @@ pub struct TypeIdentifier {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ScopedType {
+    pub token: Box<Token>,
     pub scope: Vec<TypeIdentifier>,
-    pub is_ptr_or_ref: Vec<TypeModifier>,
+    pub type_modifiers: Vec<TypeModifier>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub enum TypeModifier {
     Ptr,
-    Ref,
     Array
 }
 
@@ -414,7 +414,6 @@ impl TypeModifier {
     pub fn to_string(&self) -> String {
         match self {
             TypeModifier::Ptr => "*".to_string(),
-            TypeModifier::Ref => "&".to_string(),
             TypeModifier::Array => "[]".to_string(),
         }
     }

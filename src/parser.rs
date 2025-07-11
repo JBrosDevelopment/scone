@@ -2475,9 +2475,10 @@ impl Parser {
                 ].to_vec();
             }
             if matches!(first_token.token_type, TokenType::Identifier | TokenType::Ampersand) {               
-                let mut is_ptr_or_ref = vec![];
+                let is_ptr_or_ref = vec![];
                 while copy_tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Ampersand) {
-                    is_ptr_or_ref.push(TypeModifier::Ref);
+                    //is_ptr_or_ref.push(TypeModifier::Ref);
+                    self.error(line!(), "References are not supported in Scone", "References aren't supported in scone, use pointers instead", &copy_tokens[*i].location);
                     Self::inc(i);
                 }
 
@@ -2490,13 +2491,14 @@ impl Parser {
                     let token = token.unwrap();
                     return Box::new(ASTNode {
                         token: token.clone(),
-                        node: Box::new(NodeType::TypeIdentifier(ScopedType {
+                        node: Box::new(NodeType::ScopedType(ScopedType {
+                            token: token.clone(),
                             scope: vec![TypeIdentifier {
                                 name: token.clone(),
                                 type_parameters: None,
                                 scope_type: None,
                             }],
-                            is_ptr_or_ref,
+                            type_modifiers: is_ptr_or_ref,
                         }))
                     });
                 }
@@ -2507,7 +2509,7 @@ impl Parser {
                     }
                     return Box::new(ASTNode {
                         token: first_token.clone(),
-                        node: Box::new(NodeType::TypeIdentifier(scope_and_types)),
+                        node: Box::new(NodeType::ScopedType(scope_and_types)),
                     });
                 }
                 else if copy_tokens.get(*i + 1).is_some_and(|t| t.token_type == TokenType::Comma) {
@@ -2644,6 +2646,7 @@ impl Parser {
     }
 
     fn get_scoped_typed(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, mut is_ptr_or_ref: Vec<TypeModifier>) -> ScopedType {
+        let token = tokens[*i].clone();
         let scope = self.get_type_scope(tokens, i);
 
         while *i < tokens.len() {
@@ -2660,8 +2663,9 @@ impl Parser {
         }
 
         ScopedType {
+            token,
             scope,
-            is_ptr_or_ref,
+            type_modifiers: is_ptr_or_ref,
         }
     }
 
@@ -3101,16 +3105,13 @@ impl Parser {
                     format!("{}{}{}: {}", tags, access_modifiers, var_type, var_name)
                 }
             }
-            NodeType::TypeIdentifier(ref value) => {
+            NodeType::ScopedType(ref value) => {
                 let mut pointer = "".to_string();
                 let mut reference = "".to_string();
-                for modifier in value.is_ptr_or_ref.iter() {
+                for modifier in value.type_modifiers.iter() {
                     match modifier {
                         TypeModifier::Ptr => {
                             pointer += "*";
-                        },
-                        TypeModifier::Ref => {
-                            reference += "&";
                         },
                         TypeModifier::Array => {
                             pointer += "[]";

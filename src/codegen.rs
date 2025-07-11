@@ -27,6 +27,7 @@ macro_rules! return_err_if {
 
 pub fn generate_code(transpiler: &Transpiler) -> String {
     let mut gen = GenerateC::new(transpiler.clone());
+    gen.add_default_types();
     gen.generate();
     gen.outc
 }
@@ -37,13 +38,14 @@ struct GenerateC {
     pub code: String,
     pub path: Option<String>,
     pub outc: String,
+    includes: String,
 }
 
 impl GenerateC {
     pub fn new(transpiler: Transpiler) -> GenerateC {
         let code = transpiler.output.full_code.clone();
         let path = transpiler.output.path.clone();
-        GenerateC { table: CodegenTable::new(), transpiler: transpiler, code, path, outc: "".to_string() }
+        GenerateC { table: CodegenTable::new(), transpiler: transpiler, code, path, outc: "".to_string(), includes: "".to_string() }
     }
 
     fn error(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
@@ -79,11 +81,65 @@ impl GenerateC {
         }
     }
 
+    fn add_default_types(&mut self) {
+        self.add_header("".to_string());
+        let _f32 = self.table.generate_type("f32".to_string());
+        self.table.add_type_scope(_f32);
+        self.add_header("typedef float f32;".to_string());
+
+        let _f64 = self.table.generate_type("f64".to_string());
+        self.table.add_type_scope(_f64);
+        self.add_header("typedef double f64;".to_string());
+
+        let i8 = self.table.generate_type("i8".to_string());
+        self.table.add_type_scope(i8);
+        self.add_header("typedef signed char i8;".to_string());
+
+        let _i16 = self.table.generate_type("i16".to_string());
+        self.table.add_type_scope(_i16);
+        self.add_header("typedef short i16;".to_string());
+
+        let _i32 = self.table.generate_type("i32".to_string());
+        self.table.add_type_scope(_i32);
+        self.add_header("typedef int i32;".to_string());
+
+        let _i64 = self.table.generate_type("i64".to_string());
+        self.table.add_type_scope(_i64);
+        self.add_header("typedef long i64;".to_string());
+
+        let _u8 = self.table.generate_type("u8".to_string());
+        self.table.add_type_scope(_u8);
+        self.add_header("typedef unsigned char u8;".to_string());
+
+        let _u16 = self.table.generate_type("u16".to_string());
+        self.table.add_type_scope(_u16);
+        self.add_header("typedef unsigned short u16;".to_string());
+
+        let _u32 = self.table.generate_type("u32".to_string());
+        self.table.add_type_scope(_u32);
+        self.add_header("typedef unsigned int u32;".to_string());
+
+        let _u64 = self.table.generate_type("u64".to_string());
+        self.table.add_type_scope(_u64);
+        self.add_header("typedef unsigned long u64;".to_string());
+
+        let _bool = self.table.generate_type("bool".to_string());
+        self.table.add_type_scope(_bool);
+        self.add_include("<stdbool.h>".to_string());
+
+        let _string = self.table.generate_type("string".to_string());
+        self.table.add_type_scope(_string);
+        self.add_header("// Default types".to_string());
+        
+        self.add_include("\"scone_string.h\"".to_string());
+        self.add_include("\"scone_vector.h\"".to_string());
+    }
+
     fn add_header(&mut self, header: String) {
         self.outc = format!("{}\n{}", header, self.outc);
     }
     fn add_include(&mut self, header: String) {
-        self.outc = format!("#include <{}>\n{}", header, self.outc);
+        self.includes = format!("#include {}\n{}", header, self.includes);
     }
     fn add_line(&mut self, line: String, scope: Scope) {
         let tab = "\t".repeat(scope as usize);
@@ -101,6 +157,8 @@ impl GenerateC {
                 self.outc = format!("{}\n{}", self.outc, c_node);
             }
         }
+        self.outc = format!("//includes\n{}\n{}", self.includes, self.outc);
+        self.includes.clear();
     }
 
     fn evaluate_node(&mut self, node: &ASTNode, type_id: Option<TypeId>, scope: Scope, constant: bool) -> String {
@@ -110,6 +168,7 @@ impl GenerateC {
         match node.node.as_ref() {
             NodeType::Constant(ref v) => self.constant(v, type_id),
             NodeType::VariableDeclaration(ref v) => self.variable_declaration(v, type_id, scope),
+            NodeType::ScopedType(ref v) => self.scoped_type(v, type_id),
             _ => {
                 let message = format!("Node Type `{}` is not supported yet", node.node.to_string());
                 self.error(line!(), message.as_str(), message.as_str(), &node.token.location);
@@ -161,6 +220,47 @@ impl GenerateC {
         }
     }
 
+    fn type_identifier(&mut self, node: &TypeIdentifier) -> String {
+        todo!();
+    }
+
+    fn scoped_type(&mut self, node: &ScopedType, type_id: Option<TypeId>) -> String {
+        let mut type_name = "".to_string();
+
+        for type_identifier in node.scope.iter() {
+            let scoped_name = self.type_identifier(type_identifier);
+            return_err_if!(scoped_name == err!());
+
+            type_name = format!("{}{}", type_name, scoped_name);
+        }
+        return_err_if!(type_name.is_empty());
+        return_err_if!(type_name == err!());
+
+        let type_id = self.get_type_from_name(&node.token.location, &type_name);
+        return_err_if!(type_id == None);
+
+        let mut type_name_with_postfixes = type_name;
+
+        for postfix in node.type_modifiers.iter() {
+            let type_name_with_new_postfix = match postfix {
+                TypeModifier::Ptr => format!("{}_ptr", type_name_with_postfixes),
+                TypeModifier::Array => format!("Vec_lt_{}_gt", type_name_with_postfixes)
+            };
+            
+            if self.table.get_type_name(&type_name_with_new_postfix).is_err() {
+                let header = match postfix {
+                    TypeModifier::Ptr => format!("typedef {type_name_with_postfixes}* {type_name_with_new_postfix};"),
+                    TypeModifier::Array => format!("DEFINE_VEC({type_name_with_postfixes})")
+                };
+                self.add_header(header);
+            }
+
+            type_name_with_postfixes = type_name_with_new_postfix;
+        }
+
+        return type_name_with_postfixes;
+    }
+    
     fn variable_declaration(&mut self, node: &VariableDeclaration, type_id: Option<TypeId>, scope: Scope) -> String {
         check_unexpected_type!(self, &node.var_name.location, type_id, None);
         
@@ -173,31 +273,24 @@ impl GenerateC {
         let name = node.var_name.value.clone();
         return_err_if!(name.is_empty());
 
-        let has_value;
-        let value;
-        if let Some(v) = &node.var_value {
-            value = Some(self.evaluate_node(&v, var_type_id, scope, false));
-            has_value = true;
-        } else {
-            value = None;
-            has_value = false;
-        }
+        let var = self.table.generate_variable(name, var_type_id.unwrap(), node.var_value.is_some(), false, node.access_modifier.clone(), node.tags.clone());
+        let idname = CodegenTable::get_idname_from_identifier_type(&var);
+        self.table.add_identifier_scope(var);
 
-        let first_part = format!("{} {}", type_name, name);
+        let first_part = format!("{} {}", type_name, idname);
         let second_part;
-        if value.is_some() {
-            second_part = format!("= {}", value.unwrap());
+
+        if let Some(v) = &node.var_value {
+            let value = self.evaluate_node(&v, var_type_id, scope, false);
+            return_err_if!(value == err!());
+
+            second_part = format!("= {}", value);
         } else {
             second_part = "".to_string();
         }
-        
+                
         let result = format!("{} {};", first_part, second_part);
-        self.add_line(result, scope);
-
-        let var = self.table.generate_variable(name, var_type_id.unwrap(), has_value, false, node.access_modifier.clone(), node.tags.clone());
-        self.table.add_identifier_scope(var);
-
-        "".to_string()
+        result
     }
 
     fn constant(&mut self, node: &ConstantNode, type_id: Option<TypeId>) -> String { 

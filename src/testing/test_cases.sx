@@ -682,7 +682,7 @@ if char::is_alphabetic(c.clone()) || c == '_' {
     i -= 1;
 }
 
-Box<Token>: try_get_last_token(&Vec<Box<Token>>: tokens) {
+Box<Token>: try_get_last_token(Vec<Box<Token>>: tokens) {
     i32: catch = 0;
     i32: current_line = self.__curent_parsing_line;
     Token: token = tokens.get(0);
@@ -911,7 +911,7 @@ pub struct Macros {
             MacroVariable { name = "INT_MAX".to_string(), value = "2147483647".to_string() },
             MacroVariable { name = "INT_MIN".to_string(), value = "-2147483648".to_string() },
             MacroVariable { name = "UINT_MAX".to_string(), value = "4294967295".to_string() },
-            MacroVariable { name = "VERSION".to_string(), value = env("CARGO_PKG_VERSION").split(".").take(2).collect<Vec<&str>>().join(".").to_string() },
+            MacroVariable { name = "VERSION".to_string(), value = env("CARGO_PKG_VERSION").split(".").take(2).collect<Vec<str>>().join(".").to_string() },
         ]
     }
     pub void: add_variable(String: name, String: value) {
@@ -923,31 +923,31 @@ pub struct Macros {
     pub void: add_header(String: name) {
         self.headers.push(MacroHeader { name = name });
     }
-    pub Option<&MacroVariable>: get_variable(&str: name) {
+    pub Option<MacroVariable*>: get_variable(str: name) {
         self.variables.iter().find(var => var.name == name)
     }
-    pub Option<&MacroFunction>: get_function(&str: name) {
+    pub Option<MacroFunction*>: get_function(str: name) {
         self.functions.iter().find(func => func.name == name)
     }
-    pub Option<&MacroHeader>: get_header(&str: name) {
+    pub Option<MacroHeader*>: get_header(str: name) {
         self.headers.iter().find(header => header.name == name)
     }
-    pub void: remove_variable(&str: name) {
+    pub void: remove_variable(str: name) {
         self.variables.retain(var => var.name != name);
     }
-    pub void: remove_function(&str: name) {
+    pub void: remove_function(str: name) {
         self.functions.retain(func => func.name != name);
     }
-    pub void: remove_header(&str: name) {
+    pub void: remove_header(str: name) {
         self.headers.retain(header => header.name != name);
     }
-    pub bool: has_variable(&str: name) {
+    pub bool: has_variable(str: name) {
         self.get_variable(name).is_some()
     }
-    pub bool: has_function(&str: name) {
+    pub bool: has_function(str: name) {
         self.get_function(name).is_some()
     }
-    pub bool: has_header(&str: name) {
+    pub bool: has_header(str: name) {
         self.get_header(name).is_some()
     }
     pub void: clear() {
@@ -961,12 +961,12 @@ pub struct Macros {
     pub usize: len() {
         self.variables.len() + self.functions.len() + self.headers.len()
     }
-    pub bool: valid_name(&str: name) {
+    pub bool: valid_name(str: name) {
         (name.chars().nth(0).unwrap_or('0').is_alphabetic() || name.chars().nth(0).unwrap_or('0') == '_') && name.chars().all(c => c.is_alphanumeric() || c == '_')
     }
     
     pub Result<bool, String>: parse_if_directive(String: message) {
-        Vec<&str>: parts = message.split_whitespace().collect();
+        Vec<str>: parts = message.split_whitespace().collect();
         if parts.len() < 2 {
             return Err("Invalid directive".to_string());
         }
@@ -989,7 +989,7 @@ pub struct Macros {
     }
 
     pub Result<bool, String>: parse_if_define_directive(String: message) {
-        Vec<&str>: parts = message.split_whitespace().collect();
+        Vec<str>: parts = message.split_whitespace().collect();
         if parts.len() != 2 {
             return Err("Invalid `define` directive, expected a name: `#! ifdef NAME ...`".to_string());
         }
@@ -1003,12 +1003,12 @@ pub struct Macros {
     }
 
     pub Result<OK, String>: parse_define_directive(String: message) {
-        Vec<&str>: parts = message.split_whitespace().collect();
+        Vec<str>: parts = message.split_whitespace().collect();
         if parts.len() < 2 {
             return Err("Invalid `define` directive, expected at least a name: `#! def NAME ...`".to_string());
         }
         
-        Vec<&str>: name = parts[1].chars().take_while(c => c != &'(').collect<String>();
+        Vec<str>: name = parts[1].chars().take_while(c => c != &'(').collect<String>();
         if Macros::valid_name(&name) == false {
             return Err("Invalid macro name, only alphanumeric characters and underscores are allowed".to_string());
         }
@@ -1079,7 +1079,7 @@ pub struct Macros {
     }
 
     pub Result<OK, String>: parse_undefine_directive(String: message) {
-        Vec<&str>: parts = message.split_whitespace().collect();
+        Vec<str>: parts = message.split_whitespace().collect();
 
         if parts.len() != 2 {
             return Err("Invalid `define` directive, expected a name: `#! undef NAME`".to_string());
@@ -1101,7 +1101,7 @@ pub struct Macros {
         return Ok();
     }
 
-    pub Result<ASTNode, String>: string_to_node(&String: message) {
+    pub Result<ASTNode, String>: string_to_node(string: message) {
         (tokens, error_handling, OK): tuple = lexer::lex(message, None, None);
         if error_handling.has_errors() {
             return Err("Error lexing macro string".to_string());
@@ -1125,7 +1125,7 @@ pub struct Macros {
         self.evaluate_node(&node)
     }
 
-    pub Result<String, String>: evaluate_node(&ASTNode: node) {
+    pub Result<String, String>: evaluate_node(ASTNode*: node) {
         match &node.node.as_ref() {
             NodeType::Identifier => {
                 match self.get_variable(&val.value) {
@@ -1281,7 +1281,7 @@ pub struct Macros {
         }
     }
 
-    pub Result<String, String>: macro_function(Vec<String>: args, &MacroFunction: func) {
+    pub Result<String, String>: macro_function(Vec<String>: args, MacroFunction*: func) {
         if args.len() != func.args.len() {
             return Err("Function argument count mismatch".to_string())
         }

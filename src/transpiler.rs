@@ -265,6 +265,16 @@ impl CodegenTable {
         }
     }
 
+    pub fn get_idname_from_identifier_type(identifier: &IdentifierType) -> String {
+        match identifier {
+            IdentifierType::Enum(enum_) => format!("e{}", enum_.id),
+            IdentifierType::Struct(struct_) => format!("s{}", struct_.id),
+            IdentifierType::Trait(trait_) => format!("t{}", trait_.id),
+            IdentifierType::Function(function) => format!("f{}", function.id),
+            IdentifierType::Variable(variable) => format!("v{}", variable.id),
+        }
+    }
+
     pub fn generate_variable(&mut self, name: String, type_id: TypeId, has_value: bool, requires_free: bool, access_modifier: Vec<AccessModifier>, tags: Vec<Tag>) -> IdentifierType {
         self.last_id += 1;
         IdentifierType::Variable(VariableHolder {
