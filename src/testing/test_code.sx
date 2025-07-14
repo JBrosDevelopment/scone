@@ -1,1 +1,4 @@
-f32: number = 29;
+u8: byte = 15;
+i32: integer = byte;
+
+//u8[]: chars = ['a', 'b', 'c'];

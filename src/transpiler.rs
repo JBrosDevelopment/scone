@@ -1,11 +1,11 @@
 use serde::Serialize;
+use crate::debug;
 #[allow(unused_imports)]
-use crate::{ast::{ASTNode, AccessModifier, Tag}, codegen, error_handling::ErrorHandling, macros::Macros};
+use crate::{ast::{ASTNode, AccessModifier, Tag}, codegen, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
 
 pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros: Macros) -> (String, ErrorHandling) {
-    let transpiler = Transpiler::new(ast, code, path, macros);
-    let code = codegen::generate_code(&transpiler);
-
+    let mut transpiler = Transpiler::new(ast, code, path, macros);
+    let code = codegen::generate_code(&mut transpiler);
     transpiler.output.print_messages();
     (code, transpiler.output)
 }
@@ -126,6 +126,7 @@ pub struct EnumHolder {
 #[derive(Clone, Debug, Serialize)]
 pub struct TypeHolder {
     pub name: String,
+    pub type_parameter_count: usize,
     pub type_id: TypeId,
     pub scope: Scope,
 }
@@ -146,6 +147,7 @@ pub struct CodegenTable {
     scope: Scope
 }
 
+#[derive(Clone, Debug, Serialize)]
 pub enum IdentifierType {
     Enum(EnumHolder),
     Struct(StructHolder),
@@ -153,6 +155,8 @@ pub enum IdentifierType {
     Function(FunctionHolder),
     Variable(VariableHolder),
 }
+
+#[derive(Clone, Debug, Serialize)]
 pub enum TypeType {
     Type(TypeHolder),
     TypeParameter(TypeParameterHolder)
@@ -316,11 +320,12 @@ impl CodegenTable {
         }
     }
 
-    pub fn generate_type(&mut self, name: String) -> TypeType {
+    pub fn generate_type(&mut self, name: String, type_parameter_count: usize) -> TypeType {
         self.last_type_id += 1;
         TypeType::Type(TypeHolder {
             type_id: self.last_type_id,
             scope: self.scope,
+            type_parameter_count,
             name
         })
     }
