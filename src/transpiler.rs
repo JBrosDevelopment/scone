@@ -1,7 +1,5 @@
-use serde::Serialize;
-use crate::debug;
 #[allow(unused_imports)]
-use crate::{ast::{ASTNode, AccessModifier, Tag}, codegen, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
+use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, codegen, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
 
 pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros: Macros) -> (String, ErrorHandling) {
     let mut transpiler = Transpiler::new(ast, code, path, macros);
@@ -38,7 +36,7 @@ pub type Id = u32;
 pub type TypeId = u32;
 pub type Scope = u32;
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct VariableHolder {
     pub name: String,
     pub id: Id,
@@ -50,14 +48,14 @@ pub struct VariableHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypeParameterHolder {
     pub name: String,
     pub type_id: TypeId,
     pub scope: Scope
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParameterHolder {
     pub name: String,
     pub id: Id,
@@ -67,7 +65,7 @@ pub struct ParameterHolder {
     pub is_const: bool
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FunctionHolder {
     pub name: String,
     pub id: Id,
@@ -80,7 +78,7 @@ pub struct FunctionHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StructHolder {
     pub name: String,
     pub id: Id,
@@ -93,7 +91,7 @@ pub struct StructHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TraitHolder {
     pub name: String,
     pub id: Id,
@@ -105,7 +103,7 @@ pub struct TraitHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnumMemberHolder {
     pub name: String,
     pub id: Id,
@@ -113,7 +111,7 @@ pub struct EnumMemberHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnumHolder {
     pub name: String,
     pub id: Id,
@@ -123,15 +121,16 @@ pub struct EnumHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypeHolder {
     pub name: String,
     pub type_parameter_count: usize,
     pub type_id: TypeId,
+    pub compatible_types: Vec<TypeId>,
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CodegenTable {
     types: Vec<TypeHolder>,
     type_parameters: Vec<TypeParameterHolder>,
@@ -147,7 +146,7 @@ pub struct CodegenTable {
     scope: Scope
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum IdentifierType {
     Enum(EnumHolder),
     Struct(StructHolder),
@@ -156,7 +155,7 @@ pub enum IdentifierType {
     Variable(VariableHolder),
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TypeType {
     Type(TypeHolder),
     TypeParameter(TypeParameterHolder)
@@ -259,7 +258,7 @@ impl CodegenTable {
         }
     }
 
-    pub fn get_type_id(&mut self, type_id: TypeId) -> Result<TypeType, ()> {
+    pub fn get_type_id(&self, type_id: TypeId) -> Result<TypeType, ()> {
         if let Some(type_) = self.types.iter().find(|type_| type_.type_id == type_id) {
             Ok(TypeType::Type(type_.clone()))
         } else if let Some(type_) = self.type_parameters.iter().find(|type_| type_.type_id == type_id) {
@@ -277,6 +276,20 @@ impl CodegenTable {
             IdentifierType::Function(function) => format!("f{}", function.id),
             IdentifierType::Variable(variable) => format!("v{}", variable.id),
         }
+    }
+
+    pub fn check_types_compatibility(&self, expected_type_id: TypeId, found_type_id: TypeId) -> bool {
+        if expected_type_id == found_type_id {
+            return true
+        }
+        if let Ok(type1) = self.get_type_id(expected_type_id) {
+            let type1_compatible_types = match type1 {
+                TypeType::Type(type_) => type_.compatible_types,
+                TypeType::TypeParameter(_) => vec![]
+            };
+            return type1_compatible_types.contains(&found_type_id)
+        }    
+        return false
     }
 
     pub fn generate_variable(&mut self, name: String, type_id: TypeId, has_value: bool, requires_free: bool, access_modifier: Vec<AccessModifier>, tags: Vec<Tag>) -> IdentifierType {
@@ -320,11 +333,12 @@ impl CodegenTable {
         }
     }
 
-    pub fn generate_type(&mut self, name: String, type_parameter_count: usize) -> TypeType {
+    pub fn generate_type(&mut self, name: String, type_parameter_count: usize, compatible_types: Vec<TypeId>) -> TypeType {
         self.last_type_id += 1;
         TypeType::Type(TypeHolder {
             type_id: self.last_type_id,
             scope: self.scope,
+            compatible_types,
             type_parameter_count,
             name
         })
