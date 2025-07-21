@@ -45,7 +45,7 @@ pub enum NodeType {
     Use(Box<Token>),
     AsCast(Expression),
     IsCheck(Expression),
-    CodeBlock(BodyRegion),
+    CodeBlock(CodeBlock),
     Discard(Box<Token>),
     Shebang(ShebangType),
     
@@ -252,7 +252,7 @@ pub struct FunctionDeclaration {
     pub return_type: Box<ASTNode>,
     pub parameters: Vec<DefinedNodeParameter>,
     pub type_parameters: Option<AnonymousTypeParameters>,
-    pub body: Option<BodyRegion>,
+    pub body: Option<CodeBlock>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
 }
@@ -261,7 +261,7 @@ pub struct FunctionDeclaration {
 pub struct ClassDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
-    pub body: BodyRegion,
+    pub body: CodeBlock,
     pub access_modifier: Vec<AccessModifier>,
     pub extends: Vec<Box<Token>>,
     pub tags: Vec<Tag>,
@@ -271,7 +271,7 @@ pub struct ClassDeclaration {
 pub struct StructDeclaration {
     pub name: Box<Token>,
     pub type_parameters: Option<AnonymousTypeParameters>,
-    pub body: BodyRegion,
+    pub body: CodeBlock,
     pub access_modifier: Vec<AccessModifier>,
     pub extends: Vec<Box<Token>>,
     pub tags: Vec<Tag>,
@@ -281,7 +281,7 @@ pub struct StructDeclaration {
 pub struct TraitDeclaration {
     pub name: Box<Token>,
     pub extends: Vec<Box<Token>>,
-    pub body: BodyRegion,
+    pub body: CodeBlock,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
 }
@@ -338,14 +338,14 @@ pub struct Identifier {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ConditionalRegion {
     pub condition: Box<ASTNode>,
-    pub body: BodyRegion,
+    pub body: CodeBlock,
     pub else_if_regions: Option<Vec<Box<ConditionalRegion>>>,
-    pub else_region: Option<BodyRegion>,
+    pub else_region: Option<CodeBlock>,
     pub is_while: bool
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct BodyRegion {
+pub struct CodeBlock {
     pub body: Vec<Box<ASTNode>>
 }
 
@@ -355,7 +355,7 @@ pub struct ForLoop {
     pub set_segment: Box<ASTNode>,
     pub condition_segment: Box<ASTNode>,
     pub increment_segment: Box<ASTNode>,
-    pub body: BodyRegion,
+    pub body: CodeBlock,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -363,7 +363,7 @@ pub struct ForEachLoop {
     pub index_segment: Option<Box<Token>>,
     pub iter_value: Box<ASTNode>,
     pub iter_range: Box<ASTNode>,
-    pub body: BodyRegion,
+    pub body: CodeBlock,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -448,7 +448,7 @@ pub struct IndexingExpression {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct LambdaExpression {
     pub parameters: NodeParameters,
-    pub body: BodyRegion,
+    pub body: CodeBlock,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

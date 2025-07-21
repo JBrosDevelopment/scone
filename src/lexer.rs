@@ -284,7 +284,7 @@ impl Lexer {
                     let message = message.trim().to_string();
                     let directive = message.trim().split(" ").collect::<Vec<&str>>().first().cloned().unwrap_or(&"");
                     match directive {
-                        "allow" | "warn" | "warning" | "err" | "error" | "deprecated" | "crumb" | "insert" | "C" | "pragma" | "version" | "expose" => {
+                        "allow" | "warn" | "warning" | "err" | "error" | "deprecated" | "crumb" | "insert" | "C" | "pragma" | "version" | "expose" | "alias" | "entry" => {
                             current_location.advance(2);
                             tokens.push(Token::new(TokenType::Shebang, "#!".to_string(), current_location.clone()));
                             is_in_shebang_line = true;

@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, codegen, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
+use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, lexer::Location, codegen, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
 
 pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros: Macros) -> (String, ErrorHandling) {
     let mut transpiler = Transpiler::new(ast, code, path, macros);
@@ -46,6 +46,7 @@ pub struct VariableHolder {
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
     pub scope: Scope,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -76,6 +77,7 @@ pub struct FunctionHolder {
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
     pub scope: Scope,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -89,6 +91,7 @@ pub struct StructHolder {
     pub tags: Vec<Tag>,
     pub inherits: Vec<TraitHolder>,
     pub scope: Scope,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -101,6 +104,7 @@ pub struct TraitHolder {
     pub tags: Vec<Tag>,
     pub inherits: Vec<TraitHolder>,
     pub scope: Scope,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -119,6 +123,7 @@ pub struct EnumHolder {
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
     pub scope: Scope,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -248,6 +253,10 @@ impl CodegenTable {
         self.scope
     }
 
+    pub fn get_all_functions(&self) -> Vec<FunctionHolder> { 
+        self.functions.clone()
+    }
+
     pub fn get_type_name(&mut self, name: &String) -> Result<TypeType, ()> {
         if let Some(type_) = self.types.iter().find(|type_| &type_.name == name) {
             Ok(TypeType::Type(type_.clone()))
@@ -278,6 +287,10 @@ impl CodegenTable {
         }
     }
 
+    pub fn get_idname_from_parameter_holder(identifier: &ParameterHolder) -> String {
+        format!("p{}", identifier.id)
+    }
+
     pub fn check_types_compatibility(&self, expected_type_id: TypeId, found_type_id: TypeId) -> bool {
         if expected_type_id == found_type_id {
             return true
@@ -292,7 +305,7 @@ impl CodegenTable {
         return false
     }
 
-    pub fn generate_variable(&mut self, name: String, type_id: TypeId, has_value: bool, requires_free: bool, access_modifier: Vec<AccessModifier>, tags: Vec<Tag>) -> IdentifierType {
+    pub fn generate_variable(&mut self, name: String, type_id: TypeId, has_value: bool, requires_free: bool, access_modifier: Vec<AccessModifier>, tags: Vec<Tag>, location: Location) -> IdentifierType {
         self.last_id += 1;
         IdentifierType::Variable(VariableHolder {
             id: self.last_id,
@@ -303,10 +316,11 @@ impl CodegenTable {
             requires_free,
             access_modifier,
             tags,
+            location,
         })
     }
 
-    pub fn generate_function(&mut self, name: String, type_id: TypeId, access_modifier: Vec<AccessModifier>, has_body: bool, parameters: Vec<ParameterHolder>, type_parameters: Vec<TypeParameterHolder>, tags: Vec<Tag>) -> IdentifierType {
+    pub fn generate_function(&mut self, name: String, type_id: TypeId, access_modifier: Vec<AccessModifier>, has_body: bool, parameters: Vec<ParameterHolder>, type_parameters: Vec<TypeParameterHolder>, tags: Vec<Tag>, location: Location) -> IdentifierType {
         self.last_id += 1;
         IdentifierType::Function(FunctionHolder {
             id: self.last_id,
@@ -315,6 +329,7 @@ impl CodegenTable {
             type_id,
             access_modifier,
             tags,
+            location,
             has_body,
             parameters,
             type_parameters
@@ -353,7 +368,7 @@ impl CodegenTable {
         })
     }
 
-    pub fn generate_struct(&mut self, name: String, methods: Vec<FunctionHolder>, members: Vec<VariableHolder>, access_modifier: Vec<AccessModifier>, type_parameters: Vec<TypeParameterHolder>, inherits: Vec<TraitHolder>, tags: Vec<Tag>) -> IdentifierType {
+    pub fn generate_struct(&mut self, name: String, methods: Vec<FunctionHolder>, members: Vec<VariableHolder>, access_modifier: Vec<AccessModifier>, type_parameters: Vec<TypeParameterHolder>, inherits: Vec<TraitHolder>, tags: Vec<Tag>, location: Location) -> IdentifierType {
         self.last_id += 1;
         IdentifierType::Struct(StructHolder {
             id: self.last_id,
@@ -363,12 +378,13 @@ impl CodegenTable {
             members,
             access_modifier,
             tags,
+            location,
             type_parameters,
             inherits
         })
     }
 
-    pub fn generate_trait(&mut self, name: String, methods: Vec<FunctionHolder>, members: Vec<VariableHolder>, access_modifier: Vec<AccessModifier>, inherits: Vec<TraitHolder>, tags: Vec<Tag>) -> IdentifierType {
+    pub fn generate_trait(&mut self, name: String, methods: Vec<FunctionHolder>, members: Vec<VariableHolder>, access_modifier: Vec<AccessModifier>, inherits: Vec<TraitHolder>, tags: Vec<Tag>, location: Location) -> IdentifierType {
         self.last_id += 1;
         IdentifierType::Trait(TraitHolder {
             id: self.last_id,
@@ -378,11 +394,12 @@ impl CodegenTable {
             members,
             access_modifier,
             tags,
+            location,
             inherits
         })
     }
 
-    pub fn generate_enum(&mut self, name: String, access_modifier: Vec<AccessModifier>, members: Vec<EnumMemberHolder>, tags: Vec<Tag>) -> IdentifierType {
+    pub fn generate_enum(&mut self, name: String, access_modifier: Vec<AccessModifier>, members: Vec<EnumMemberHolder>, tags: Vec<Tag>, location: Location) -> IdentifierType {
         self.last_id += 1;
         IdentifierType::Enum(EnumHolder {
             id: self.last_id,
@@ -391,6 +408,7 @@ impl CodegenTable {
             members,
             access_modifier,
             tags,
+            location,
         })
     }
 

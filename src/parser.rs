@@ -1,9 +1,3 @@
-// eventually need to remove [] and instead use get
-// remove all unwrapping and replace with error handling
-// go over and make sure no unneciary cloning is happening
-
-use std::vec;
-
 use crate::lexer::{Token, TokenType, Location};
 use crate::operator_tokens;
 
@@ -556,7 +550,7 @@ impl Parser {
                     });
                 }
             }
-            Some(BodyRegion {
+            Some(CodeBlock {
                 body: vec![expression],
             })
         } else {
@@ -870,7 +864,7 @@ impl Parser {
         }
     }
 
-    fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, BodyRegion) {
+    fn get_condition_and_body_for_if(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> (Box<ASTNode>, CodeBlock) {
         if tokens[*i].token_type != TokenType::If && tokens[*i].token_type != TokenType::While { 
             self.error(line!(), "Expected `if` or `while`", "Parser error, expected `if` or `while`", &tokens[*i].location);
         } else {
@@ -892,7 +886,7 @@ impl Parser {
         let is_while = tokens[*i].token_type == TokenType::While;
         let (condition, body) = self.get_condition_and_body_for_if(tokens, i);
 
-        let mut else_region: Option<BodyRegion> = None;
+        let mut else_region: Option<CodeBlock> = None;
         let mut else_if_regions: Option<Vec<Box<ConditionalRegion>>> = None;
 
 
@@ -1370,7 +1364,7 @@ impl Parser {
         return token.unwrap_or(&Box::new(Token::new_empty())).clone();
     }
 
-    fn get_code_block(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, last_is_return: bool) -> BodyRegion {
+    fn get_code_block(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize, last_is_return: bool) -> CodeBlock {
         if self.lines.get(self.__curent_parsing_line + 1).is_some() {
             self.__curent_parsing_line += 1;
             *tokens = self.lines[self.__curent_parsing_line].clone();
@@ -1378,7 +1372,7 @@ impl Parser {
         } else {
             let token = self.try_get_last_token(tokens);
             self.error(line!(), "Code block not closed", "Expected `}` to close code block, but found end of file", &token.location);
-            return BodyRegion { body: vec![] };
+            return CodeBlock { body: vec![] };
         }
 
         let mut body = self.get_node_parameters(tokens, i, Self::PARSING_FOR_CODE_BLOCK).parameters;
@@ -1395,7 +1389,7 @@ impl Parser {
                 }
             }
         }
-        BodyRegion {
+        CodeBlock {
             body
         }
     }
@@ -2184,6 +2178,9 @@ impl Parser {
                             "deprecated" => {
                                 self.__current_tags.push(Tag::Deprecated);
                             }
+                            "entry" => {
+                                self.__current_tags.push(Tag::Entry);
+                            }
                             "version" => {
                                 if let Some(version_token) = tag_tokens.get(1) {
                                     self.__current_tags.push(Tag::Version(version_token.clone()));
@@ -2199,7 +2196,7 @@ impl Parser {
                                 }
                             }
                             _ => {
-                                self.error(line!(), "Unexpected tag", "Tag not recognized, expected `crumb`, `expose`, `entry`, `deprecated`, `alias` or `version", &token.location);
+                                self.error(line!(), "Unexpected tag", "Tag not recognized, expected `crumb`, `expose`, `entry`, `deprecated`, `alias` or `version`", &token.location);
                             }
                         }
                         if self.lines.get(self.__curent_parsing_line + 1).is_some_and(|l| !l.iter().any(|t| matches!(t.token_type, TokenType::Class | TokenType::Struct | TokenType::Trait))) {
@@ -2312,14 +2309,14 @@ impl Parser {
             Self::inc(i);
             let expression = self.get_expression(tokens, i, Self::NORMAL_PARSING);
             if *expression == ASTNode::err() {
-                BodyRegion {
+                CodeBlock {
                     body: vec![Box::new(ASTNode {
                         token,
                         node: Box::new(NodeType::ReturnExpression(None)),
                     })]
                 }   
             } else {
-                BodyRegion {
+                CodeBlock {
                     body: vec![Box::new(ASTNode {
                         token,
                         node: Box::new(NodeType::ReturnExpression(Some(expression))),

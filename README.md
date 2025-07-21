@@ -51,6 +51,7 @@ pub class Color -> ToString {
     }
 }
 
+#! entry
 void: main() {
     // Create a new Color object with default values
     Color: color1 = Color {};
