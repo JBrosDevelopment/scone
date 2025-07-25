@@ -39,6 +39,15 @@ macro_rules! return_if {
     };
 }
 
+macro_rules! add_macro_and_header {
+    ($self:expr, $type_to_add:expr, $header:expr) => {
+        if !$type_to_add.contains(&$header) {
+            $self.add_header($header.clone());
+            $type_to_add.push($header);
+        }
+    };
+}
+
 pub fn generate_code(transpiler: &mut Transpiler) -> String {
     let mut gen = GenerateC::new(transpiler.clone());
     gen.add_default_types();
@@ -50,17 +59,16 @@ pub fn generate_code(transpiler: &mut Transpiler) -> String {
 struct GenerateC {
     pub table: CodegenTable,
     pub transpiler: Transpiler,
-    pub code: String,
-    pub path: Option<String>,
     pub outc: String,
+    headers: String,
     includes: String,
+    defined_macros: Vec<String>,
+    defined_typedefs: Vec<String>,
 }
 
 impl GenerateC {
     pub fn new(transpiler: Transpiler) -> GenerateC {
-        let code = transpiler.output.full_code.clone();
-        let path = transpiler.output.path.clone();
-        GenerateC { table: CodegenTable::new(), transpiler: transpiler, code, path, outc: "".to_string(), includes: "".to_string() }
+        GenerateC { table: CodegenTable::new(), transpiler: transpiler, outc: "".to_string(), includes: "".to_string(), defined_macros: vec![], defined_typedefs: vec![], headers: "".to_string() }
     }
 
     fn error(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
@@ -97,7 +105,8 @@ impl GenerateC {
     }
 
     fn add_default_types(&mut self) {
-        self.add_header("".to_string());
+        self.add_header("// Default types".to_string());
+
         let _f32 = self.table.generate_type("f32".to_string(), 0, vec![3, 4, 5, 6, 7, 8, 9, 10]);
         self.table.add_type_scope(_f32); // type_id = 1
         self.add_header("typedef float f32;".to_string());
@@ -153,28 +162,32 @@ impl GenerateC {
         let _char_ptr_ptr = self.table.generate_type("char_ptr_ptr".to_string(), 0, vec![]);
         self.table.add_type_scope(_char_ptr_ptr); // type_id = 14
         self.add_header("typedef char** char_ptr_ptr;".to_string());
-        
-        self.add_header("// Default types".to_string());
+        self.defined_typedefs.push("typedef char** char_ptr_ptr".to_string());
 
+        self.add_header("".to_string());
+        
         let _entry_argc = self.table.generate_variable("ENTRY_ARGC".to_string(), 5, true, false, vec![AccessModifier::Const], vec![], Location { line: 0, column: 0, length: 0 });
         self.table.add_identifier_scope(_entry_argc); // id = 1
-        self.add_header("const int v1; // ENTRY_ARGC\n".to_string());
+        self.add_header("const int v1; // ENTRY_ARGC".to_string());
         
         let _entry_argv = self.table.generate_variable("ENTRY_ARGV".to_string(), 14, true, false, vec![AccessModifier::Const], vec![], Location { line: 0, column: 0, length: 0 });
         self.table.add_identifier_scope(_entry_argv); // id = 2
-        self.add_header("const char** v2; // ENTRY_ARGV".to_string());
+        self.add_header("const char_ptr_ptr v2; // ENTRY_ARGV\n".to_string());
     }
 
-    fn add_header(&mut self, header: String) {
-        self.outc = format!("{}\n{}", header, self.outc);
+    fn add_header(&mut self, line: String) {
+        if self.table.is_inside_macro() {
+            self.table.add_macro_header(line);
+        } else {
+            self.headers = format!("{}\n{}", self.headers, line);
+        }
     }
-    fn add_include(&mut self, header: String) {
-        self.includes = format!("#include {}\n{}", header, self.includes);
+    fn add_include(&mut self, line: String) {
+        self.includes = format!("{}#include {}\n", self.includes, line);
     }
     fn indent(scope: Scope) -> String {
         "\t".repeat(scope as usize)
     }
-
 
     fn entry_point(&mut self) {
         let function = self.table.get_all_functions().iter().find(|function| function.tags.contains(&Tag::Entry)).cloned();
@@ -194,7 +207,7 @@ impl GenerateC {
                     self.error(line!(), "Invalid type parameters for entry point", format!("Entry point function `{}` has invalid type parameters. Expects no type parameters", function.name).as_str(), &function.location);
                     return;
                 }
-                function_name = CodegenTable::get_idname_from_identifier_type(&IdentifierType::Function(function));
+                function_name = self.table.get_idname_from_identifier_type(&IdentifierType::Function(function));
             },
             None => {
                 let first_function = self.transpiler.ast.iter().find(|node| match node.node.as_ref() {
@@ -259,6 +272,15 @@ impl GenerateC {
         }
     }
 
+    fn get_identifier_from_id(&mut self, location: &Location, id: Id) -> Option<IdentifierType> {
+        if let Ok(ident) = self.table.get_identifer_type_by_id(id) {
+            Some(ident)
+        } else {
+            self.error(line!(), "Identifier does not exist", format!("Identifier with id `{id}` does not exist in this scope").as_str(), &location);
+            None
+        }
+    }
+
     fn get_type_from_identifier(&mut self, location: &Location, identifier: &IdentifierType) -> Option<TypeId> {
         match identifier {
             IdentifierType::Variable(var) => Some(var.type_id),
@@ -304,14 +326,14 @@ impl GenerateC {
             TypeType::TypeParameter(v) => v.name
         };
 
-        let new_type_name = format!("{}_lt_{}_gt", wrapper_type.name, type_to_wrap_type_name);
+        let new_type_name = format!("{}_lt_##{}##_gt", wrapper_type.name, type_to_wrap_type_name);
         
         let new_type;
         if let Ok(t) = self.table.get_type_name(&new_type_name) {
             new_type = t
-        } else {
-            let header = format!("DEFINE_{}({})", wrapper_type.name, type_to_wrap_type_name);
-            self.add_header(header);
+        } else {            
+            let header = format!("DEFINE_{}_{}({})", wrapper_type.name, wrapper_type.type_parameter_count, type_to_wrap_type_name);
+            add_macro_and_header!(self, self.defined_macros, header);
             new_type = self.table.generate_type(new_type_name, 0, vec![]);
             self.table.add_type_scope(new_type.clone());
         }
@@ -330,29 +352,28 @@ impl GenerateC {
             let name = p.name.value.clone();
             return_if!(name.is_empty(), (err!(), vec![]));
 
-            let type_name_unchecked = self.evaluate_node(&p.ty, None, false);
-            return_if!(type_name_unchecked == err!(), (err!(), vec![]));
+            let type_name = self.evaluate_node(&p.ty, None, false);
+            return_if!(type_name == err!(), (err!(), vec![]));
             
-            let unchecked_type_id = self.get_type_from_name(&p.ty.token.location, &type_name_unchecked);
-            return_if!(unchecked_type_id == None, (err!(), vec![]));
+            let type_id = self.get_type_from_name(&p.ty.token.location, &type_name);
+            return_if!(type_id == None, (err!(), vec![]));
 
-            let type_id;
-            let type_name;
             if p.params {
-                // add vector wrapper to type: `i32: values ...` -> `vector<i32>: values`
-                let vector_type_id = self.get_type_from_name(&p.name.location, &"vector".to_string());
-                return_if!(vector_type_id == None, (err!(), vec![]));
+                // this should all be done at `[]`, what i need to do is check if `[]` is present
+                if !type_name.starts_with("vector") {
+                    self.error(line!(), "Invalid type", format!("Parameter `{}` is not a vector, use wrap in `vector` or use `[]` instead: `i32[]: values ...`", p.name.value).as_str(), &p.name.location);
+                }
+                // // add vector wrapper to type: `i32: values ...` -> `vector<i32>: values`
+                // let vector_type_id = self.get_type_from_name(&p.name.location, &"vector".to_string());
+                // return_if!(vector_type_id == None, (err!(), vec![]));
 
-                let new_type = self.wrap_type(&p.name.location, vector_type_id.unwrap(), unchecked_type_id.unwrap());
-                return_if!(new_type == None, (err!(), vec![]));
-                let new_type = new_type.unwrap();
+                // let new_type = self.wrap_type(&p.name.location, vector_type_id.unwrap(), unchecked_type_id.unwrap());
+                // return_if!(new_type == None, (err!(), vec![]));
+                // let new_type = new_type.unwrap();
 
-                type_id = Some(new_type.type_id);
-                type_name = new_type.name;
-            } else {
-                type_id = unchecked_type_id;
-                type_name = type_name_unchecked;
-            }
+                // type_id = Some(new_type.type_id);
+                // type_name = new_type.name;
+            } 
             return_if!(type_id == None, (err!(), vec![]));
 
             let default_value;
@@ -365,7 +386,7 @@ impl GenerateC {
                 default_value = None;
             }
 
-            let param_holder = self.table.generate_parameter(p.name.value.clone(), type_id.unwrap(), p.is_const, p.params, default_value.clone());
+            let param_holder = self.table.generate_parameter(p.name.value.clone(), type_id.unwrap(), p.is_const, p.params, default_value.clone(), p.name.location.clone());
             let idname = CodegenTable::get_idname_from_parameter_holder(&param_holder);
             parameter_holders.push(param_holder);
 
@@ -376,27 +397,183 @@ impl GenerateC {
                 result = format!("{type_name} {idname}");
             }
             params.push(result);
+
+            if p.params {
+                // add extra parameter for vector size
+                
+                let size_param = "int __va_size__".to_string();
+                let size_param_holder = self.table.generate_parameter("__va_size__".to_string(), 5, true, false, None, p.name.location.clone());
+                params.push(size_param);
+                parameter_holders.push(size_param_holder);
+            }
         }
 
         let result = params.join(", ");
         (format!("({result})"), parameter_holders)
     }
 
+    fn constraints_are_valid(&mut self, node: &ASTNode, id: Option<Id>) -> bool {
+        match node.node.as_ref() {
+            NodeType::Operator(v) => {
+                let left = self.constraints_are_valid(&v.left, id);
+                let right = self.constraints_are_valid(&v.right, id);
+                match v.operator.token_type {
+                    TokenType::And => left && right,
+                    TokenType::Or => left || right,
+                    _ => {
+                        self.error(line!(), "Invalid operator in constraints", "Only `&&` and `||` are allowed in constraints", &node.token.location);
+                        return false;
+                    }
+                }
+            }
+            NodeType::Identifier(v) => {
+                let trait_identifier_type = self.get_identifier_from_name(&v.location, &v.value.to_string());
+                return_if!(trait_identifier_type == None, false);
+                let _trait = match trait_identifier_type.unwrap() {
+                    IdentifierType::Trait(s) => s,
+                    _ => {
+                        self.error(line!(), "Invalid constraint", "Only traits are allowed in constraints: `T is Trait1 || Trait2`", &node.token.location);
+                        return false;
+                    }
+                };
+
+                return_if!(id == None, true);
+                let id = id.unwrap();
+
+                let struct_identifier_type = self.get_identifier_from_id(&node.token.location, id);
+                return_if!(struct_identifier_type == None, false);
+                let _struct = match struct_identifier_type.unwrap() {
+                    IdentifierType::Struct(s) => s,
+                    _ => {
+                        self.error(line!(), "Invalid constraint", "Only structs are allowed in constraints: `T is Trait1 || Trait2`", &node.token.location);
+                        return false;
+                    }
+                };
+
+                _struct.inherits.iter().any(|t| t.name == _trait.name)
+            }
+            _ => {
+                self.error(line!(), "Invalid constraint", "Only `&&` and `||` are allowed in constraints: `T is Trait1 || Trait2`", &node.token.location);
+                return false;
+            }
+        }
+    }
+
     fn type_parameters(&mut self, type_parameters: &Vec<AnonymousType>) -> Vec<TypeType> {
         let mut result = vec![];
         for tp in type_parameters {
+            if let Some(constraint) = &tp.constraints {
+                if self.constraints_are_valid(constraint, None) {
+                    return vec![];
+                }
+            }
+
             let holder = self.table.generate_type_parameter(tp.name.value.clone());
             result.push(holder);
         }
         result
     }
 
+    fn scope_type(&mut self, node: &Option<ScopeType>) -> String {
+        match &node {
+            Some(s) => match s {
+                ScopeType::Arrow => "->".to_string(),
+                ScopeType::Dot => ".".to_string(),
+                ScopeType::DoubleColon => "__dc__".to_string(),
+            },
+            None => "".to_string(),
+        }
+    }
+
+    fn get_type_parameters(&mut self, type_parameters: &Option<NodeParameters>) -> (String, Vec<String>) {
+        let mut type_parameters_vec = vec![];
+        if let Some(tp) = &type_parameters {
+            let mut parameters = "".to_string();
+            let mut first_param = true;
+            for param in &tp.parameters {
+                let string_param = self.evaluate_node(param, None, false);
+                return_if!(string_param == err!(), (err!(), vec![]));
+                type_parameters_vec.push(string_param.clone());
+                
+                let param_type_id = self.get_type_from_name(&param.token.location, &string_param);
+                return_if!(param_type_id == None, (err!(), vec![]));
+
+                let comma = if first_param { "".to_string() } else { "_c_".to_string() };
+                parameters = format!("{parameters}{comma}{string_param}");
+                first_param = false;
+            }
+            return (format!("_lt_##{parameters}##_gt"), type_parameters_vec);
+        }
+        ("".to_string(), vec![])
+    }
+
+    fn identifier_expression(&mut self, node: &IdentifierExpression, type_id: Option<TypeId>) -> String {
+        let prefix = self.scope_type(&node.scope_type);
+        let expression = self.evaluate_node(&node.expression, type_id, false);
+        return_err_if!(expression == err!());
+
+        let (postfix, type_parameters_vec) = self.get_type_parameters(&node.type_parameters);
+
+        let result = format!("{prefix}{expression}{postfix}");
+        let result_ident = self.table.get_identifer_type_by_name(&result);
+        if result_ident.is_err() && node.type_parameters.is_some() {
+            let header = format!("DEFINE_{}_{}({})", expression, type_parameters_vec.len(), type_parameters_vec.join(", "));
+            add_macro_and_header!(self, self.defined_macros, header);
+            
+            let new_type = self.table.generate_type(result.clone(), 0, vec![]);
+            self.table.add_type_scope(new_type);
+        }
+
+        result
+    }
+
+    fn function_call_parameters(&mut self, node: &NodeParameters, function: &FunctionHolder) -> String {
+        let mut arguments = vec![];
+        let mut last_param = None;
+        let mut index = 0;
+        for arg in &node.parameters {
+            let param = function.parameters.get(index);
+            let inside_params = param.is_some_and(|p: &ParameterHolder| p.is_params) || last_param.is_some_and(|p: &ParameterHolder| p.is_params);
+            if inside_params {
+                
+                todo!();
+
+                //continue;
+            } else if param.is_none() {
+                self.error(line!(), "Too many arguments", format!("Function `{}` expects {} parameters, but got {} arguments", function.name, function.parameters.len(), node.parameters.len()).as_str(), &arg.token.location);
+                return err!();
+            } else {
+                last_param = param;
+            }
+            let param = param.unwrap();
+
+            let arg_expression = self.evaluate_node(arg, Some(param.type_id), param.is_const);
+            return_err_if!(arg_expression == err!());
+
+            arguments.push(arg_expression);
+            index += 1;
+        }
+
+        while let Some(p) = function.parameters.get(index) {
+            if let Some(default_value) = p.default_value.clone() {
+                arguments.push(default_value);
+            } else {
+                self.error(line!(), "Too few arguments", format!("Function `{}` expects {} parameters, but got {} arguments", function.name, function.parameters.len(), node.parameters.len()).as_str(), &node.token.location);
+                return err!();
+            }
+            index += 1;
+        } 
+
+        arguments.join(", ")
+    }
+
     fn generate(&mut self) {
         let ast = self.transpiler.ast.clone();
         let code = self.generate_from_nodes(&ast, None);
-        self.outc = format!("//includes\n{}\n//headers\n{}\n//code\n{}", self.includes, self.outc, code);
+        self.outc = format!("//includes\n{}\n//headers\n{}\n//code\n{}", self.includes, self.headers, code);
         self.entry_point();
         self.includes.clear();
+        self.headers.clear();
     }
 
     fn generate_from_nodes(&mut self, ast: &Vec<ASTNode>, return_type: Option<TypeId>) -> String {
@@ -419,6 +596,10 @@ impl GenerateC {
                 out = format!("{out}\n{tab}{c_node}");
             }
         }
+        if out.is_empty() {
+            return "".to_string();
+        }
+        out.remove(0); // removes the first newline character
         out
     }
 
@@ -439,6 +620,8 @@ impl GenerateC {
             NodeType::Identifier(ref v) => self.identifier(v, type_id),
             NodeType::FunctionDeclaration(ref v) => self.function_declaration(v, type_id),
             NodeType::ReturnExpression(ref v) => self.return_expression(v, type_id),
+            NodeType::ScopedIdentifier(ref v) => self.scoped_identifier(v, type_id),
+            NodeType::FunctionCall(ref v) => self.function_call(v, type_id),
             _ => {
                 let message = format!("Node Type `{}` is not supported yet", node.node.to_string());
                 self.error(line!(), message.as_str(), message.as_str(), &node.token.location);
@@ -446,6 +629,61 @@ impl GenerateC {
                 todo!();
             }
         }
+    }
+
+    fn function_call(&mut self, node: &FunctionCall, type_id: Option<TypeId>) -> String { 
+        let name = node.name.value.clone();
+        return_err_if!(name.is_empty());
+
+        let identifier = self.get_identifier_from_name(&node.name.location, &name);
+        let function_holder = match identifier.clone() {
+            Some(IdentifierType::Function(f)) => f,
+            _ => {
+                self.error(line!(), "Invalid function call", format!("Identifier `{name}` is not a function").as_str(), &node.name.location);
+                return err!();
+            }
+        };
+
+        let (type_parameters, type_parameters_vec) = self.get_type_parameters(&node.type_parameters);
+        return_err_if!(type_parameters == err!());
+        
+        let idname = self.table.get_idname_from_identifier_type(&identifier.unwrap());
+
+        // might be a generic function, so we need to check if the type_id matches
+        if let Ok(function_type) = self.table.get_type_id(function_holder.type_id) {
+            if let TypeType::Type(_) = function_type {
+                check_unexpected_type!(self, &node.name.location, type_id, Some(function_holder.type_id));
+            }
+        } else {
+            check_unexpected_type!(self, &node.name.location, type_id, Some(function_holder.type_id));
+        }
+
+        let parameters = self.function_call_parameters(&node.parameters, &function_holder);
+        return_err_if!(parameters == err!());
+        
+        let type_name = self.get_type(&node.name.location, Some(function_holder.type_id));
+        return_err_if!(type_name == err!());
+
+        let result = format!("{idname}{type_parameters}");
+        if !self.defined_macros.contains(&result) {
+            let header = format!("DEFINE_{}_{}_{}({})", idname, type_parameters_vec.len(), node.parameters.parameters.len(), type_parameters_vec.join(", "));
+            add_macro_and_header!(self, self.defined_macros, header);
+            
+            let new_type = self.table.generate_type(result.clone(), 0, vec![]);
+            self.table.add_type_scope(new_type);
+        }
+
+        format!("{result}({parameters})")
+    }
+
+    fn scoped_identifier(&mut self, node: &ScopedIdentifier, type_id: Option<TypeId>) -> String {
+        let mut result = "".to_string();
+        for identifier in &node.scope {
+            let identifier_expression = self.identifier_expression(&identifier, type_id);
+            return_err_if!(identifier_expression == err!());
+            result = format!("{result}{identifier_expression}");
+        }
+        result
     }
 
     fn return_expression(&mut self, node: &Option<Box<ASTNode>>, type_id: Option<TypeId>) -> String {
@@ -461,18 +699,20 @@ impl GenerateC {
     fn code_block(&mut self, node: &CodeBlock, type_id: Option<TypeId>) -> String {
         let ast = node.body.clone().into_iter().map(|n| *n).collect();
 
-        self.table.increase_scope();
+        self.table.increase_scope(false);
         let result = self.generate_from_nodes(&ast, type_id);
         self.table.decrease_scope();
 
-        format!("{{\n{}\n{}}}", result, Self::indent(self.table.scope()))
+        let indent = Self::indent(self.table.scope());
+
+        format!("\n{indent}{{\n{result}\n{indent}}}")
     }
 
     fn type_parameters_function_declaration(&mut self, node: &FunctionDeclaration, type_parameters: &Vec<AnonymousType>) -> String {
         let name = node.name.value.clone();
         return_err_if!(name.is_empty());
 
-        self.table.increase_scope(); // so type parameters can be added then removed later
+        self.table.increase_scope(true); // so type parameters can be added then removed later
 
         let type_types = self.type_parameters(type_parameters);
         return_err_if!(type_types.len() == 0);
@@ -491,6 +731,8 @@ impl GenerateC {
         
         let (parameters, parameter_holders) = self.defined_node_parameters(&node.parameters);
         return_err_if!(parameters == err!());
+
+        self.table.add_parameters_to_scope(parameter_holders.clone());
         
         let type_name = self.evaluate_node(&node.return_type, None, false);
         return_err_if!(type_name == err!());
@@ -507,20 +749,21 @@ impl GenerateC {
         return_err_if!(body == err!());
 
         let body_fixed = body.replace("\n", "\\\n");
-
+        
+        let macro_headers = self.table.get_macro_header().trim().to_string();
         self.table.decrease_scope();
 
         let func = self.table.generate_function(name, func_type_id.unwrap(), node.access_modifier.clone(), node.body.is_some(), parameter_holders, type_parameter_holders, node.tags.clone(), node.name.location.clone());
-        let idname = CodegenTable::get_idname_from_identifier_type(&func);
+        let idname = self.table.get_idname_from_identifier_type(&func);
         self.table.add_identifier_scope(func);
 
         let type_parameter_len = type_types.len();
-        let parameter_len = parameters.len();
+        let parameter_len = node.parameters.len();
         let type_parameters_string = type_parameters.iter().map(|tp| tp.name.value.clone()).collect::<Vec<_>>().join(", ");
 
-        let result = format!("#define DEFINE_{idname}_{type_parameter_len}_{parameter_len}({type_parameters_string}) {type_name} {idname}{parameters}{body_fixed}");
-        
+        let result = format!("#define DEFINE_{idname}_{type_parameter_len}_{parameter_len}({type_parameters_string}) \\\n{macro_headers} \\\n{type_name} {idname}{parameters}{body_fixed}");
         self.add_header(result);
+        
         "".to_string()
     }
 
@@ -543,6 +786,9 @@ impl GenerateC {
         let (parameters, parameter_holders) = self.defined_node_parameters(&node.parameters);
         return_err_if!(parameters == err!());
 
+        self.table.increase_scope(false); // so parameters can be added then removed later
+        self.table.add_parameters_to_scope(parameter_holders.clone());
+
         let body; 
         if let Some(b) = &node.body {
             body = format!(" {}", self.code_block(b, func_type_id));
@@ -550,9 +796,11 @@ impl GenerateC {
             body = ";".to_string();
         }
         return_err_if!(body == err!());
+
+        self.table.decrease_scope();
         
         let func = self.table.generate_function(name, func_type_id.unwrap(), node.access_modifier.clone(), node.body.is_some(), parameter_holders, vec![], node.tags.clone(), node.name.location.clone());
-        let idname = CodegenTable::get_idname_from_identifier_type(&func);
+        let idname = self.table.get_idname_from_identifier_type(&func);
         self.table.add_identifier_scope(func);
 
         format!("{} {}{}{}", type_name, idname, parameters, body)
@@ -572,7 +820,7 @@ impl GenerateC {
 
         check_unexpected_type!(self, &node.location, type_id, ident_type);
 
-        CodegenTable::get_idname_from_identifier_type(&ident)
+        self.table.get_idname_from_identifier_type(&ident)
     }
 
     fn type_identifier(&mut self, node: &TypeIdentifier) -> String {
@@ -596,27 +844,7 @@ impl GenerateC {
         let new_type_id = self.get_type_from_name(&node.name.location, &prefix_name);
         return_err_if!(new_type_id == None);
 
-        let postfix;
-        let mut type_parameters_vec = vec![];
-        if let Some(tp) = &node.type_parameters {
-            let mut parameters = "".to_string();
-            let mut first_param = true;
-            for param in &tp.parameters {
-                let string_param = self.evaluate_node(param, None, false);
-                return_err_if!(string_param == err!());
-                type_parameters_vec.push(string_param.clone());
-                
-                let param_type_id = self.get_type_from_name(&param.token.location, &string_param);
-                return_err_if!(param_type_id == None);
-
-                let comma = if first_param { "".to_string() } else { "_c_".to_string() };
-                parameters = format!("{parameters}{comma}{string_param}");
-                first_param = false;
-            }
-            postfix = format!("_lt_{parameters}_gt")
-        } else {
-            postfix = "".to_string();
-        }
+        let (postfix, type_parameters_vec) = self.get_type_parameters(&node.type_parameters);
 
         let result = format!("{prefix_name}{postfix}");
         let result_type_id = self.get_type_from_name(&node.name.location, &result);
@@ -625,14 +853,18 @@ impl GenerateC {
             self.table.add_type_scope(new_type);
 
             let type_parameters = type_parameters_vec.join(", ");
-            let define_name = format!("DEFINE_{name}({type_parameters})");
-            self.add_header(define_name);
+            let type_parameter_len = type_parameters_vec.len();
+            
+            let define_name = format!("DEFINE_{name}_{type_parameter_len}({type_parameters})");
+            add_macro_and_header!(self, self.defined_macros, define_name);
         }
 
         result
     }
 
     fn scoped_type(&mut self, node: &ScopedType, type_id: Option<TypeId>) -> String {
+        check_unexpected_type!(self, &node.token.location, type_id, None::<TypeId>);
+
         let mut type_name = "".to_string();
 
         for type_identifier in node.scope.iter() {
@@ -652,13 +884,29 @@ impl GenerateC {
         for postfix in node.type_modifiers.iter() {
             let type_name_with_new_postfix = match postfix {
                 TypeModifier::Ptr => format!("{}_ptr", type_name_with_postfixes),
-                TypeModifier::Array => format!("Vec_lt_{}_gt", type_name_with_postfixes)
+                TypeModifier::Array => format!("vector_lt_##{}##_gt", type_name_with_postfixes)
             };
             
             if self.table.get_type_name(&type_name_with_new_postfix).is_err() {
                 let header = match postfix {
-                    TypeModifier::Ptr => format!("typedef {type_name_with_postfixes}* {type_name_with_new_postfix};"),
-                    TypeModifier::Array => format!("DEFINE_vector({type_name_with_postfixes})")
+                    TypeModifier::Ptr => {
+                        let header = format!("typedef {type_name_with_postfixes}* {type_name_with_new_postfix};") ;
+                        if !self.defined_typedefs.contains(&header) {
+                            self.defined_typedefs.push(header.clone());
+                            header
+                        } else {
+                            "".to_string()
+                        }
+                    },
+                    TypeModifier::Array => {
+                        let header = format!("DEFINE_vector_1({type_name_with_postfixes})");
+                        if !self.defined_macros.contains(&header) {
+                            self.defined_macros.push(header.clone());
+                            header
+                        } else {
+                            "".to_string()
+                        }
+                    }
                 };
                 self.add_header(header);
                 let new_type = self.table.generate_type(type_name_with_new_postfix.clone(), 0, vec![]);
@@ -684,7 +932,7 @@ impl GenerateC {
         return_err_if!(name.is_empty());
 
         let var = self.table.generate_variable(name, var_type_id.unwrap(), node.var_value.is_some(), false, node.access_modifier.clone(), node.tags.clone(), node.var_name.location.clone());
-        let idname = CodegenTable::get_idname_from_identifier_type(&var);
+        let idname = self.table.get_idname_from_identifier_type(&var);
         self.table.add_identifier_scope(var);
 
         let first_part = format!("{} {}", type_name, idname);

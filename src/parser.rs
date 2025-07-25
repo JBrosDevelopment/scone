@@ -959,10 +959,10 @@ impl Parser {
         let function_call = FunctionCall {
             parameters: node_parameters,
             name: name.clone(),
-            type_parameters: type_parameters.is_empty().then(|| None).unwrap_or(Some(type_parameters)),
+            type_parameters: type_parameters.is_empty().then(|| None).unwrap_or(Some(NodeParameters { parameters: type_parameters, token: name.clone() })),
         };
 
-        let identifier = Identifier {
+        let identifier = IdentifierExpression {
             expression: Box::new(ASTNode {
                 token: name.clone(),
                 node: Box::new(NodeType::FunctionCall(function_call.clone())),
@@ -990,7 +990,7 @@ impl Parser {
 
             let chained_expression = self.get_expression(tokens, i, Self::PARSING_FOR_SCOPING);
 
-            scope.scope.push(Identifier {
+            scope.scope.push(IdentifierExpression {
                 expression: chained_expression.clone(),
                 type_parameters: None,
                 scope_type,
@@ -1040,7 +1040,7 @@ impl Parser {
             scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc)
         }
         else if tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Identifier) && !tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
-            scope.scope.push(Identifier {
+            scope.scope.push(IdentifierExpression {
                 scope_type: last_punc,
                 expression: Box::new(ASTNode {
                     token: tokens[*i - 1].clone(),
@@ -1087,7 +1087,7 @@ impl Parser {
             scope = self.get_object_instantiation(tokens, Some(scope), i, last_punc)
         }
         else if tokens.get(*i - 1).map_or(false, |t| t.token_type == TokenType::Identifier) && !tokens.get(*i).map_or(false, |t| t.token_type == TokenType::LBracket) {
-            scope.scope.push(Identifier {
+            scope.scope.push(IdentifierExpression {
                 scope_type: last_punc,
                 expression: Box::new(ASTNode {
                     token: tokens[*i - 1].clone(),
@@ -1147,7 +1147,7 @@ impl Parser {
 
         let scope_type = pop.scope_type;
 
-        let identifier = Identifier { 
+        let identifier = IdentifierExpression { 
             expression, 
             scope_type, 
             type_parameters: None 
@@ -1168,13 +1168,13 @@ impl Parser {
             let mut push = vec![];
             for (i, c) in call.scope.iter().enumerate() {
                 if i == 0 {
-                    push.push(Identifier {
+                    push.push(IdentifierExpression {
                         expression: c.expression.clone(),
                         type_parameters: None,
                         scope_type: scope_type.clone(),
                     });
                 } else {
-                    push.push(Identifier {
+                    push.push(IdentifierExpression {
                         expression: c.expression.clone(),
                         scope_type: c.scope_type.clone(),
                         type_parameters: None
@@ -1200,7 +1200,7 @@ impl Parser {
 
         // Update the last identifier's expression if possible
         let mut scope = ScopedIdentifier {
-            scope: vec![Identifier {
+            scope: vec![IdentifierExpression {
                 expression: Box::new(ASTNode {
                     token: first_token.clone(),
                     node: Box::new(NodeType::ArrayExpression(array_nodes)),
@@ -1215,7 +1215,7 @@ impl Parser {
             let scope_type = tokens[*i].token_type.scope_type();
             Self::inc(i);
             let chained_expression = self.get_expression(tokens, i, Self::PARSING_FOR_SCOPING);
-            scope.scope.push(Identifier {
+            scope.scope.push(IdentifierExpression {
                 expression: chained_expression,
                 type_parameters: None,
                 scope_type,
@@ -1277,7 +1277,7 @@ impl Parser {
             scope: vec![]
         });
 
-        scope.scope.push(Identifier {
+        scope.scope.push(IdentifierExpression {
             expression: Box::new(ASTNode {
                 token: name_token,
                 node: Box::new(NodeType::ObjectInstantiation(object_instantiation)),
@@ -1300,7 +1300,7 @@ impl Parser {
             }
 
             let chained_expression = self.get_expression(tokens, i, Self::PARSING_FOR_SCOPING);
-            scope.scope.push(Identifier {
+            scope.scope.push(IdentifierExpression {
                 expression: chained_expression,
                 type_parameters: None,
                 scope_type,
@@ -1856,7 +1856,7 @@ impl Parser {
                             let last_punc = tokens[*i + 1].token_type.scope_type();
                             // scope traversal
                             let tuple_scope = ScopedIdentifier {
-                                scope: vec![Identifier {
+                                scope: vec![IdentifierExpression {
                                     expression: tuple,
                                     scope_type: None,
                                     type_parameters: None
@@ -1894,7 +1894,7 @@ impl Parser {
                             // scope traversal
                             Self::inc(i);
                             let parenthesis_scope = ScopedIdentifier {
-                                scope: vec![Identifier {
+                                scope: vec![IdentifierExpression {
                                     expression: node,
                                     scope_type: None,
                                     type_parameters: None
@@ -1919,7 +1919,7 @@ impl Parser {
                 if last_was_ident {
                     // indexing
                     let temp_scope = ScopedIdentifier {
-                        scope: vec![Identifier {
+                        scope: vec![IdentifierExpression {
                             expression: expr_stack.pop().unwrap_or(
                                 Box::new(ASTNode {
                                     token: tokens[*i - 1].clone(),
@@ -2774,7 +2774,7 @@ impl Parser {
                     }
                     Self::inc(i);
                     Self::inc(i);
-                    scope.scope.push(Identifier { 
+                    scope.scope.push(IdentifierExpression { 
                         expression: Box::new(ASTNode { 
                             token: token.clone(), 
                             node: Box::new(NodeType::Constant(ConstantNode {
@@ -2828,7 +2828,7 @@ impl Parser {
                     }
                     first_token = false;
 
-                    scope.scope.push(Identifier {
+                    scope.scope.push(IdentifierExpression {
                         expression: Box::new(ASTNode {
                             token: token.clone(),
                             node: Box::new(NodeType::Identifier(token.clone())),
@@ -3162,8 +3162,8 @@ impl Parser {
                 let mut type_parameters = "".to_string();
                 if value.type_parameters.is_some() {
                     type_parameters += "<";
-                    for (index, param) in value.type_parameters.clone().unwrap().iter().enumerate() {
-                        type_parameters += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.type_parameters.clone().unwrap().get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                    for (index, param) in value.type_parameters.clone().unwrap().parameters.iter().enumerate() {
+                        type_parameters += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.type_parameters.clone().unwrap().parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                     }
                     type_parameters += ">";
                 }

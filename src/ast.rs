@@ -227,7 +227,7 @@ pub struct NodeProperty {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct FunctionCall {
     pub parameters: NodeParameters,
-    pub type_parameters: Option<Vec<Box<ASTNode>>>,
+    pub type_parameters: Option<NodeParameters>,
     pub name: Box<Token>,
 }
 
@@ -325,11 +325,11 @@ impl ScopeType {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)] 
 pub struct ScopedIdentifier { 
-    pub scope: Vec<Identifier>, // index 0 is root, index n is in chain or scoped
+    pub scope: Vec<IdentifierExpression>, // index 0 is root, index n is in chain or scoped
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct Identifier {
+pub struct IdentifierExpression {
     pub expression: Box<ASTNode>,
     pub scope_type: Option<ScopeType>, 
     pub type_parameters: Option<NodeParameters>,

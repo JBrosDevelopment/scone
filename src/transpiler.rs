@@ -63,7 +63,8 @@ pub struct ParameterHolder {
     pub type_id: TypeId,
     pub default_value: Option<String>,
     pub is_params: bool,
-    pub is_const: bool
+    pub is_const: bool,
+    pub location: Location,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -148,7 +149,8 @@ pub struct CodegenTable {
     
     last_id: Id,
     last_type_id: TypeId,
-    scope: Scope
+    scope: Scope,
+    inside_macro: Vec<Option<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -178,7 +180,8 @@ impl CodegenTable {
             variables: vec![],
             last_id: 0,
             last_type_id: 0,
-            scope: 0
+            scope: 0,
+            inside_macro: vec![],
         }
     }
     pub fn get_identifer_type_by_id(&self, id: Id) -> Result<IdentifierType, ()> {
@@ -197,16 +200,16 @@ impl CodegenTable {
         }
     }
 
-    pub fn get_identifer_type_by_name(&self, name: &str) -> Result<IdentifierType, ()> {
-        if let Some(enum_) = self.enums.iter().find(|enum_| enum_.name == name) {
+    pub fn get_identifer_type_by_name(&self, name: &String) -> Result<IdentifierType, ()> {
+        if let Some(enum_) = self.enums.iter().find(|enum_| &enum_.name == name) {
             Ok(IdentifierType::Enum(enum_.clone()))
-        } else if let Some(struct_) = self.structs.iter().find(|struct_| struct_.name == name) {
+        } else if let Some(struct_) = self.structs.iter().find(|struct_| &struct_.name == name) {
             Ok(IdentifierType::Struct(struct_.clone()))
-        } else if let Some(trait_) = self.traits.iter().find(|trait_| trait_.name == name) {
+        } else if let Some(trait_) = self.traits.iter().find(|trait_| &trait_.name == name) {
             Ok(IdentifierType::Trait(trait_.clone()))
-        } else if let Some(function) = self.functions.iter().find(|function| function.name == name) {
+        } else if let Some(function) = self.functions.iter().find(|function| &function.name == name) {
             Ok(IdentifierType::Function(function.clone()))
-        } else if let Some(variable) = self.variables.iter().find(|variable| variable.name == name) {
+        } else if let Some(variable) = self.variables.iter().find(|variable| &variable.name == name) {
             Ok(IdentifierType::Variable(variable.clone()))
         } else {
             Err(())
@@ -231,8 +234,8 @@ impl CodegenTable {
     }
 
     fn remove_all_scope_index(&mut self, scope: Scope) {
+        //self.type_parameters = self.type_parameters.iter().filter(|x| x.scope < scope).cloned().collect();
         self.types = self.types.iter().filter(|x| x.scope < scope).cloned().collect();
-        self.type_parameters = self.type_parameters.iter().filter(|x| x.scope < scope).cloned().collect();
         self.enums = self.enums.iter().filter(|x| x.scope < scope).cloned().collect();
         self.structs = self.structs.iter().filter(|x| x.scope < scope).cloned().collect();
         self.traits = self.traits.iter().filter(|x| x.scope < scope).cloned().collect();
@@ -240,13 +243,37 @@ impl CodegenTable {
         self.variables = self.variables.iter().filter(|x| x.scope < scope).cloned().collect();
     }
 
-    pub fn increase_scope(&mut self) {
+    pub fn increase_scope(&mut self, inside_macro: bool) {
         self.scope += 1;
+        self.inside_macro.push(if inside_macro { Some("".to_string()) } else { None });
     }
 
     pub fn decrease_scope(&mut self) {
         self.remove_all_scope_index(self.scope);
         self.scope -= 1;
+        self.inside_macro.pop();
+    }
+
+    pub fn is_inside_macro(&self) -> bool {
+        self.inside_macro.iter().any(|x| x.is_some())
+    }
+
+    pub fn add_macro_header(&mut self, header: String) {
+        if let Some(last_macro) = self.inside_macro.last_mut() {
+            if let Some(macro_headers) = last_macro {
+                *macro_headers = format!("{}\n{}", macro_headers, header);
+            }
+        }
+    }
+
+    pub fn get_macro_header(&self) -> String {
+        let mut headers = "".to_string();
+        for header in self.inside_macro.iter() {
+            if let Some(header) = header {
+                headers = format!("{}\n{}", headers, header);
+            }
+        }
+        headers
     }
 
     pub fn scope(&self) -> Scope {
@@ -261,7 +288,11 @@ impl CodegenTable {
         if let Some(type_) = self.types.iter().find(|type_| &type_.name == name) {
             Ok(TypeType::Type(type_.clone()))
         } else if let Some(type_) = self.type_parameters.iter().find(|type_| &type_.name == name) {
-            Ok(TypeType::TypeParameter(type_.clone()))
+            if self.scope <= type_.scope {
+                Ok(TypeType::TypeParameter(type_.clone()))
+            } else {
+                Err(())
+            }
         } else {
             Err(())
         }
@@ -277,7 +308,20 @@ impl CodegenTable {
         }
     }
 
-    pub fn get_idname_from_identifier_type(identifier: &IdentifierType) -> String {
+    pub fn is_exposed(&self, identifier: &IdentifierType) -> Option<String> {
+        match identifier {
+            IdentifierType::Enum(enum_) => enum_.tags.contains(&Tag::Expose).then_some(enum_.name.clone()),
+            IdentifierType::Struct(struct_) => struct_.tags.contains(&Tag::Expose).then_some(struct_.name.clone()),
+            IdentifierType::Trait(trait_) => trait_.tags.contains(&Tag::Expose).then_some(trait_.name.clone()),
+            IdentifierType::Function(function) => function.tags.contains(&Tag::Expose).then_some(function.name.clone()),
+            IdentifierType::Variable(variable) => variable.tags.contains(&Tag::Expose).then_some(variable.name.clone()),
+        }
+    }
+
+    pub fn get_idname_from_identifier_type(&self, identifier: &IdentifierType) -> String {
+        if let Some(name) = self.is_exposed(identifier) {
+            return name;
+        }
         match identifier {
             IdentifierType::Enum(enum_) => format!("e{}", enum_.id),
             IdentifierType::Struct(struct_) => format!("s{}", struct_.id),
@@ -288,7 +332,7 @@ impl CodegenTable {
     }
 
     pub fn get_idname_from_parameter_holder(identifier: &ParameterHolder) -> String {
-        format!("p{}", identifier.id)
+        format!("v{}", identifier.id) // needs to act like a variable
     }
 
     pub fn get_idname_from_type_type(ty: &TypeType) -> String {
@@ -317,6 +361,23 @@ impl CodegenTable {
             return type1_compatible_types.contains(&found_type_id)
         }    
         return false
+    }
+
+    pub fn add_parameters_to_scope(&mut self, parameters: Vec<ParameterHolder>) { 
+        for param in parameters {
+            let new_var = IdentifierType::Variable(VariableHolder { 
+                name: param.name,
+                id: param.id,
+                type_id: param.type_id,
+                has_value: true,
+                requires_free: false,
+                access_modifier: vec![],
+                tags: vec![],
+                scope: self.scope,
+                location: param.location 
+            });
+            self.add_identifier_scope(new_var);
+        }
     }
 
     pub fn generate_variable(&mut self, name: String, type_id: TypeId, has_value: bool, requires_free: bool, access_modifier: Vec<AccessModifier>, tags: Vec<Tag>, location: Location) -> IdentifierType {
@@ -350,7 +411,7 @@ impl CodegenTable {
         })
     }
 
-    pub fn generate_parameter(&mut self, name: String, type_id: TypeId, is_const: bool, is_params: bool, default_value: Option<String>) -> ParameterHolder {
+    pub fn generate_parameter(&mut self, name: String, type_id: TypeId, is_const: bool, is_params: bool, default_value: Option<String>, location: Location) -> ParameterHolder {
         self.last_id += 1;
         ParameterHolder {
             id: self.last_id,
@@ -358,7 +419,8 @@ impl CodegenTable {
             type_id,
             default_value,
             is_const,
-            is_params
+            is_params,
+            location,
         }
     }
 

@@ -1,10 +1,16 @@
-T: default<T is Default>() {
-    T::default();
+T: add<T/* is Number*/>(T[]: vals ...) {
+    //T: v = 0;
+    //for val in vals {
+    //    v = v + val;
+    //}
+    //return v
 }
 
 #! entry
 i32: main() {
-    default<i32>()
+    i32: a = add<i32>(25, 84, 0.55, 1.5);
+    return a;
 }
+
 
 //u8[]: chars = ['a', 'b', 'c'];
