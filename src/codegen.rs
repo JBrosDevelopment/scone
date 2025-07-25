@@ -175,6 +175,45 @@ impl GenerateC {
         "\t".repeat(scope as usize)
     }
 
+
+    fn entry_point(&mut self) {
+        let function = self.table.get_all_functions().iter().find(|function| function.tags.contains(&Tag::Entry)).cloned();
+        let function_name;
+        match function {
+            Some(function) => {
+                let return_type = self.get_type(&function.location, Some(function.type_id));
+                if !matches!(return_type.as_str(), "void" | "i8" | "i16" | "i32" | "u16" | "u8" | "bool") {
+                    self.error(line!(), "Invalid return type for entry point", format!("Entry point function `{}` has invalid return type `{}`. Expects `void`, `i8`, `i16`, `i32`, `u16`, `u8` or `bool", function.name, return_type).as_str(), &function.location);
+                    return;
+                }
+                if function.parameters.len() != 0 {
+                    self.error(line!(), "Invalid parameters for entry point", format!("Entry point function `{}` has invalid parameters. Expects no parameters", function.name).as_str(), &function.location);
+                    return;
+                }
+                if function.type_parameters.len() != 0 {
+                    self.error(line!(), "Invalid type parameters for entry point", format!("Entry point function `{}` has invalid type parameters. Expects no type parameters", function.name).as_str(), &function.location);
+                    return;
+                }
+                function_name = CodegenTable::get_idname_from_identifier_type(&IdentifierType::Function(function));
+            },
+            None => {
+                let first_function = self.transpiler.ast.iter().find(|node| match node.node.as_ref() {
+                    NodeType::FunctionDeclaration(_) => true,
+                    _ => false
+                }).cloned();
+                if let Some(first_function) = first_function {
+                    self.error(line!(), "No entry point", "No entry point found. Use `#! entry` tag to set function as entry point", &first_function.token.location);
+                }
+                let first_line = self.transpiler.ast.get(0).unwrap_or(&ASTNode::err()).clone();
+                self.error(line!(), "No entry point", "No entry point found. Use `#! entry` tag to set function as entry point", &first_line.token.location);
+                return;
+            }
+        }
+
+        let main_function = format!("\n\n// entry point\nint main(char** argv) {{\n    v2 = argv;\n    v1 = argc;\n    return {function_name}();\n}}");
+        self.outc = format!("{}\n{}", self.outc, main_function);
+    }
+
     fn get_type(&mut self, location: &Location, type_id: Option<TypeId>) -> String {
         if let Some(type_id) = type_id {
             if let Ok(ty) = self.table.get_type_id(type_id) {
@@ -343,38 +382,13 @@ impl GenerateC {
         (format!("({result})"), parameter_holders)
     }
 
-    fn entry_point(&mut self) {
-        let function = self.table.get_all_functions().iter().find(|function| function.tags.contains(&Tag::Entry)).cloned();
-        let function_name;
-        match function {
-            Some(function) => {
-                let return_type = self.get_type(&function.location, Some(function.type_id));
-                if !matches!(return_type.as_str(), "void" | "i8" | "i16" | "i32" | "u16" | "u8" | "bool") {
-                    self.error(line!(), "Invalid return type for entry point", format!("Entry point function `{}` has invalid return type `{}`. Expects `void`, `i8`, `i16`, `i32`, `u16`, `u8` or `bool", function.name, return_type).as_str(), &function.location);
-                    return;
-                }
-                if function.parameters.len() != 0 {
-                    self.error(line!(), "Invalid parameters for entry point", format!("Entry point function `{}` has invalid parameters. Expects no parameters", function.name).as_str(), &function.location);
-                    return;
-                }
-                function_name = CodegenTable::get_idname_from_identifier_type(&IdentifierType::Function(function));
-            },
-            None => {
-                let first_function = self.transpiler.ast.iter().find(|node| match node.node.as_ref() {
-                    NodeType::FunctionDeclaration(_) => true,
-                    _ => false
-                }).cloned();
-                if let Some(first_function) = first_function {
-                    self.error(line!(), "No entry point", "No entry point found. Use `#! entry` tag to set function as entry point", &first_function.token.location);
-                }
-                let first_line = self.transpiler.ast.get(0).unwrap_or(&ASTNode::err()).clone();
-                self.error(line!(), "No entry point", "No entry point found. Use `#! entry` tag to set function as entry point", &first_line.token.location);
-                return;
-            }
+    fn type_parameters(&mut self, type_parameters: &Vec<AnonymousType>) -> Vec<TypeType> {
+        let mut result = vec![];
+        for tp in type_parameters {
+            let holder = self.table.generate_type_parameter(tp.name.value.clone());
+            result.push(holder);
         }
-
-        let main_function = format!("\n\n// entry point\nint main(char** argv) {{\n    v2 = argv;\n    v1 = argc;\n    return {function_name}();\n}}");
-        self.outc = format!("{}\n{}", self.outc, main_function);
+        result
     }
 
     fn generate(&mut self) {
@@ -400,7 +414,7 @@ impl GenerateC {
                 let scone_node = crate::parser::Parser::node_expr_to_string(node, self.table.scope() as usize);
                 let scone_line = scone_node.split("\n").skip_while(|s| s.trim().starts_with("#!")).collect::<Vec<_>>().get(0).unwrap_or(&"").to_string();
 
-                out = format!("{out}\n{tab}// {scone_line}\n{tab}{c_node}");
+                out = format!("{out}\n{tab}/* {scone_line} */\n{tab}{c_node}");
             } else {
                 out = format!("{out}\n{tab}{c_node}");
             }
@@ -454,12 +468,68 @@ impl GenerateC {
         format!("{{\n{}\n{}}}", result, Self::indent(self.table.scope()))
     }
 
-    fn type_parameters_function_declaration(&mut self, node: &FunctionDeclaration, type_id: Option<TypeId>, func_type_id: Option<TypeId>, name: String) -> String {
-        todo!();
+    fn type_parameters_function_declaration(&mut self, node: &FunctionDeclaration, type_parameters: &Vec<AnonymousType>) -> String {
+        let name = node.name.value.clone();
+        return_err_if!(name.is_empty());
+
+        self.table.increase_scope(); // so type parameters can be added then removed later
+
+        let type_types = self.type_parameters(type_parameters);
+        return_err_if!(type_types.len() == 0);
+        
+        let type_parameter_holders = type_types.iter().map(|t| match t{
+            TypeType::TypeParameter(ref p) => p.clone(),
+            _ => unreachable!()
+        }).collect::<Vec<_>>();
+
+        let idnames = type_types.iter().map(|t| CodegenTable::get_idname_from_type_type(t)).collect::<Vec<_>>();
+        return_err_if!(idnames.len() == 0);
+
+        for tp in &type_types {
+            self.table.add_type_scope(tp.clone());
+        }
+        
+        let (parameters, parameter_holders) = self.defined_node_parameters(&node.parameters);
+        return_err_if!(parameters == err!());
+        
+        let type_name = self.evaluate_node(&node.return_type, None, false);
+        return_err_if!(type_name == err!());
+
+        let func_type_id = self.get_type_from_name(&node.return_type.token.location, &type_name);
+        return_err_if!(func_type_id == None);
+
+        let body;
+        if let Some(b) = &node.body {
+            body = format!(" {}", self.code_block(b, func_type_id));
+        } else {
+            body = ";".to_string();
+        }
+        return_err_if!(body == err!());
+
+        let body_fixed = body.replace("\n", "\\\n");
+
+        self.table.decrease_scope();
+
+        let func = self.table.generate_function(name, func_type_id.unwrap(), node.access_modifier.clone(), node.body.is_some(), parameter_holders, type_parameter_holders, node.tags.clone(), node.name.location.clone());
+        let idname = CodegenTable::get_idname_from_identifier_type(&func);
+        self.table.add_identifier_scope(func);
+
+        let type_parameter_len = type_types.len();
+        let parameter_len = parameters.len();
+        let type_parameters_string = type_parameters.iter().map(|tp| tp.name.value.clone()).collect::<Vec<_>>().join(", ");
+
+        let result = format!("#define DEFINE_{idname}_{type_parameter_len}_{parameter_len}({type_parameters_string}) {type_name} {idname}{parameters}{body_fixed}");
+        
+        self.add_header(result);
+        "".to_string()
     }
 
     fn function_declaration(&mut self, node: &FunctionDeclaration, type_id: Option<TypeId>) -> String {
         check_unexpected_type!(self, &node.name.location, type_id, None::<TypeId>);
+
+        if let Some(tp) = &node.type_parameters {
+            return self.type_parameters_function_declaration(node, &tp.parameters);
+        }
         
         let type_name = self.evaluate_node(&node.return_type, None, false);
         return_err_if!(type_name == err!());
@@ -469,10 +539,6 @@ impl GenerateC {
 
         let name = node.name.value.clone();
         return_err_if!(name.is_empty());
-
-        if node.type_parameters.is_some() {
-            return self.type_parameters_function_declaration(node, type_id, func_type_id, name);
-        } 
         
         let (parameters, parameter_holders) = self.defined_node_parameters(&node.parameters);
         return_err_if!(parameters == err!());
@@ -638,8 +704,10 @@ impl GenerateC {
 
     fn constant(&mut self, node: &ConstantNode, type_id: Option<TypeId>) -> String { 
         let expected = self.get_type(&node.value.location, type_id);
+        return_err_if!(expected == err!());
+
         let found = node.constant_type.to_string();
-        if found != expected {
+        if found != expected && self.table.get_type_parameter_from_type_id(type_id.unwrap()).is_none() {
             if !((expected == "i64" && matches!(found.as_str(), "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) ||
                (expected == "i32" && matches!(found.as_str(), "i32" | "i16" | "i8" | "u8" | "u32" | "u16")) ||
                (expected == "i16" && matches!(found.as_str(), "i16" | "i8" | "u8" | "u16")) ||

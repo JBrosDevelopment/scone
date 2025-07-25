@@ -291,6 +291,20 @@ impl CodegenTable {
         format!("p{}", identifier.id)
     }
 
+    pub fn get_idname_from_type_type(ty: &TypeType) -> String {
+        match ty {
+            TypeType::Type(type_) => format!("t{}", type_.type_id),
+            TypeType::TypeParameter(type_parameter) => format!("a{}", type_parameter.type_id),
+        }
+    }
+
+    pub fn get_type_parameter_from_type_id(&self, type_id: TypeId) -> Option<TypeParameterHolder> {
+        match self.get_type_id(type_id) {
+            Ok(TypeType::TypeParameter(type_parameter)) => Some(type_parameter),
+            _ => None
+        }
+    }
+
     pub fn check_types_compatibility(&self, expected_type_id: TypeId, found_type_id: TypeId) -> bool {
         if expected_type_id == found_type_id {
             return true

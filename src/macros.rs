@@ -402,7 +402,7 @@ impl Macros {
                 
                 return self.macro_function(evaluated_args.unwrap(), &func)
             }
-            NodeType::ScopedExpression(ref val) => {
+            NodeType::ScopedIdentifier(ref val) => {
                 let mut result = String::new();
                 if val.scope.len() != 1 {
                     return Err("No scoping for macro evaluation, expected exactly one identifier while calling".to_string());

@@ -816,17 +816,14 @@ impl Lexer {
                         if chars[i] == '\n' {
                             lines += 1;
                             length = 0;
-                        }
-                        else if chars[i] != '\r' {
-                            length += 1;
-                            is_star = false;    
-                        }
-                        
-                        if chars[i] == '*' {
+                        } else if chars[i] == '*' {
                             is_star = true;
                         }
                         else if chars[i] == '/' && is_star {
                             break;
+                        } else if chars[i] != '\r' {
+                            length += 1;
+                            is_star = false;    
                         }
     
                         i += 1;

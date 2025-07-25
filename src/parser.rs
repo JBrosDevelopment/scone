@@ -1717,7 +1717,7 @@ impl Parser {
                     // part of function call: function<TYPE>()
                     expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
+                        node: Box::new(NodeType::ScopedIdentifier(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
                     }));
                     handle_as_operator = false;
                 }
@@ -1803,7 +1803,7 @@ impl Parser {
                     // scope traversal
                     expr_stack.push(Box::new(ASTNode {
                         token: tokens[if *i >= 1 { *i - 1 } else { *i }].clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
+                        node: Box::new(NodeType::ScopedIdentifier(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
                     }));
                 }
                 else {
@@ -1817,7 +1817,7 @@ impl Parser {
                     // scope traversal
                     expr_stack.push(Box::new(ASTNode {
                         token: tokens[if *i >= 1 { *i - 1 } else { *i }].clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
+                        node: Box::new(NodeType::ScopedIdentifier(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
                     }));
                 }
                 else {
@@ -1831,7 +1831,7 @@ impl Parser {
                     // scope traversal
                     expr_stack.push(Box::new(ASTNode {
                         token: tokens[if *i >= 1 { *i - 1 } else { *i }].clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
+                        node: Box::new(NodeType::ScopedIdentifier(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
                     }));
                 }
                 else {
@@ -1846,7 +1846,7 @@ impl Parser {
                     // part of function call
                     expr_stack.push(Box::new(ASTNode {
                         token: tokens[*i - 1].clone(),
-                        node: Box::new(NodeType::ScopedExpression(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
+                        node: Box::new(NodeType::ScopedIdentifier(self.scope_call(tokens, i, until == Self::PARSING_FOR_STATEMENT))),
                     }));
                 }
                 else {
@@ -1868,7 +1868,7 @@ impl Parser {
 
                             expr_stack.push(Box::new(ASTNode {
                                 token: tokens[*i - 1].clone(),
-                                node: Box::new(NodeType::ScopedExpression(scope)),
+                                node: Box::new(NodeType::ScopedIdentifier(scope)),
                             }));
                         }
                         else {
@@ -1905,7 +1905,7 @@ impl Parser {
 
                             expr_stack.push(Box::new(ASTNode {
                                 token: tokens[*i - 1].clone(),
-                                node: Box::new(NodeType::ScopedExpression(scope)),
+                                node: Box::new(NodeType::ScopedIdentifier(scope)),
                             }));
                         }
                         else {
@@ -1932,7 +1932,7 @@ impl Parser {
                     let indexing_expresion = self.get_indexer_expression(tokens, Some(temp_scope), i, until == Self::PARSING_FOR_STATEMENT);
                     expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
-                        node: Box::new(NodeType::ScopedExpression(indexing_expresion)),
+                        node: Box::new(NodeType::ScopedIdentifier(indexing_expresion)),
                     }));
                 }
                 else {
@@ -1941,7 +1941,7 @@ impl Parser {
                     inc_i = false;
                     expr_stack.push(Box::new(ASTNode {
                         token: token.clone(),
-                        node: Box::new(NodeType::ScopedExpression(array_expression)),
+                        node: Box::new(NodeType::ScopedIdentifier(array_expression)),
                     }));
                 }
             } else if token.token_type == TokenType::RBracket {
@@ -1954,7 +1954,7 @@ impl Parser {
 
                     expr_stack.push(Box::new(ASTNode {
                         token: expr_token,
-                        node: Box::new(NodeType::ScopedExpression(obj_instantiation))
+                        node: Box::new(NodeType::ScopedIdentifier(obj_instantiation))
                     }));
                 }
                 else {
@@ -3172,7 +3172,7 @@ impl Parser {
             NodeType::Identifier(ref value) => {
                 value.value.clone()
             }
-            NodeType::ScopedExpression(ref value) => {
+            NodeType::ScopedIdentifier(ref value) => {
                 let mut scope = "".to_string();
                 for ident in value.scope.iter() {
                     let scope_type = ident.scope_type.clone().is_some().then(|| ident.scope_type.clone().unwrap().to_string()).unwrap_or("".to_string());

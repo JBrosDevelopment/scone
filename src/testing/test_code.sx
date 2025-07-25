@@ -1,14 +1,10 @@
+T: default<T is Default>() {
+    T::default();
+}
 
 #! entry
 i32: main() {
-    i32: a = ENTRY_ARGC;
-    
-    return a;
-}
-
-
-/*T: default<T is Default>() {
-    T::default()
+    default<i32>()
 }
 
 //u8[]: chars = ['a', 'b', 'c'];

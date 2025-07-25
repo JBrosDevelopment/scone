@@ -17,7 +17,7 @@ pub enum NodeType {
     Assignment(Assignment),
 
     // expression
-    ScopedExpression(ScopedIdentifier),
+    ScopedIdentifier(ScopedIdentifier),
     FunctionCall(FunctionCall),
     TupleExpression(NodeParameters),
     DeferStatement(Box<ASTNode>),
@@ -69,7 +69,7 @@ impl NodeType {
             NodeType::Identifier(_) => "Identifier".to_string(),
             NodeType::ScopedType(_) => "TypeIdentifier".to_string(),
             NodeType::Assignment(_) => "Assignment".to_string(),
-            NodeType::ScopedExpression(_) => "ScopedExpression".to_string(),
+            NodeType::ScopedIdentifier(_) => "ScopedExpression".to_string(),
             NodeType::FunctionCall(_) => "FunctionCall".to_string(),
             NodeType::TupleExpression(_) => "TupleExpression".to_string(),
             NodeType::ReturnExpression(_) => "ReturnExpression".to_string(),
