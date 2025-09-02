@@ -1,5 +1,5 @@
 use serde::Serialize;
-use crate::lexer::Token;
+use crate::{lexer::Token, transpiler};
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub enum NodeType {
@@ -10,7 +10,7 @@ pub enum NodeType {
     Operator(Expression),
 
     // identifiers
-    Identifier(Box<Token>),
+    Identifier(Identifier),
     ScopedType(ScopedType),
 
     // assignment
@@ -244,6 +244,7 @@ pub struct VariableDeclaration {
     pub var_name: Box<Token>,
     pub var_value: Option<Box<ASTNode>>,
     pub tags: Vec<Tag>,
+    pub id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -255,6 +256,7 @@ pub struct FunctionDeclaration {
     pub body: Option<CodeBlock>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
+    pub id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -265,6 +267,7 @@ pub struct ClassDeclaration {
     pub access_modifier: Vec<AccessModifier>,
     pub extends: Vec<Box<Token>>,
     pub tags: Vec<Tag>,
+    pub type_id: transpiler::TypeId,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -275,6 +278,7 @@ pub struct StructDeclaration {
     pub access_modifier: Vec<AccessModifier>,
     pub extends: Vec<Box<Token>>,
     pub tags: Vec<Tag>,
+    pub type_id: transpiler::TypeId,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -284,14 +288,23 @@ pub struct TraitDeclaration {
     pub body: CodeBlock,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
+    pub type_id: transpiler::TypeId,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct EnumDeclaration {
     pub name: Box<Token>,
     pub access_modifier: Vec<AccessModifier>,
-    pub body: Vec<(Box<Token>, Option<Box<ASTNode>>)>,
+    pub body: Vec<EnumVariant>,
     pub tags: Vec<Tag>,
+    pub type_id: transpiler::TypeId,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct EnumVariant {
+    pub name: Box<Token>,
+    pub value: Option<Box<ASTNode>>,
+    pub id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -351,7 +364,7 @@ pub struct CodeBlock {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ForLoop {
-    pub index_segment: Option<Box<Token>>,
+    pub index_segment: Option<Identifier>,
     pub set_segment: Box<ASTNode>,
     pub condition_segment: Box<ASTNode>,
     pub increment_segment: Box<ASTNode>,
@@ -360,7 +373,7 @@ pub struct ForLoop {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ForEachLoop {
-    pub index_segment: Option<Box<Token>>,
+    pub index_segment: Option<Identifier>,
     pub iter_value: Box<ASTNode>,
     pub iter_range: Box<ASTNode>,
     pub body: CodeBlock,
@@ -402,6 +415,7 @@ pub struct ScopedType {
     pub token: Box<Token>,
     pub scope: Vec<TypeIdentifier>,
     pub type_modifiers: Vec<TypeModifier>,
+    pub type_id: transpiler::TypeId,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -453,7 +467,7 @@ pub struct LambdaExpression {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct TypeDefDeclaration {
-    pub name: Box<Token>,
+    pub name: Identifier,
     pub type_definition: Box<ASTNode>,
 }
 
@@ -519,4 +533,10 @@ impl Tag {
 pub struct ReturnConditional {
     pub condition: bool,
     pub value: Box<ASTNode>
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct Identifier {
+    pub token: Box<Token>,
+    pub id: transpiler::Id
 }

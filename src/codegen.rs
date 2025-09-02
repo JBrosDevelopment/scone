@@ -1,3 +1,10 @@
+//
+// Right now, Im not going to delete this file incase I need to refer back to it, 
+// but I'm going to split this step up into a checker, and then a transpiler. So right 
+// now I'm going to work on the checker and leave this file to edit later.
+//
+/*
+
 #[allow(unused_imports)]
 use crate::{ast::*, macros::*, lexer::*, transpiler::*, error_handling::{ErrorHandling, DEBUGGING, Message}};
 #[allow(unused_imports)]
@@ -993,4 +1000,4 @@ impl GenerateC {
             _ => node.value.value.clone(),
         }
     }
-}
+}*/

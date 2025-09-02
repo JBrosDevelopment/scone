@@ -1,11 +1,19 @@
 #[allow(unused_imports)]
-use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, lexer::Location, codegen, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
+use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, lexer::Location, codegen, codecheck, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
 
 pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros: Macros) -> (String, ErrorHandling) {
     let mut transpiler = Transpiler::new(ast, code, path, macros);
-    let code = codegen::generate_code(&mut transpiler);
+
+    codecheck::check_ast(&mut transpiler);
     transpiler.output.print_messages();
-    (code, transpiler.output)
+    
+    if transpiler.output.has_errors() {
+        return ("".to_string(), transpiler.output);
+    }
+    
+    //let code = codegen::generate_code(&mut transpiler);
+    //transpiler.output.print_messages();
+    (/*code*/ "".to_string(), transpiler.output)
 }
 
 #[derive(Clone, Debug)]
@@ -13,6 +21,7 @@ pub struct Transpiler {
     pub ast: Vec<ASTNode>,
     pub output: ErrorHandling,
     pub macros: Macros,
+    pub table: CodegenTable,
 }
 
 impl Transpiler {
@@ -20,7 +29,8 @@ impl Transpiler {
         Transpiler { ast, 
             output: ErrorHandling::new(path.clone(), 
             code.clone()), 
-            macros 
+            macros,
+            table: CodegenTable::new()
         }
     }
 }

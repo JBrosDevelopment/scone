@@ -261,9 +261,9 @@ impl Macros {
     pub fn evaluate_node(&mut self, node: &ASTNode) -> Result<String, String> {
         match &node.node.as_ref() {
             NodeType::Identifier(ref val) => {
-                match self.get_variable(&val.value) {
+                match self.get_variable(&val.token.value) {
                     Some(var) => Ok(var.value.clone()),
-                    None => Err(format!("Variable `{}` not defined", val.value))
+                    None => Err(format!("Variable `{}` not defined", val.token.value))
                 }
             }
             NodeType::Constant(ref val) => {

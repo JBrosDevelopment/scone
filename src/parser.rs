@@ -240,7 +240,8 @@ impl Parser {
                 name,
                 extends,
                 body,
-                tags
+                tags,
+                type_id: 0, // leave blank in parser
             })),
             token: trait_keyword.clone(),
         };
@@ -342,7 +343,8 @@ impl Parser {
                     type_parameters,
                     extends,
                     body,
-                    tags
+                    tags,
+                    type_id: 0, // leave blank in parser
                 })),
                 token: class_or_struct_token.clone(),
             };
@@ -354,7 +356,8 @@ impl Parser {
                     type_parameters,
                     extends,
                     body,
-                    tags
+                    tags,
+                    type_id: 0, // leave blank in parser
                 })),
                 token: class_or_struct_token.clone(),
             };
@@ -376,6 +379,10 @@ impl Parser {
             return tokens.len() - 2;
         }) + 1;
         let name = tokens[i].clone();
+        let identifier_name = Identifier {
+            token: name,
+            id: 0, // leave blank in parser
+        };
 
         if tokens.len() != i + 1 {
             self.error(line!(), "Error parsing `typedef` statement", "Incorrect syntax for `typedef` statement: `typedef TYPE: NAME`", &tokens[0].location);
@@ -385,7 +392,7 @@ impl Parser {
         ASTNode {
             token: tokens[0].clone(),
             node: Box::new(NodeType::TypeDef(TypeDefDeclaration { 
-                name,
+                name: identifier_name,
                 type_definition 
             })),
         }
@@ -472,6 +479,7 @@ impl Parser {
                     var_value,
                     var_type,
                     tags,
+                    id: 0, // leave blank in parser
                 };
                 self.__current_tags.clear(); 
 
@@ -565,6 +573,7 @@ impl Parser {
             parameters,
             body,
             tags,
+            id: 0, // leave blank in parser
         };
         self.__current_tags.clear(); 
 
@@ -613,7 +622,7 @@ impl Parser {
         *tokens = self.lines[self.__curent_parsing_line].clone(); 
         *i = 0;
 
-        let mut body: Vec<(Box<Token>, Option<Box<ASTNode>>)> = vec![];
+        let mut body: Vec<EnumVariant> = vec![];
         
         let mut expessions = self.get_node_parameters(tokens, i, Self::PARSING_FOR_ENUM);
         if expessions.parameters.last().is_some_and(|t| **t == ASTNode::err()) {
@@ -622,11 +631,13 @@ impl Parser {
 
         for expession in expessions.parameters {
             if let NodeType::Identifier(ref name) = *expession.node {
-                body.push((name.clone(), None));
+                let nametok = name.token.clone();
+                body.push(EnumVariant { name: nametok, value: None, id: 0 });
             } else if let NodeType::Operator(ref value) = *expession.node {
                 if value.operator.token_type == TokenType::Assign {
                     if let NodeType::Identifier(ref name) = *value.left.node {
-                        body.push((name.clone(), Some(value.right.clone())));
+                        let nametok = name.token.clone();
+                        body.push(EnumVariant { name: nametok, value: Some(value.right.clone()), id: 0 });
                     } else {
                         self.error(line!(), "Error parsing enum, Expected identifier", format!("Expected identifier in enum declaration but found `{}`: `enum NAME {{ ... }}`", value.left.token.value).as_str(), &value.left.token.location);
                     }
@@ -647,7 +658,8 @@ impl Parser {
                 access_modifier,
                 name,
                 body,
-                tags
+                tags,
+                type_id: 0, // leave blank in parser
             }))
         }
     }
@@ -1044,7 +1056,7 @@ impl Parser {
                 scope_type: last_punc,
                 expression: Box::new(ASTNode {
                     token: tokens[*i - 1].clone(),
-                    node: Box::new(NodeType::Identifier(tokens[*i - 1].clone())),
+                    node: Box::new(NodeType::Identifier(Identifier { token: tokens[*i - 1].clone(), id: 0 })),
                 }),
                 type_parameters: None
             });
@@ -1091,7 +1103,7 @@ impl Parser {
                 scope_type: last_punc,
                 expression: Box::new(ASTNode {
                     token: tokens[*i - 1].clone(),
-                    node: Box::new(NodeType::Identifier(tokens[*i - 1].clone())),
+                    node: Box::new(NodeType::Identifier(Identifier { token: tokens[*i - 1].clone(), id: 0 })),
                 }),
                 type_parameters: None
             });
@@ -1252,7 +1264,7 @@ impl Parser {
                     if let NodeType::Identifier(ref name) = *value.left.node {
                         let name = name.clone();
                         let value = value.right.clone();
-                        properties.push(NodeProperty { name, value });
+                        properties.push(NodeProperty { name: name.token, value });
                     } else {
                         self.error(line!(), "Invalid property assignment for object instantiation", "Expected single identifier for property in object instantiation: `NAME { PROPERTY = VALUE, }`", &p.token.location);
                         break;
@@ -1633,7 +1645,7 @@ impl Parser {
                         if !last_was_ident {
                             let node = Box::new(ASTNode {
                                 token: token.clone(),
-                                node: Box::new(NodeType::Identifier(token.clone())),
+                                node: Box::new(NodeType::Identifier(Identifier { token: token.clone(), id: 0 })),
                             });
                             expr_stack.push(node);
                         }
@@ -1650,7 +1662,7 @@ impl Parser {
                     }
                     let node = Box::new(ASTNode {
                         token: token.clone(),
-                        node: Box::new(NodeType::Identifier(token.clone())),
+                        node: Box::new(NodeType::Identifier(Identifier { token: token.clone(), id: 0 })),
                     });
                     expr_stack.push(node);
                 }
@@ -1923,7 +1935,7 @@ impl Parser {
                             expression: expr_stack.pop().unwrap_or(
                                 Box::new(ASTNode {
                                     token: tokens[*i - 1].clone(),
-                                    node: Box::new(NodeType::Identifier(tokens[*i - 1].clone())),
+                                    node: Box::new(NodeType::Identifier(Identifier { token: tokens[*i - 1].clone(), id: 0} )),
                                 })),
                             scope_type: None,
                             type_parameters: None
@@ -2496,6 +2508,7 @@ impl Parser {
                                 scope_type: None,
                             }],
                             type_modifiers: is_ptr_or_ref,
+                            type_id: 0, // will be set later in the compiler
                         }))
                     });
                 }
@@ -2663,6 +2676,7 @@ impl Parser {
             token,
             scope,
             type_modifiers: is_ptr_or_ref,
+            type_id: 0, // will be set later in the compiler
         }
     }
 
@@ -2831,7 +2845,7 @@ impl Parser {
                     scope.scope.push(IdentifierExpression {
                         expression: Box::new(ASTNode {
                             token: token.clone(),
-                            node: Box::new(NodeType::Identifier(token.clone())),
+                            node: Box::new(NodeType::Identifier(Identifier { token: token.clone(), id: 0 })),
                         }),
                         scope_type: last_punc.clone(),
                         type_parameters
@@ -3104,7 +3118,6 @@ impl Parser {
             }
             NodeType::ScopedType(ref value) => {
                 let mut pointer = "".to_string();
-                let mut reference = "".to_string();
                 for modifier in value.type_modifiers.iter() {
                     match modifier {
                         TypeModifier::Ptr => {
@@ -3130,7 +3143,7 @@ impl Parser {
                         scope += format!("{}{}", scope_type, identifier).as_str();
                     }
                 }
-                format!("{}{}{}", reference, scope, pointer)
+                format!("{}{}", scope, pointer)
             }
             NodeType::TupleDeclaration(ref value) => {
                 let mut tuple = "".to_string();
@@ -3170,7 +3183,7 @@ impl Parser {
                 format!("{}{}({})", value.name.value, type_parameters, parameters)
             }
             NodeType::Identifier(ref value) => {
-                value.value.clone()
+                value.token.value.clone()
             }
             NodeType::ScopedIdentifier(ref value) => {
                 let mut scope = "".to_string();
@@ -3345,7 +3358,7 @@ impl Parser {
                 format!("{} {} {}{}{}", if_name, condition, body, else_if_string, else_string)
             }
             NodeType::ForEach(ref value) => {
-                let index = value.index_segment.clone().map_or("".to_string(), |t| t.value.clone());
+                let index = value.index_segment.clone().map_or("".to_string(), |t| t.token.value.clone());
                 let val = Self::node_expr_to_string(&value.iter_value, tab_level);
                 let range = Self::node_expr_to_string(&value.iter_range, tab_level);
 
@@ -3360,7 +3373,7 @@ impl Parser {
                 format!("for {}{} in {} {}", value.index_segment.clone().map_or("".to_string(), |_| index + ", "), val, range, body)
             }
             NodeType::For(ref value) => {
-                let index = value.index_segment.clone().map_or("".to_string(), |t| t.value.clone());
+                let index = value.index_segment.clone().map_or("".to_string(), |t| t.token.value.clone());
                 let set = Self::node_expr_to_string(&value.set_segment, tab_level);
                 let cond = Self::node_expr_to_string(&value.condition_segment, tab_level);
                 let inc = Self::node_expr_to_string(&value.increment_segment, tab_level);
@@ -3471,7 +3484,7 @@ impl Parser {
             }
             NodeType::TypeDef(ref value) => {
                 let expression = Self::node_expr_to_string(&value.type_definition, tab_level);
-                let name = value.name.value.clone();
+                let name = value.name.token.value.clone();
                 format!("typedef {}: {}", expression, name)
             }
             NodeType::EnumDeclaration(ref value) => {
@@ -3480,10 +3493,10 @@ impl Parser {
                 let mut body = "".to_string();
                 tab_level += 1;
                 for param in value.body.iter() {
-                    if param.1.is_none() {
-                        body += format!("{}{},\n", "    ".repeat(tab_level), param.0.value.clone()).as_str();
+                    if param.value.is_none() {
+                        body += format!("{}{},\n", "    ".repeat(tab_level), param.name.value.clone()).as_str();
                     } else {
-                        body += format!("{}{} = {},\n", "    ".repeat(tab_level), param.0.value.clone(), Self::node_expr_to_string(param.1.as_ref().unwrap(), tab_level)).as_str();
+                        body += format!("{}{} = {},\n", "    ".repeat(tab_level), param.name.value.clone(), Self::node_expr_to_string(param.value.as_ref().unwrap(), tab_level)).as_str();
                     }
                 }
                 tab_level -= 1;
