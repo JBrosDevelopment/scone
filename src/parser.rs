@@ -326,12 +326,12 @@ impl Parser {
         let body = self.get_code_block(tokens, &mut i, false);
         
         for thing in body.body.clone() {
-            if let NodeType::FunctionDeclaration(_) = thing.node.as_ref() {
-            }
-            else if let NodeType::VariableDeclaration(_) = thing.node.as_ref() {
-            } 
-            else {
-                self.error(line!(), format!("Error while parsing {} body", class_or_struct).as_str(), format!("Expected only a function or variable declaration for {A}, but got a `{B}`: `{A} NAME {{ TYPE: NAME = VALUEl; TYPE: NAME() {{ ... }} }}`", A = class_or_struct, B = thing.node.to_string()).as_str(), &thing.token.location);
+            match thing.node.as_ref() {
+                NodeType::FunctionDeclaration(_) => {}
+                NodeType::VariableDeclaration(_) => {}
+                NodeType::StructDeclaration(_) => {}
+                NodeType::EnumDeclaration(_) => {}
+                _ => self.error(line!(), format!("Error while parsing {} body", class_or_struct).as_str(), format!("Expected only a function or variable declaration for {A}, but got a `{B}`: `{A} NAME {{ TYPE: NAME = VALUEl; TYPE: NAME() {{ ... }} }}`", A = class_or_struct, B = thing.node.to_string()).as_str(), &thing.token.location),
             }
         }
 
@@ -574,6 +574,7 @@ impl Parser {
             body,
             tags,
             id: 0, // leave blank in parser
+            return_type_id: None // leave blank in parser
         };
         self.__current_tags.clear(); 
 
@@ -1490,7 +1491,13 @@ impl Parser {
                 }
             }
 
-            if token.token_type == TokenType::Colon || token.token_type.is_access_modifier() {
+            if tokens.iter().any(|t| t.token_type == TokenType::Enum) {
+                expr_stack.push(Box::new(self.get_enum(tokens, i)));
+            } else if tokens.iter().any(|t| t.token_type == TokenType::Class || t.token_type == TokenType::Struct) {
+                return Box::new(self.get_class_or_struct(tokens));
+            } else if tokens.iter().any(|t| t.token_type == TokenType::Trait) {
+                self.error(line!(), "Can not define trait here", "Traits can only be defined at the top level", &tokens[0].location);
+            } else if token.token_type == TokenType::Colon || token.token_type.is_access_modifier() {
                 if token.token_type.is_access_modifier() {
                     // set `i` equal to the `:` to match the `token.token_type == TokenType::Colon` match
                     if let Some(index) = tokens.iter().skip(*i).position(|x| x.token_type == TokenType::Colon) {
@@ -2086,8 +2093,6 @@ impl Parser {
                 expr_stack.push(Box::new(self.parse_for(tokens)));
             } else if token.token_type == TokenType::Match {
                 expr_stack.push(Box::new(self.parse_match(tokens, i)));
-            }  else if token.token_type == TokenType::Enum {
-                expr_stack.push(Box::new(self.get_enum(tokens, i)));
             } else if token.token_type == TokenType::Else {
                 self.error(line!(), "Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
                 return Box::new(ASTNode::err());

@@ -67,9 +67,9 @@ impl NodeType {
             NodeType::Constant(_) => "Constant".to_string(),
             NodeType::Operator(_) => "Operator".to_string(),
             NodeType::Identifier(_) => "Identifier".to_string(),
-            NodeType::ScopedType(_) => "TypeIdentifier".to_string(),
+            NodeType::ScopedType(_) => "ScopedType".to_string(),
             NodeType::Assignment(_) => "Assignment".to_string(),
-            NodeType::ScopedIdentifier(_) => "ScopedExpression".to_string(),
+            NodeType::ScopedIdentifier(_) => "ScopedIdentifier".to_string(),
             NodeType::FunctionCall(_) => "FunctionCall".to_string(),
             NodeType::TupleExpression(_) => "TupleExpression".to_string(),
             NodeType::ReturnExpression(_) => "ReturnExpression".to_string(),
@@ -257,6 +257,7 @@ pub struct FunctionDeclaration {
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
     pub id: transpiler::Id,
+    pub return_type_id: Option<transpiler::TypeId>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
