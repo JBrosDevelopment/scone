@@ -4,37 +4,7 @@ use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, lexer::Location, codegen
 pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros: Macros) -> (String, ErrorHandling) {
     let mut transpiler = Transpiler::new(ast, code, path, macros);
     transpiler.table.add_default_types();
-
-    transpiler.table.last_id += 1;
-    transpiler.table.last_type_id += 1;
-    let testing_struct_inner = StructHolder {
-        access_modifier: vec![],
-        type_parameters: vec![],
-        location: Location::new(0, 0, 0),
-        methods: vec![],
-        inherits: vec![],
-        members: vec![],
-        structs: vec![],
-        tags: vec![],
-        enums: vec![],
-        name: "inner".to_string(),
-        id: transpiler.table.last_id,
-        type_id: transpiler.table.last_type_id,
-        scope: Scope { depth: 1, index: 0 },
-    };
-    let testing_struct_inner_enum = IdentifierEnum::Struct(testing_struct_inner.clone());
-    transpiler.table.increase_scope(false);
-    transpiler.table.add_module_identifier_to_type_scope(&testing_struct_inner_enum);
-    transpiler.table.decrease_scope();
     
-    
-    let testing_struct = transpiler.table.generate_struct("test".to_string(), vec![], vec![], vec![testing_struct_inner], vec![], vec![], vec![], vec![], vec![], Location::new(0, 0, 0));
-    
-    transpiler.table.add_module_identifier_to_type_scope(&testing_struct);
-    transpiler.table.add_identifier_scope(testing_struct);
-    
-    transpiler.table.add_identifier_scope(testing_struct_inner_enum);
-
     codecheck::check_ast(&mut transpiler);
     transpiler.output.print_messages();
     

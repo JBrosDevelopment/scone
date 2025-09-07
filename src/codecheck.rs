@@ -188,12 +188,17 @@ impl Checker {
             // get the id of the root type if it is a module, ie. struct or enum 
             let root_type_module_id = self.transpiler.table.get_module_identifier_enum_id_from_type_id(root_type_id).ok();
             
-            if root_type_module_id.is_none() && scope.len() > 1 {
-                // an error occurs because the root type is not a module, meaning it can't scope into anything because it doesn't know where to scope into
-                self.error(line!(), "Invalid scoping", "Expected the root type to be a module, eg. `struct`, `enum`", &node.token.location);
-                self.transpiler.table.scope = capture_table_scope;
-                return err!();
-            }
+            if root_type_module_id.is_none() {
+                if scope.len() > 1 {
+                    // an error occurs because the root type is not a module, meaning it can't scope into anything because it doesn't know where to scope into
+                    self.error(line!(), "Invalid scoping", "Expected the root type to be a module, eg. `struct`, `enum`", &node.token.location);
+                    self.transpiler.table.scope = capture_table_scope;
+                    return err!();
+                } else {
+                    // if there is no more scoping to do, then the root type is the type
+                    break;
+                }
+            } 
     
             // get the module
             let module_identifier_enum: IdentifierEnum;
