@@ -1,12 +1,18 @@
 #[allow(unused_imports)]
 use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, lexer::Location, codegen, codecheck, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
+use serde::Serialize;
 
 pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros: Macros) -> (String, ErrorHandling) {
     let mut transpiler = Transpiler::new(ast, code, path, macros);
     transpiler.table.add_default_types();
     
+    // check and genereate codegen table
     codecheck::check_ast(&mut transpiler);
     transpiler.output.print_messages();
+    
+    // print out the table
+    let fmt_json = serde_json::to_string_pretty(&transpiler.table).unwrap();
+    std::fs::write("src/testing/codecheck.out.json", fmt_json).unwrap();
     
     if transpiler.output.has_errors() {
         return ("".to_string(), transpiler.output);
@@ -14,7 +20,7 @@ pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros:
     
     //let code = codegen::generate_code(&mut transpiler);
     //transpiler.output.print_messages();
-    (/*code*/ "".to_string(), transpiler.output)
+    ("".to_string(), transpiler.output)
 }
 
 #[derive(Clone, Debug)]
@@ -64,7 +70,7 @@ pub type TypeId = u32;
         }
     }
 */
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Scope {
     pub depth: u32,
     pub index: u32
@@ -98,7 +104,7 @@ impl Scope {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct VariableHolder {
     pub name: String,
     pub id: Id,
@@ -111,14 +117,14 @@ pub struct VariableHolder {
     pub location: Location,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct TypeParameterHolder {
     pub name: String,
     pub type_id: TypeId,
     pub scope: Scope
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ParameterHolder {
     pub name: String,
     pub id: Id,
@@ -129,7 +135,7 @@ pub struct ParameterHolder {
     pub location: Location,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct FunctionHolder {
     pub name: String,
     pub id: Id,
@@ -143,7 +149,7 @@ pub struct FunctionHolder {
     pub location: Location,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct StructHolder {
     pub name: String,
     pub id: Id,
@@ -160,7 +166,7 @@ pub struct StructHolder {
     pub location: Location,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct TraitHolder {
     pub name: String,
     pub id: Id,
@@ -174,7 +180,7 @@ pub struct TraitHolder {
     pub location: Location,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct EnumMemberHolder {
     pub name: String,
     pub id: Id,
@@ -182,7 +188,7 @@ pub struct EnumMemberHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct EnumHolder {
     pub name: String,
     pub id: Id,
@@ -194,7 +200,7 @@ pub struct EnumHolder {
     pub location: Location,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct TypeHolder {
     pub name: String,
     pub type_parameter_count: usize,
@@ -203,7 +209,7 @@ pub struct TypeHolder {
     pub scope: Scope,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct CodegenTable {
     types: Vec<TypeHolder>,
     type_parameters: Vec<TypeParameterHolder>,
@@ -221,7 +227,7 @@ pub struct CodegenTable {
     pub scope: Scope
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum IdentifierEnum {
     Enum(EnumHolder),
     Struct(StructHolder),
@@ -230,7 +236,7 @@ pub enum IdentifierEnum {
     Variable(VariableHolder),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum TypeEnum {
     Type(TypeHolder),
     TypeParameter(TypeParameterHolder)
