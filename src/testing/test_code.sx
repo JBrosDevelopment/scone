@@ -1,1 +1,7 @@
-i32: a = 0;
+struct Holder {
+    struct Inner {
+        static Inner: Value;
+    }
+}
+
+Holder::Inner: A = Holder::Inner::Value;

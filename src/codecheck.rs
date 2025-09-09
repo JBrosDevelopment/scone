@@ -119,8 +119,9 @@ impl Checker {
         }
     }
     pub fn check(&mut self) {
-        for node in self.transpiler.ast.clone() {
-            _ = self.check_node(&node, None, false);
+        for index in 0..self.transpiler.ast.len() {
+            let mut node = self.transpiler.ast[index].clone();
+            _ = self.check_node(&mut node, None, false);
         }
     }
 
@@ -128,13 +129,26 @@ impl Checker {
         todo!()
     }
 
-    fn check_node(&mut self, node: &ASTNode, type_id: Option<TypeId>, constant: bool) -> Result<(), ()> {
+    fn check_node(&mut self, node: &mut ASTNode, type_id: Option<TypeId>, constant: bool) -> Result<(), ()> {
         if constant {
             return self.check_if_node_is_constant(node, type_id);
         }
-        match node.node.as_ref() {
-            NodeType::Constant(ref v) => self.constant(v, type_id),
-            NodeType::VariableDeclaration(ref v) => self.variable_declaration(v, type_id),
+        match node.node.as_mut() {
+            NodeType::Constant(v) => self.constant(v, type_id),
+            NodeType::VariableDeclaration(v) => {
+                if let Ok(_) = self.variable_declaration(v, type_id) {
+                    return ok!();
+                } else {
+                    return err!();
+                }
+            }
+            NodeType::StructDeclaration(v) => {
+                if let Ok(_) = self.struct_declaration(v, type_id) {
+                    return ok!();
+                } else {
+                    return err!();
+                }
+            }
             _ => {
                 let message = format!("Node Type `{}` is not supported yet", node.node.to_string());
                 self.error(line!(), message.as_str(), message.as_str(), &node.token.location);
@@ -180,6 +194,7 @@ impl Checker {
             if let Ok(e) = self.transpiler.table.get_type_name(&root_name) {
                 root_type_id = self.transpiler.table.get_type_enum_type_id(&e);
             } else {
+                debug!(self.transpiler.table);
                 self.error(line!(), "Type does not exist", format!("Type `{}` does not exist", root_name).as_str(), &node.token.location);
                 self.transpiler.table.scope = capture_table_scope;
                 return err!();
@@ -296,35 +311,40 @@ impl Checker {
         Ok(root_type_id)
     }
 
-    fn variable_declaration(&mut self, node: &VariableDeclaration, type_id: Option<TypeId>) -> Result<(), ()> {
-        check_unexpected_type!(self, &node.var_name.location, type_id, None::<TypeId>);
+    fn variable_declaration(&mut self, variable_declaration: &mut VariableDeclaration, type_id: Option<TypeId>) -> Result<IdentifierEnum, ()> {
+        check_unexpected_type!(self, &variable_declaration.var_name.location, type_id, None::<TypeId>);
 
         // evaluate and get type id
-        let type_id = self.evaluate_type(&node.var_type)?;
+        let type_id = self.evaluate_type(&variable_declaration.var_type)?;
 
         // check if variable name is unique
-        let name = node.var_name.value.clone();
+        let name = variable_declaration.var_name.value.clone();
         if !self.transpiler.table.name_is_used_in_scope(&name) {
-            self.error(line!(), "Variable name is not unique", format!("Variable name `{}` is not unique", name).as_str(), &node.var_name.location);
+            self.error(line!(), "Variable name is not unique", format!("Variable name `{}` is not unique", name).as_str(), &variable_declaration.var_name.location);
             return err!();
         }
         
         // evaluate value
         let value_id: Option<TypeId>;
-        if let Some(value) = &node.var_value {
+        if let Some(value) = &variable_declaration.var_value {
             value_id = Some(self.evaluate_type(value)?);
         } else {
             value_id = None;
         }
 
         // check value type is compatible with type
-        check_unexpected_type!(self, &node.var_value.clone().unwrap().token.location, Some(type_id), value_id);
+        check_unexpected_type!(self, &variable_declaration.var_value.clone().unwrap().token.location, Some(type_id), value_id);
 
-        // add variable to scope
-        let variable = self.transpiler.table.generate_variable(name, type_id, node.var_value.is_some(), false, node.access_modifier.clone(), node.tags.clone(), node.var_name.location.clone());
-        self.transpiler.table.add_identifier_scope(variable);
+        // create variable
+        let variable = self.transpiler.table.generate_variable(name, type_id, variable_declaration.var_value.is_some(), false, variable_declaration.access_modifier.clone(), variable_declaration.tags.clone(), variable_declaration.var_name.location.clone());
 
-        ok!()
+        // update AST variable id
+        variable_declaration.id = self.transpiler.table.get_identifier_enum_id(&variable);
+
+        // add variable to table
+        self.transpiler.table.add_identifier_scope(variable.clone());
+
+        Ok(variable)
     }
 
     fn constant(&mut self, constant: &ConstantNode, type_id: Option<TypeId>) -> Result<(), ()> {
@@ -359,5 +379,104 @@ impl Checker {
             }
         }
     }
+
+    fn check_type_parameters(&mut self, type_parameters: &AnonymousTypeParameters) -> Result<Vec<TypeParameterHolder>, ()> {
+        todo!()
+    }
+
+    fn evaluate_extensions(&mut self, extensions: &Vec<Box<Token>>) -> Result<Vec<TraitHolder>, ()> {
+        let mut result: Vec<TraitHolder> = vec![];
+
+        for extension in extensions {
+            if let Ok(identifier_enum) = self.transpiler.table.get_identifer_enum_by_name(&extension.value) {
+                match identifier_enum {
+                    IdentifierEnum::Trait(trait_id) => {
+                        result.push(trait_id.clone());
+                    }
+                    _ => {
+                        self.error(line!(), "Could not find trait", format!("Could not find trait `{}`", extension.value).as_str(), &extension.location);
+                        return err!();
+                    }
+                }
+            } else {
+                self.error(line!(), "Could not find trait", format!("Could not find trait `{}`", extension.value).as_str(), &extension.location);
+                return err!();
+            }
+        }
+
+        Ok(result)
+    }
+
+    fn evaluate_struct_body(&mut self, struct_body: &mut CodeBlock) -> Result<(Vec<FunctionHolder>, Vec<VariableHolder>, Vec<EnumHolder>, Vec<StructHolder>), ()> { 
+        let mut functions: Vec<FunctionHolder> = vec![];
+        let mut variables: Vec<VariableHolder> = vec![];
+        let mut enums: Vec<EnumHolder> = vec![];
+        let mut structs: Vec<StructHolder> = vec![];
+
+        self.transpiler.table.increase_scope(false);
+
+        for index in 0..struct_body.body.len() {
+            let stmt = &mut struct_body.body[index];
+            match stmt.node.as_mut() {
+                NodeType::VariableDeclaration(v) => {
+                    let variable = self.variable_declaration(v, None)?;
+                    variables.push(self.transpiler.table.get_variable_from_identifier_enum(&variable).unwrap()); // can unwrap because variable is created in variable_declaration 100%
+                }
+                NodeType::StructDeclaration(v) => {
+                    let struct_ = self.struct_declaration(v, None)?;
+                    structs.push(self.transpiler.table.get_struct_from_identifier_enum(&struct_).unwrap()); // can unwrap because struct is created in struct_declaration 100%
+                }
+                NodeType::EnumDeclaration(v) => {
+                    todo!()
+                }
+                NodeType::FunctionCall(v) => {
+                    todo!()
+                }
+                _ => {
+                    self.error(line!(), "Invalid statement in struct body", format!("Statement `{}` is not valid in struct body, expected `VariableDeclaration`, `StructDeclaration`, `EnumDeclaration` or `FunctionCall", stmt.node.to_string()).as_str(), &stmt.token.location);
+                }
+            }
+        }
+
+        self.transpiler.table.decrease_scope();
+
+        Ok((functions, variables, enums, structs))
+    }
     
+    fn struct_declaration(&mut self, struct_declaration: &mut StructDeclaration, type_id: Option<TypeId>) -> Result<IdentifierEnum, ()> { 
+        check_unexpected_type!(self, &struct_declaration.name.location, type_id, None::<TypeId>);
+        
+        // check if name is unique
+        let name = struct_declaration.name.value.clone();
+        if !self.transpiler.table.name_is_used_in_scope(&name) {
+            self.error(line!(), "Struct name is not unique", format!("Struct name `{}` is not unique", name).as_str(), &struct_declaration.name.location);
+            return err!();
+        }
+
+        // evaluate type parameters
+        let type_parameters: Vec<TypeParameterHolder>;
+        if let Some(tp) = &struct_declaration.type_parameters {
+            type_parameters = self.check_type_parameters(&tp)?;
+        } else {
+            type_parameters = vec![];
+        }
+
+        // evaluate extensions
+        let extensions: Vec<TraitHolder>;
+        if struct_declaration.extends.len() > 0 {
+            extensions = self.evaluate_extensions(&struct_declaration.extends)?;
+        } else {
+            extensions = vec![];
+        }
+
+        // evaluate and check body
+        let (functions, variables, enums, structs) = self.evaluate_struct_body(&mut struct_declaration.body)?;
+
+        // add struct to table
+        let struct_ = self.transpiler.table.generate_struct(name, functions, variables, structs, enums, struct_declaration.access_modifier.clone(), type_parameters, extensions, struct_declaration.tags.clone(), struct_declaration.name.location.clone());
+        self.transpiler.table.add_module_identifier_to_type_scope(&struct_);
+        self.transpiler.table.add_identifier_scope(struct_.clone());
+
+        Ok(struct_)
+    }
 }
