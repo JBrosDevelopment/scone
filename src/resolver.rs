@@ -1,8 +1,10 @@
+// the purpose of this step is to go over the AST using symbols from the symbol table and identifing types adding them to codegen table and resolving any errors
+
 #[allow(unused_imports)]
 use crate::{ast::*, macros::*, lexer::*, transpiler::*, error_handling::{ErrorHandling, DEBUGGING, Message}, debug};
 
-pub fn check_ast(transpiler: &mut Transpiler) {
-    let mut checker = Checker::new(transpiler.clone());
+pub fn resolver_pass_on_ast(transpiler: &mut Transpiler) {
+    let mut checker = Resolver::new(transpiler.clone());
     checker.check();
     transpiler.output = checker.transpiler.output.clone();
     transpiler.table = checker.transpiler.table.clone();
@@ -64,13 +66,13 @@ macro_rules! check_unexpected_type {
     };
 }
 
-struct Checker {
+struct Resolver {
     pub transpiler: Transpiler,
 }
 
-impl Checker {
-    pub fn new(transpiler: Transpiler) -> Checker {
-        Checker { transpiler }
+impl Resolver {
+    pub fn new(transpiler: Transpiler) -> Resolver {
+        Resolver { transpiler }
     }
     pub fn error(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
         if self.transpiler.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra errors on the same line

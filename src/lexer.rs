@@ -193,6 +193,13 @@ impl Location {
             length
         }
     }
+    pub fn new_empty() -> Location {
+        Location {
+            line: 0,
+            column: 0,
+            length: 0
+        }
+    }
     pub fn advance(&mut self, length: i32) {
         self.column = self.column + self.length;
         self.length = length;

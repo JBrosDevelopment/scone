@@ -5,7 +5,8 @@ pub mod ast;
 pub mod parser;
 pub mod transpiler;
 pub mod codegen;
-pub mod codecheck;
+pub mod declarer;
+pub mod resolver;
 
 fn main() {
     let path = "src/testing/test_code.sx".to_string();

@@ -173,11 +173,11 @@ impl GenerateC {
 
         self.add_header("".to_string());
         
-        let _entry_argc = self.table.generate_variable("ENTRY_ARGC".to_string(), 5, true, false, vec![AccessModifier::Const], vec![], Location { line: 0, column: 0, length: 0 });
+        let _entry_argc = self.table.generate_variable("ENTRY_ARGC".to_string(), 5, true, false, vec![AccessModifier::Const], vec![], Location::new_empty());
         self.table.add_identifier_scope(_entry_argc); // id = 1
         self.add_header("const int v1; // ENTRY_ARGC".to_string());
         
-        let _entry_argv = self.table.generate_variable("ENTRY_ARGV".to_string(), 14, true, false, vec![AccessModifier::Const], vec![], Location { line: 0, column: 0, length: 0 });
+        let _entry_argv = self.table.generate_variable("ENTRY_ARGV".to_string(), 14, true, false, vec![AccessModifier::Const], vec![], Location::new_empty());
         self.table.add_identifier_scope(_entry_argv); // id = 2
         self.add_header("const char_ptr_ptr v2; // ENTRY_ARGV\n".to_string());
     }

@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, lexer::Location, codegen, codecheck, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
+use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, lexer::Location, codegen, resolver, declarer, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
 use serde::Serialize;
 
 pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros: Macros) -> (String, ErrorHandling) {
@@ -7,12 +7,23 @@ pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros:
     transpiler.table.add_default_types();
     
     // check and genereate codegen table
-    codecheck::check_ast(&mut transpiler);
+    declarer::declarer_pass_on_ast(&mut transpiler);
     transpiler.output.print_messages();
     
-    // print out the table
+    // print out symbols
+    let fmt_json = serde_json::to_string_pretty(&transpiler.symbols).unwrap();
+    std::fs::write("src/testing/symbols.out.json", fmt_json).unwrap();
+    
+    if transpiler.output.has_errors() {
+        return ("".to_string(), transpiler.output);
+    }
+    
+    resolver::resolver_pass_on_ast(&mut transpiler);
+    transpiler.output.print_messages();
+    
+    // print out table
     let fmt_json = serde_json::to_string_pretty(&transpiler.table).unwrap();
-    std::fs::write("src/testing/codecheck.out.json", fmt_json).unwrap();
+    std::fs::write("src/testing/table.out.json", fmt_json).unwrap();
     
     if transpiler.output.has_errors() {
         return ("".to_string(), transpiler.output);
@@ -28,6 +39,7 @@ pub struct Transpiler {
     pub ast: Vec<ASTNode>,
     pub output: ErrorHandling,
     pub macros: Macros,
+    pub symbols: DeclarationTree,
     pub table: CodegenTable,
 }
 
@@ -37,7 +49,8 @@ impl Transpiler {
             output: ErrorHandling::new(path.clone(), 
             code.clone()), 
             macros,
-            table: CodegenTable::new()
+            table: CodegenTable::new(),
+            symbols: DeclarationTree::new()
         }
     }
 }
@@ -48,6 +61,34 @@ pub fn variable_is_static(var: VariableHolder) -> bool {
 pub fn function_is_static(func: FunctionHolder) -> bool {
     func.access_modifier.contains(&AccessModifier::Static)
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+// used in declarer
+////////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub enum ObjectTypes {
+    Function,
+    Variable,
+    Struct,
+    Enum,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct DeclarationTree {
+    pub name: String,
+    pub object_type: ObjectTypes,
+    pub children: Vec<DeclarationTree>,
+}
+impl DeclarationTree {
+    pub fn new() -> Self {
+        DeclarationTree { name: "".to_string(), object_type: ObjectTypes::Function, children: vec![] }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+// used in resolver
+////////////////////////////////////////////////////////////////////////////////////
 
 pub type Id = u32;
 pub type TypeId = u32;
@@ -207,6 +248,15 @@ pub struct TypeHolder {
     pub type_id: TypeId,
     pub compatible_types: Vec<TypeId>,
     pub scope: Scope,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub enum TempObjectEnum {
+    Struct,
+    Function,
+    Trait,
+    Enum,
+    Variable
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -409,8 +459,6 @@ impl CodegenTable {
                 return Ok(holder.id)
             }
         } else if let Some(holder) = self.structs.iter().find(|x| x.name == type_name) {
-            debug!(holder.scope);
-            debug!(type_scope);
             if holder.scope.in_scope(&type_scope) {
                 return Ok(holder.id)
             }
@@ -733,10 +781,10 @@ impl CodegenTable {
         let _char_ptr_ptr = self.generate_type("char_ptr_ptr".to_string(), 0, vec![]);
         self.add_type_scope(_char_ptr_ptr); // type_id = 14
         
-        let _entry_argc = self.generate_variable("ENTRY_ARGC".to_string(), 5, true, false, vec![AccessModifier::Const], vec![], Location { line: 0, column: 0, length: 0 });
+        let _entry_argc = self.generate_variable("ENTRY_ARGC".to_string(), 5, true, false, vec![AccessModifier::Const], vec![], Location::new_empty());
         self.add_identifier_scope(_entry_argc); // id = 1
         
-        let _entry_argv = self.generate_variable("ENTRY_ARGV".to_string(), 14, true, false, vec![AccessModifier::Const], vec![], Location { line: 0, column: 0, length: 0 });
+        let _entry_argv = self.generate_variable("ENTRY_ARGV".to_string(), 14, true, false, vec![AccessModifier::Const], vec![], Location::new_empty());
         self.add_identifier_scope(_entry_argv); // id = 2
     }
 }
