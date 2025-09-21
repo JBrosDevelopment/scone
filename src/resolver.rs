@@ -4,8 +4,8 @@
 use crate::{ast::*, macros::*, lexer::*, transpiler::*, error_handling::{ErrorHandling, DEBUGGING, Message}, debug};
 
 pub fn resolver_pass_on_ast(transpiler: &mut Transpiler, error_handling: &mut ErrorHandling) {
-    let mut checker = Resolver::new(transpiler, error_handling);
-    checker.check();
+    let mut resolver = Resolver::new(transpiler, error_handling);
+    resolver.resolve_pass();
 
     error_handling.print_messages();
 }
@@ -77,14 +77,17 @@ impl<'a> Resolver<'a> {
         Resolver { transpiler, output: error_handling }
     }
 
+    #[allow(dead_code)]
     fn error(&mut self, line: u32, title: &str, message: &str, location: &Location) {
         self.output.add_instance_error("resolver", line, file!(), message, title, location);
     }
 
+    #[allow(dead_code)]
     fn warning(&mut self, line: u32, title: &str, message: &str, location: &Location) {
         self.output.add_instance_warning("resolver", line, file!(), message, title, location);
     }
 
+    #[allow(dead_code)]
     fn message(&mut self, line: u32, title: &str, message: &str, location: &Location) {
         self.output.add_instance_message("resolver", line, file!(), message, title, location);
     }
@@ -102,7 +105,7 @@ impl<'a> Resolver<'a> {
             return err!();
         }
     }
-    pub fn check(&mut self) {
+    pub fn resolve_pass(&mut self) {
         for index in 0..self.transpiler.ast.len() {
             let mut node = self.transpiler.ast[index].clone();
             _ = self.check_node(&mut node, None, false);

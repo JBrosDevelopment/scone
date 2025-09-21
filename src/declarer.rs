@@ -21,14 +21,17 @@ impl<'a> Declarer<'a> {
         Declarer { transpiler, output: error_handling }
     }
 
+    #[allow(dead_code)]
     fn error(&mut self, line: u32, title: &str, message: &str, location: &Location) {
         self.output.add_instance_error("declarer", line, file!(), message, title, location);
     }
 
+    #[allow(dead_code)]
     fn warning(&mut self, line: u32, title: &str, message: &str, location: &Location) {
         self.output.add_instance_warning("declarer", line, file!(), message, title, location);
     }
 
+    #[allow(dead_code)]
     fn message(&mut self, line: u32, title: &str, message: &str, location: &Location) {
         self.output.add_instance_message("declarer", line, file!(), message, title, location);
     }

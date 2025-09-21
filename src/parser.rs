@@ -42,10 +42,12 @@ impl<'a> Parser<'a> {
         self.output.add_instance_error("parser", line, file!(), message, title, location);
     }
 
+    #[allow(dead_code)]
     fn warning(&mut self, line: u32, title: &str, message: &str, location: &Location) {
         self.output.add_instance_warning("parser", line, file!(), message, title, location);
     }
 
+    #[allow(dead_code)]
     fn message(&mut self, line: u32, title: &str, message: &str, location: &Location) {
         self.output.add_instance_message("parser", line, file!(), message, title, location);
     }
