@@ -1,10 +1,6 @@
+#[allow(unused_imports)]
+use crate::{error_handling::ErrorHandling, ast::{ASTNode, NodeType, ConstantType}, lexer::{self, TokenType}, parser,  debug};
 use serde::Serialize;
-use crate::{ast::*, lexer::{self, TokenType}, parser};
-
-#[allow(unused_imports)]
-use crate::{error_handling::{ErrorHandling, DEBUGGING}};
-#[allow(unused_imports)]
-use crate::debug;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct MacroVariable {
@@ -235,12 +231,18 @@ impl Macros {
     }
 
     pub fn string_to_node(&mut self, message: &String) -> Result<ASTNode, String> {
-        let (tokens, error_handling, _) = lexer::lex(message, None, None);
+        let mut error_handling = ErrorHandling::new(None, message.clone());
+        let mut macros = Macros::new();
+
+        let tokens = lexer::lex(&mut error_handling, &mut macros);
+        
         if error_handling.has_errors() {
             return Err("Error lexing macro string".to_string());
         }
-        let (ast, output) = parser::parse(tokens, &message, None);
-        if output.has_errors() {
+
+        let ast = parser::parse(tokens, &mut error_handling);
+        
+        if error_handling.has_errors() {
             return Err("Error parsing macro string".to_string());
         }
         if ast.len() != 1 {

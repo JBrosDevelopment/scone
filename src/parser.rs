@@ -1,32 +1,27 @@
-use crate::lexer::{Token, TokenType, Location};
-use crate::operator_tokens;
-
 #[allow(unused_imports)]
-use crate::{ast::*, error_handling::{ErrorHandling, DEBUGGING}};
-#[allow(unused_imports)]
-use crate::debug;
+use crate::{ast::*, error_handling::ErrorHandling, lexer::{Token, TokenType, Location}, debug};
 
-pub fn parse(tokens: Vec<Token>, code: &String, path: Option<String>) -> (Vec<ASTNode>, ErrorHandling) {
-    let mut parser = Parser::new(tokens, code.clone(), path.clone());
+pub fn parse(tokens: Vec<Token>, error_handling: &mut ErrorHandling) -> Vec<ASTNode> {
+    let mut parser = Parser::new(tokens, error_handling);
     parser.generate_ast();
     
     parser.output.print_messages();
-    (parser.ast, parser.output)
+    parser.ast
 }
 
-#[derive(Debug, Clone)]
-pub struct Parser {
-    output: ErrorHandling,
+#[derive(Debug)]
+pub struct Parser<'a> {
+    output: &'a mut ErrorHandling,
     ast: Vec<ASTNode>,
     lines: Vec<Vec<Box<Token>>>,
     __curent_parsing_line: usize,
     __current_tags: Vec<Tag>
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>, full_code: String, path: Option<String>) -> Parser {
+impl<'a> Parser<'a> {
+    pub fn new(tokens: Vec<Token>, error_handling: &'a mut ErrorHandling) -> Parser<'a> {
         Parser {
-            output: ErrorHandling::new(path, full_code),
+            output: error_handling,
             ast: vec![],
             lines: Self::split_tokens_into_lines(&tokens),
             __curent_parsing_line: 0,
@@ -43,37 +38,16 @@ impl Parser {
         }
     }
 
-    pub fn error(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
-        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra errors on the same line
-            return;
-        }
-        if DEBUGGING {
-            self.output.error("parsing error", format!("[DEBUG {}:{}]: {}", file!(), debug_line, message).as_str(), help, location);
-        }
-        else {
-            self.output.error("parsing error", message, help, location);
-        }
+    fn error(&mut self, line: u32, title: &str, message: &str, location: &Location) {
+        self.output.add_instance_error("parser", line, file!(), message, title, location);
     }
-    pub fn warning(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
-        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra warnings on the same line
-            return;
-        }
-        if DEBUGGING {
-            self.output.warning("parsing warning", format!("[DEBUG {}:{}]: {}", file!(), debug_line, message).as_str(), help, location);
-        }
-        else {
-            self.output.warning("parsing warning", message, help, location);
-        }
+
+    fn warning(&mut self, line: u32, title: &str, message: &str, location: &Location) {
+        self.output.add_instance_warning("parser", line, file!(), message, title, location);
     }
-    pub fn message(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
-        if self.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra messages on the same line
-            return;
-        }
-        if DEBUGGING {
-            self.output.message("parsing message", format!("[DEBUG {}:{}]: {}", file!(), debug_line, message).as_str(), help, location);
-        } else {
-            self.output.message("parsing message", message, help, location);
-        }
+
+    fn message(&mut self, line: u32, title: &str, message: &str, location: &Location) {
+        self.output.add_instance_message("parser", line, file!(), message, title, location);
     }
 
     fn inc(i: &mut usize) {
@@ -1473,7 +1447,7 @@ impl Parser {
                     break;
                 } else if Self::PARSING_FOR_STATEMENT == until && Self::PARSING_FOR_STATEMENT_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;
-                } else if Self::PARSING_FOR_SCOPING == until && !last_was_ident && matches!(&token.token_type, operator_tokens!() | TokenType::QuestionMark | TokenType::LBrace) {
+                } else if Self::PARSING_FOR_SCOPING == until && !last_was_ident && matches!(&token.token_type, crate::operator_tokens!() | TokenType::QuestionMark | TokenType::LBrace) {
                     break;
                 } else if Self::PARSING_FOR_FOR_LOOP_STATEMENT == until && Self::PARSING_FOR_FOR_LOOP_STATEMENT_UNTIL.iter().any(|t| t == &token.token_type) {
                     break;

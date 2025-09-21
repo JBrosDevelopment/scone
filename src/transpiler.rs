@@ -1,53 +1,43 @@
 #[allow(unused_imports)]
-use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, lexer::Location, codegen, resolver, declarer, error_handling::ErrorHandling, macros::Macros, error_handling::DEBUGGING};
+use crate::{debug, ast::{ASTNode, AccessModifier, Tag}, lexer::Location, codegen, resolver, declarer, error_handling::{self, ErrorHandling}, macros::Macros, error_handling::DEBUGGING};
 use serde::Serialize;
 
-pub fn transpile(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros: Macros) -> (String, ErrorHandling) {
-    let mut transpiler = Transpiler::new(ast, code, path, macros);
+pub fn transpile(ast: Vec<ASTNode>, error_handling: &mut ErrorHandling, macros: Macros) -> String {
+    let mut transpiler = Transpiler::new(ast, macros);
     transpiler.table.add_default_types();
     
-    // check and genereate codegen table
-    declarer::declarer_pass_on_ast(&mut transpiler);
-    transpiler.output.print_messages();
+    // declarer pass
+    declarer::declarer_pass_on_ast(&mut transpiler, error_handling);
     
     // print out symbols
-    let fmt_json = serde_json::to_string_pretty(&transpiler.symbols).unwrap();
-    std::fs::write("src/testing/symbols.out.json", fmt_json).unwrap();
+    crate::debut_out_contents!("src/testing/symbols.out.json", &transpiler.symbols);
+    crate::check_if_can_continue!(error_handling, false, "".to_string());
     
-    if transpiler.output.has_errors() {
-        return ("".to_string(), transpiler.output);
-    }
-    
-    resolver::resolver_pass_on_ast(&mut transpiler);
-    transpiler.output.print_messages();
+    // resolver pass
+    resolver::resolver_pass_on_ast(&mut transpiler, error_handling);
     
     // print out table
-    let fmt_json = serde_json::to_string_pretty(&transpiler.table).unwrap();
-    std::fs::write("src/testing/table.out.json", fmt_json).unwrap();
+    crate::debut_out_contents!("src/testing/table.out.json", &transpiler.table);
+    crate::check_if_can_continue!(error_handling, false, "".to_string());
     
-    if transpiler.output.has_errors() {
-        return ("".to_string(), transpiler.output);
-    }
-    
+    // transpile code
     //let code = codegen::generate_code(&mut transpiler);
     //transpiler.output.print_messages();
-    ("".to_string(), transpiler.output)
+    "".to_string()
 }
 
 #[derive(Clone, Debug)]
 pub struct Transpiler {
     pub ast: Vec<ASTNode>,
-    pub output: ErrorHandling,
     pub macros: Macros,
     pub symbols: DeclarationTree,
     pub table: CodegenTable,
 }
 
 impl Transpiler {
-    pub fn new(ast: Vec<ASTNode>, code: &String, path: Option<String>, macros: Macros) -> Transpiler {
-        Transpiler { ast, 
-            output: ErrorHandling::new(path.clone(), 
-            code.clone()), 
+    pub fn new(ast: Vec<ASTNode>, macros: Macros) -> Transpiler {
+        Transpiler { 
+            ast,
             macros,
             table: CodegenTable::new(),
             symbols: DeclarationTree::new()

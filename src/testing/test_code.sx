@@ -5,3 +5,4 @@ struct Holder {
 }
 
 Holder::Inner: A = Holder::Inner::Value;
+

@@ -120,6 +120,40 @@ impl ErrorHandling {
     pub fn print_unable_to_continue_message() {
         println!("{}{} due to previous errors", Self::colored_text(200, 50, 50, "error: ", true), Self::colored_text(255, 255, 255, "Unable to continue", true))
     }
+
+    
+    pub fn add_instance_error(&mut self, origin: &str, debug_line: u32, file: &str, message: &str, help: &str, location: &Location) {
+        if self.errors().iter().any(|t| t.location.line == location.line) { // prevent extra errors on the same line
+            return;
+        }
+        if DEBUGGING {
+            self.error(format!("{} error", origin).as_str(), format!("[DEBUG {}:{}]: {}", file, debug_line, message).as_str(), help, location);
+        }
+        else {
+            self.error(format!("{} error", origin).as_str(), message, help, location);
+        }
+    }
+    pub fn add_instance_warning(&mut self, origin: &str, debug_line: u32, file: &str, message: &str, help: &str, location: &Location) {
+        if self.errors().iter().any(|t| t.location.line == location.line) { // prevent extra warnings on the same line
+            return;
+        }
+        if DEBUGGING {
+            self.warning(format!("{} warning", origin).as_str(), format!("[DEBUG {}:{}]: {}", file, debug_line, message).as_str(), help, location);
+        }
+        else {
+            self.warning(format!("{} warning", origin).as_str(), message, help, location);
+        }
+    }
+    pub fn add_instance_message(&mut self, origin: &str, debug_line: u32, file: &str, message: &str, help: &str, location: &Location) {
+        if self.errors().iter().any(|t| t.location.line == location.line) { // prevent extra messages on the same line
+            return;
+        }
+        if DEBUGGING {
+            self.message(format!("{} message", origin).as_str(), format!("[DEBUG {}:{}]: {}", file, debug_line, message).as_str(), help, location);
+        } else {
+            self.message(format!("{} message", origin).as_str(), message, help, location);
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -140,6 +174,23 @@ pub enum MessageType {
     Message
 }
 
+// if true, the pipeline will stop on the first error, meaning if an error occurs in the lexer, it will not continue to the parser
+pub const STOP_PIPELINE_ON_ERROR: bool = true;
+
+#[macro_export]
+macro_rules! check_if_can_continue {
+    ($output:expr, $print_messages:expr, $return:expr) => {
+        if $output.has_errors() {
+            if $print_messages {
+                error_handling::ErrorHandling::print_unable_to_continue_message();
+            }
+            if crate::error_handling::STOP_PIPELINE_ON_ERROR {
+                return $return;
+            }
+        }
+    };
+}
+
 #[cfg(debug_assertions)]
 pub const DEBUGGING: bool = true;
 
@@ -149,12 +200,12 @@ pub const DEBUGGING: bool = false;
 #[macro_export]
 macro_rules! debug {
     ($obj:expr) => {
-        if DEBUGGING {
+        if crate::error_handling::DEBUGGING {
             println!("DEBUG: TRUE     FILE: {}:{}     OUT: {:#?}", file!(), line!(), $obj);
         }
     };
     ($msg:expr, $obj:expr) => {
-        if DEBUGGING {
+        if crate::error_handling::DEBUGGING {
             println!("DEBUG: TRUE     FILE: {}:{}     MESSAGE: {}     OUT: {:#?}", file!(), line!(), $msg, $obj);
         }
     };

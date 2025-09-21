@@ -3,11 +3,11 @@
 #[allow(unused_imports)]
 use crate::{ast::*, macros::*, lexer::*, transpiler::*, error_handling::{ErrorHandling, DEBUGGING, Message}, debug};
 
-pub fn resolver_pass_on_ast(transpiler: &mut Transpiler) {
-    let mut checker = Resolver::new(transpiler.clone());
+pub fn resolver_pass_on_ast(transpiler: &mut Transpiler, error_handling: &mut ErrorHandling) {
+    let mut checker = Resolver::new(transpiler, error_handling);
     checker.check();
-    transpiler.output = checker.transpiler.output.clone();
-    transpiler.table = checker.transpiler.table.clone();
+
+    error_handling.print_messages();
 }
 
 macro_rules! err {
@@ -66,45 +66,27 @@ macro_rules! check_unexpected_type {
     };
 }
 
-struct Resolver {
-    pub transpiler: Transpiler,
+#[derive(Debug)]
+struct Resolver<'a> {
+    pub transpiler: &'a mut Transpiler,
+    pub output: &'a mut ErrorHandling
 }
 
-impl Resolver {
-    pub fn new(transpiler: Transpiler) -> Resolver {
-        Resolver { transpiler }
+impl<'a> Resolver<'a> {
+    pub fn new(transpiler: &'a mut Transpiler, error_handling: &'a mut ErrorHandling) -> Resolver<'a> {
+        Resolver { transpiler, output: error_handling }
     }
-    pub fn error(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
-        if self.transpiler.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra errors on the same line
-            return;
-        }
-        if DEBUGGING {
-            self.transpiler.output.error("transpiler checking error", format!("[DEBUG {}:{}]: {}", file!(), debug_line, message).as_str(), help, location);
-        }
-        else {
-            self.transpiler.output.error("transpiler checking error", message, help, location);
-        }
+
+    fn error(&mut self, line: u32, title: &str, message: &str, location: &Location) {
+        self.output.add_instance_error("resolver", line, file!(), message, title, location);
     }
-    pub fn warning(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
-        if self.transpiler.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra warnings on the same line
-            return;
-        }
-        if DEBUGGING {
-            self.transpiler.output.warning("transpiler checking warning", format!("[DEBUG {}:{}]: {}", file!(), debug_line, message).as_str(), help, location);
-        }
-        else {
-            self.transpiler.output.warning("transpiler checking warning", message, help, location);
-        }
+
+    fn warning(&mut self, line: u32, title: &str, message: &str, location: &Location) {
+        self.output.add_instance_warning("resolver", line, file!(), message, title, location);
     }
-    pub fn message(&mut self, debug_line: u32, message: &str, help: &str, location: &Location) {
-        if self.transpiler.output.errors().iter().any(|t| t.location.line == location.line) { // prevent extra messages on the same line
-            return;
-        }
-        if DEBUGGING {
-            self.transpiler.output.message("transpiler checking message", format!("[DEBUG {}:{}]: {}", file!(), debug_line, message).as_str(), help, location);
-        } else {
-            self.transpiler.output.message("transpiler checking message", message, help, location);
-        }
+
+    fn message(&mut self, line: u32, title: &str, message: &str, location: &Location) {
+        self.output.add_instance_message("resolver", line, file!(), message, title, location);
     }
 
     fn get_type(&mut self, location: &Location, type_id: Option<TypeId>) -> Result<String, ()> {
@@ -154,7 +136,7 @@ impl Resolver {
             _ => {
                 let message = format!("Node Type `{}` is not supported yet", node.node.to_string());
                 self.error(line!(), message.as_str(), message.as_str(), &node.token.location);
-                self.transpiler.output.print_messages();
+                self.output.print_messages();
                 todo!();
             }
         }
@@ -167,7 +149,7 @@ impl Resolver {
             _ => {
                 let message = format!("Node Type `{}` is not supported yet", node.node.to_string());
                 self.error(line!(), message.as_str(), message.as_str(), &node.token.location);
-                self.transpiler.output.print_messages();
+                self.output.print_messages();
                 todo!();
             }
         }

@@ -8,48 +8,42 @@ pub mod codegen;
 pub mod declarer;
 pub mod resolver;
 
+#[macro_export]
+macro_rules! debut_out_contents {
+    ($path:expr, $contents:expr) => {
+        if error_handling::DEBUGGING {
+            let json = serde_json::to_string_pretty(&$contents).unwrap();
+            std::fs::write($path, json).unwrap();
+        }
+    };
+}
+
 fn main() {
     let path = "src/testing/test_code.sx".to_string();
     let code = std::fs::read_to_string(&path).unwrap();
+
+    let mut error_handling = error_handling::ErrorHandling::new(Some(path.clone()), code.clone());
+    let mut macros = macros::Macros::new();
     
     // lexer
-    let (tokens, output, macros) = lexer::lex(&code, Some(path.clone()), None);
+    let tokens = lexer::lex(&mut error_handling, &mut macros);
 
-    let json = serde_json::to_string_pretty(&tokens).unwrap();
-    std::fs::write("src/testing/lexer.out.json", json).unwrap();
-
-    if output.has_errors() {
-        error_handling::ErrorHandling::print_unable_to_continue_message();
-        return;
-    }
+    debut_out_contents!("src/testing/lexer.out.json", &tokens);
+    crate::check_if_can_continue!(error_handling, true, ());
 
     // parser
-    let (ast, output) = parser::parse(tokens, &code, Some(path.clone()));
+    let ast = parser::parse(tokens, &mut error_handling);
 
-    let mut ast_string = String::new();
-    for node in &ast {
-        ast_string.push_str(parser::Parser::node_expr_to_string(node, 0).as_str());
-        ast_string.push(';');
-        ast_string.push('\n');
-    }
-    ast_string = ast_string.replace(" ;", ";").replace(";;", ";");
+    let ast_string = ast::ast_as_string(&ast);
     std::fs::write("src/testing/ast.out.sx", ast_string).unwrap();
 
-    let fmt_json = serde_json::to_string_pretty(&ast).unwrap();
-    std::fs::write("src/testing/parser.out.json", fmt_json).unwrap();
-    
-    if output.has_errors() {
-        error_handling::ErrorHandling::print_unable_to_continue_message();
-        return;
-    }
+    debut_out_contents!("src/testing/parser.out.json", &ast);
+    crate::check_if_can_continue!(error_handling, true, ());
 
     // transpiler
-    let (out_code, output) = transpiler::transpile(ast, &code, Some(path.clone()), macros);
+    let out_code = transpiler::transpile(ast, &mut error_handling, macros);
 
     std::fs::write("src/testing/transpiler.out.c", out_code.clone()).unwrap();
 
-    if output.has_errors() {
-        error_handling::ErrorHandling::print_unable_to_continue_message();
-        return;
-    }
+    crate::check_if_can_continue!(error_handling, true, ());
 }

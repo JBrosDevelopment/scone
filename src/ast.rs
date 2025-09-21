@@ -1,5 +1,15 @@
-use serde::Serialize;
 use crate::{lexer::Token, transpiler};
+use serde::Serialize;
+
+pub fn ast_as_string(ast: &Vec<ASTNode>) -> String {
+    let mut ast_string = String::new();
+    for node in ast {
+        ast_string.push_str(crate::parser::Parser::node_expr_to_string(node, 0).as_str());
+        ast_string.push(';');
+        ast_string.push('\n');
+    }
+    ast_string.replace(" ;", ";").replace(";;", ";")
+}
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub enum NodeType {
