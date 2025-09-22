@@ -128,12 +128,11 @@ impl<'a> Declarer<'a> {
         let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
         if self.symbol_is_unique(&symbol) {
             self.push_symbol(symbol);
-        
         } else {
             self.error(line!(), "Symbol is not unique", format!("The name `{name}` is already in use").as_str(), &enum_declaration.name.location);
         }
 
-        enum_declaration.type_id = id;
+        enum_declaration.symbol_id = id;
 
         self.scope.increase();
 
@@ -152,10 +151,11 @@ impl<'a> Declarer<'a> {
         let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
         if self.symbol_is_unique(&symbol) {
             self.push_symbol(symbol);
-        
         } else {
             self.error(line!(), "Symbol is not unique", format!("The name `{name}` is already in use").as_str(), &enum_variant.name.location);
         }
+
+        enum_variant.id = id;
     }
 
     fn pass_variable(&mut self, variable_declaration: &mut VariableDeclaration) {
@@ -166,7 +166,6 @@ impl<'a> Declarer<'a> {
         let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
         if self.symbol_is_unique(&symbol) {
             self.push_symbol(symbol);
-        
         } else {
             self.error(line!(), "Symbol is not unique", format!("The name `{name}` is already in use").as_str(), &variable_declaration.name.location);
         }
@@ -184,7 +183,7 @@ impl<'a> Declarer<'a> {
             let object_type = self.get_symbol_type(name, ObjectTypes::Identifier);
             let id = self.get_symbol_id(name);
 
-            node.type_id = id;
+            node.symbol_id = id;
             
             let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
             if self.symbol_is_unique(&symbol) {

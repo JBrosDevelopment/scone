@@ -267,7 +267,7 @@ pub struct FunctionDeclaration {
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
     pub id: transpiler::Id,
-    pub return_type_id: Option<transpiler::TypeId>,
+    pub return_symbol_id: Option<transpiler::Id>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -278,7 +278,7 @@ pub struct ClassDeclaration {
     pub access_modifier: Vec<AccessModifier>,
     pub extends: Vec<Box<Token>>,
     pub tags: Vec<Tag>,
-    pub type_id: transpiler::TypeId,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -289,7 +289,7 @@ pub struct StructDeclaration {
     pub access_modifier: Vec<AccessModifier>,
     pub extends: Vec<Box<Token>>,
     pub tags: Vec<Tag>,
-    pub type_id: transpiler::TypeId,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -299,7 +299,7 @@ pub struct TraitDeclaration {
     pub body: CodeBlock,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
-    pub type_id: transpiler::TypeId,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -308,7 +308,7 @@ pub struct EnumDeclaration {
     pub access_modifier: Vec<AccessModifier>,
     pub body: Vec<EnumVariant>,
     pub tags: Vec<Tag>,
-    pub type_id: transpiler::TypeId,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -419,7 +419,7 @@ pub struct TypeIdentifier {
     pub name: Box<Token>,
     pub scope_type: Option<ScopeType>,
     pub type_parameters: Option<NodeParameters>,
-    pub type_id: transpiler::TypeId
+    pub symbol_id: transpiler::Id
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -427,7 +427,7 @@ pub struct ScopedType {
     pub token: Box<Token>,
     pub scope: Vec<TypeIdentifier>,
     pub type_modifiers: Vec<TypeModifier>,
-    pub type_id: transpiler::TypeId,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

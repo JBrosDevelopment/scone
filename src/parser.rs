@@ -217,7 +217,7 @@ impl<'a> Parser<'a> {
                 extends,
                 body,
                 tags,
-                type_id: 0, // leave blank in parser
+                symbol_id: 0, // leave blank in parser
             })),
             token: trait_keyword.clone(),
         };
@@ -320,7 +320,7 @@ impl<'a> Parser<'a> {
                     extends,
                     body,
                     tags,
-                    type_id: 0, // leave blank in parser
+                    symbol_id: 0, // leave blank in parser
                 })),
                 token: class_or_struct_token.clone(),
             };
@@ -333,7 +333,7 @@ impl<'a> Parser<'a> {
                     extends,
                     body,
                     tags,
-                    type_id: 0, // leave blank in parser
+                    symbol_id: 0, // leave blank in parser
                 })),
                 token: class_or_struct_token.clone(),
             };
@@ -550,7 +550,7 @@ impl<'a> Parser<'a> {
             body,
             tags,
             id: 0, // leave blank in parser
-            return_type_id: None // leave blank in parser
+            return_symbol_id: None // leave blank in parser
         };
         self.__current_tags.clear(); 
 
@@ -636,7 +636,7 @@ impl<'a> Parser<'a> {
                 name,
                 body,
                 tags,
-                type_id: 0, // leave blank in parser
+                symbol_id: 0, // leave blank in parser
             }))
         }
     }
@@ -2487,10 +2487,10 @@ impl<'a> Parser<'a> {
                                 name: token.clone(),
                                 type_parameters: None,
                                 scope_type: None,
-                                type_id: 0
+                                symbol_id: 0
                             }],
                             type_modifiers: is_ptr_or_ref,
-                            type_id: 0, // will be set later in the compiler
+                            symbol_id: 0, // will be set later in the compiler
                         }))
                     });
                 }
@@ -2658,7 +2658,7 @@ impl<'a> Parser<'a> {
             token,
             scope,
             type_modifiers: is_ptr_or_ref,
-            type_id: 0, // will be set later in the compiler
+            symbol_id: 0, // will be set later in the compiler
         }
     }
 
@@ -2932,7 +2932,7 @@ impl<'a> Parser<'a> {
                         name: token.clone(),
                         scope_type: last_punc.clone(),
                         type_parameters: if maybe_type_parameters.parameters.len() > 0 { Some(maybe_type_parameters) } else { None },
-                        type_id: 0
+                        symbol_id: 0
                     });
                     last_punc = None;
                     first_token = false;
