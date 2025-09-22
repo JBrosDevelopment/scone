@@ -39,17 +39,17 @@ impl<'a> Parser<'a> {
     }
 
     fn error(&mut self, line: u32, title: &str, message: &str, location: &Location) {
-        self.output.add_instance_error("parser", line, file!(), message, title, location);
+        self.output.add_instance_error("parser", line, file!(), title, message, location);
     }
 
     #[allow(dead_code)]
     fn warning(&mut self, line: u32, title: &str, message: &str, location: &Location) {
-        self.output.add_instance_warning("parser", line, file!(), message, title, location);
+        self.output.add_instance_warning("parser", line, file!(), title, message, location);
     }
 
     #[allow(dead_code)]
     fn message(&mut self, line: u32, title: &str, message: &str, location: &Location) {
-        self.output.add_instance_message("parser", line, file!(), message, title, location);
+        self.output.add_instance_message("parser", line, file!(), title, message, location);
     }
 
     fn inc(i: &mut usize) {
@@ -199,7 +199,7 @@ impl<'a> Parser<'a> {
             if let NodeType::FunctionDeclaration(_) = thing.node.as_ref() {
             }
             else if let NodeType::VariableDeclaration(ref v) = thing.node.as_ref() {
-                if v.var_value.is_some() {
+                if v.value.is_some() {
                     self.error(line!(), "Error while parsing {} body", "Expected only a function or variable declaration for trait: `trait NAME {{ TYPE: NAME = VALUEl; TYPE: NAME() {{ ... }} }}`", &thing.token.location);
                     return ASTNode::err();
                 }
@@ -451,8 +451,8 @@ impl<'a> Parser<'a> {
 
                 let var_decl = VariableDeclaration {
                     access_modifier,
-                    var_name: var_name.clone(),
-                    var_value,
+                    name: var_name.clone(),
+                    value: var_value,
                     var_type,
                     tags,
                     id: 0, // leave blank in parser
@@ -2487,6 +2487,7 @@ impl<'a> Parser<'a> {
                                 name: token.clone(),
                                 type_parameters: None,
                                 scope_type: None,
+                                type_id: 0
                             }],
                             type_modifiers: is_ptr_or_ref,
                             type_id: 0, // will be set later in the compiler
@@ -2931,6 +2932,7 @@ impl<'a> Parser<'a> {
                         name: token.clone(),
                         scope_type: last_punc.clone(),
                         type_parameters: if maybe_type_parameters.parameters.len() > 0 { Some(maybe_type_parameters) } else { None },
+                        type_id: 0
                     });
                     last_punc = None;
                     first_token = false;
@@ -3087,10 +3089,10 @@ impl<'a> Parser<'a> {
         match *node.node {
             NodeType::VariableDeclaration(ref value) => {
                 let var_type = Self::node_expr_to_string(&value.var_type, tab_level);
-                let var_name = value.var_name.value.clone();
+                let var_name = value.name.value.clone();
                 let access_modifiers = value.access_modifier.iter().map(|x| x.to_string() + " ").collect::<String>();
                 let tags = value.tags.iter().map(|x| x.to_string() + "\n" + &"    ".repeat(tab_level)).collect::<String>();
-                if let Some(v) = &value.var_value {
+                if let Some(v) = &value.value {
                     let var_value = Self::node_expr_to_string(v, tab_level);
                     format!("{}{}{}: {} = {}", tags, access_modifiers, var_type, var_name, var_value)
                 } else {

@@ -230,15 +230,15 @@ impl Token {
 }
     
 pub fn error(error_handling: &mut ErrorHandling, line: u32, title: &str, message: &str, location: &Location) {
-    error_handling.add_instance_error("lexer", line, file!(), message, title, location);
+    error_handling.add_instance_error("lexer", line, file!(), title, message, location);
 }
 
 pub fn warning(error_handling: &mut ErrorHandling, line: u32, title: &str, message: &str, location: &Location) {
-    error_handling.add_instance_warning("lexer", line, file!(), message, title, location);
+    error_handling.add_instance_warning("lexer", line, file!(), title, message, location);
 }
 
 pub fn message(error_handling: &mut ErrorHandling, line: u32, title: &str, message: &str, location: &Location) {
-    error_handling.add_instance_message("lexer", line, file!(), message, title, location);
+    error_handling.add_instance_message("lexer", line, file!(), title, message, location);
 }
 fn tokenize(error_handling: &mut ErrorHandling, macros: &mut Macros) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();

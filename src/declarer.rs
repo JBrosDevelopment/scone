@@ -13,30 +13,198 @@ pub fn declarer_pass_on_ast(transpiler: &mut Transpiler, error_handling: &mut Er
 #[derive(Debug)]
 pub struct Declarer<'a> {
     pub transpiler: &'a mut Transpiler,
-    pub output: &'a mut ErrorHandling
+    pub output: &'a mut ErrorHandling,
+    scope: Scope,
+    last_id: u32,
 }
 
 impl<'a> Declarer<'a> {
     pub fn new(transpiler: &'a mut Transpiler, error_handling: &'a mut ErrorHandling) -> Declarer<'a> {
-        Declarer { transpiler, output: error_handling }
+        Declarer { transpiler, output: error_handling, scope: Scope::new(), last_id: 0 }
     }
 
     #[allow(dead_code)]
     fn error(&mut self, line: u32, title: &str, message: &str, location: &Location) {
-        self.output.add_instance_error("declarer", line, file!(), message, title, location);
+        self.output.add_instance_error("declarer", line, file!(), title, message, location);
     }
 
     #[allow(dead_code)]
     fn warning(&mut self, line: u32, title: &str, message: &str, location: &Location) {
-        self.output.add_instance_warning("declarer", line, file!(), message, title, location);
+        self.output.add_instance_warning("declarer", line, file!(), title, message, location);
     }
 
     #[allow(dead_code)]
     fn message(&mut self, line: u32, title: &str, message: &str, location: &Location) {
-        self.output.add_instance_message("declarer", line, file!(), message, title, location);
+        self.output.add_instance_message("declarer", line, file!(), title, message, location);
+    }
+
+    fn next_id(&mut self) -> u32 {
+        self.last_id += 1;
+        self.last_id
+    }
+
+    fn get_symbol_by_name(&self, name: &String) -> Option<Symbol> {
+        self.transpiler.symbols.iter().find(|symbol| &symbol.name == name).cloned()
+    }
+
+    fn get_symbol_id(&mut self, name: &String) -> u32 {
+        self.get_symbol_by_name(name).filter(|c| c.scope.in_scope(&self.scope)).map(|c| c.id).unwrap_or_else(|| self.next_id())
+    }
+
+    fn get_symbol_type(&mut self, name: &String, default: ObjectTypes) -> ObjectTypes {
+        self.get_symbol_by_name(name).filter(|c| c.scope.in_scope(&self.scope)).map(|c| c.object_type).unwrap_or_else(|| default)
+    }
+
+    fn symbol_is_unique(&mut self, symbol: &Symbol) -> bool {
+        self.transpiler.symbols.iter().find(|x| x.id == symbol.id).is_none()
+    }
+
+    fn push_symbol(&mut self, symbol: Symbol) {
+        self.transpiler.symbols.push(symbol);
     }
 
     pub fn declare_pass(&mut self) {
+        let mut ast = std::mem::take(&mut self.transpiler.ast);
+    
+        for node in ast.iter_mut() {
+            self.pass_node(node);
+        }
+    
+        self.transpiler.ast = ast;
+    }
 
+    pub fn pass_vector_nodes(&mut self, nodes: &mut Vec<Box<ASTNode>>) {
+        let mut ast = std::mem::take(nodes);
+    
+        for node in ast.iter_mut() {
+            self.pass_node(node);
+        }
+    
+        *nodes = ast;
+    }
+
+    fn pass_node(&mut self, node: &mut ASTNode) {
+        match node.node.as_mut() {
+            NodeType::ArrayExpression(v) => self.pass_vector_nodes(&mut v.parameters),
+            NodeType::AsCast(v) => {
+                self.pass_node(&mut v.left);
+                self.pass_node(&mut v.right);
+                return;
+            }            
+            NodeType::Break(_) => return,
+            NodeType::ClassDeclaration(_) => {
+                self.error(line!(), "Class not supported", "Classes are not supported, use a `struct` instead", &node.token.location);
+                return;
+            }
+            NodeType::CodeBlock(v) => {
+                self.scope.increase();
+                self.pass_vector_nodes(&mut v.body);
+                self.scope.decrease();
+            }
+            NodeType::Constant(_) => return,
+            NodeType::Continue(_) => return,
+            NodeType::DeferStatement(v) => self.pass_node(v),
+            NodeType::Discard(_) => return,
+            NodeType::EnumDeclaration(v) => self.pass_enum(v),
+
+            NodeType::VariableDeclaration(v) => self.pass_variable(v),
+            NodeType::ScopedType(v) => self.pass_scoped_type(v),
+            NodeType::Identifier(v) => self.pass_identifier(v),
+            
+            _ => {
+                let message = format!("Node Type `{}` is not supported yet", node.node.to_string());
+                self.error(line!(), message.as_str(), message.as_str(), &node.token.location);
+                self.output.print_messages();
+                unimplemented!();
+            }
+        }
+    }
+
+    fn pass_enum(&mut self, enum_declaration: &mut EnumDeclaration) {
+        let name = &enum_declaration.name.value;
+        let object_type = ObjectTypes::Enum;
+        let id = self.get_symbol_id(name);
+        
+        let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
+        if self.symbol_is_unique(&symbol) {
+            self.push_symbol(symbol);
+        
+        } else {
+            self.error(line!(), "Symbol is not unique", format!("The name `{name}` is already in use").as_str(), &enum_declaration.name.location);
+        }
+
+        enum_declaration.type_id = id;
+
+        self.scope.increase();
+
+        for variant in enum_declaration.body.iter_mut() {
+            self.pass_enum_variant(variant);
+        }
+
+        self.scope.decrease();
+    }
+
+    fn pass_enum_variant(&mut self, enum_variant: &mut EnumVariant) {
+        let name = &enum_variant.name.value;
+        let object_type = ObjectTypes::EnumVariant;
+        let id = self.get_symbol_id(name);
+        
+        let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
+        if self.symbol_is_unique(&symbol) {
+            self.push_symbol(symbol);
+        
+        } else {
+            self.error(line!(), "Symbol is not unique", format!("The name `{name}` is already in use").as_str(), &enum_variant.name.location);
+        }
+    }
+
+    fn pass_variable(&mut self, variable_declaration: &mut VariableDeclaration) {
+        let name = &variable_declaration.name.value;
+        let object_type = ObjectTypes::Variable;
+        let id = self.get_symbol_id(name);
+        
+        let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
+        if self.symbol_is_unique(&symbol) {
+            self.push_symbol(symbol);
+        
+        } else {
+            self.error(line!(), "Symbol is not unique", format!("The name `{name}` is already in use").as_str(), &variable_declaration.name.location);
+        }
+
+        self.pass_node(&mut variable_declaration.var_type);
+
+        if let Some(value) = &mut variable_declaration.value {
+            self.pass_node(value);
+        }
+    }
+
+    fn pass_scoped_type(&mut self, scoped_type: &mut ScopedType) {
+        for node in scoped_type.scope.iter_mut() {
+            let name = &node.name.value;
+            let object_type = self.get_symbol_type(name, ObjectTypes::Identifier);
+            let id = self.get_symbol_id(name);
+
+            node.type_id = id;
+            
+            let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
+            if self.symbol_is_unique(&symbol) {
+                self.push_symbol(symbol);
+            }
+            
+            if let Some(type_parameters) = &mut node.type_parameters {
+                self.pass_vector_nodes(&mut type_parameters.parameters);
+            }
+        }
+    }
+
+    fn pass_identifier(&mut self, identifier: &mut Identifier) {
+        let name = &identifier.token.value;
+        let object_type = self.get_symbol_type(name, ObjectTypes::Identifier);
+        let id = self.get_symbol_id(name);
+        
+        let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
+        if self.symbol_is_unique(&symbol) {
+            self.push_symbol(symbol);
+        }
     }
 }

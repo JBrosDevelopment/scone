@@ -1,7 +1,28 @@
-struct Holder {
+enum A {
+    B, C, D
+}
+
+A: D;
+A: K;
+
+struct O {
+    E: I = A;
+    enum G {L}
+}
+
+O: J;
+
+/*struct Holder {
     struct Inner {
         static Inner: Value;
+        /////////////////////////
+        // FIX PARSER ///////////
+        /////////////////////////
     }
+    enum Types {
+        A, B, C
+    }
+    Types: Run();
 }
 
 Holder::Inner: A = Holder::Inner::Value;

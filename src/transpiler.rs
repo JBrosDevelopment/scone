@@ -30,7 +30,7 @@ pub fn transpile(ast: Vec<ASTNode>, error_handling: &mut ErrorHandling, macros: 
 pub struct Transpiler {
     pub ast: Vec<ASTNode>,
     pub macros: Macros,
-    pub symbols: DeclarationTree,
+    pub symbols: Vec<Symbol>,
     pub table: CodegenTable,
 }
 
@@ -40,7 +40,7 @@ impl Transpiler {
             ast,
             macros,
             table: CodegenTable::new(),
-            symbols: DeclarationTree::new()
+            symbols: vec![]
         }
     }
 }
@@ -60,19 +60,23 @@ pub fn function_is_static(func: FunctionHolder) -> bool {
 pub enum ObjectTypes {
     Function,
     Variable,
+    Trait,
     Struct,
     Enum,
+    EnumVariant,
+    Identifier
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct DeclarationTree {
+pub struct Symbol {
     pub name: String,
     pub object_type: ObjectTypes,
-    pub children: Vec<DeclarationTree>,
+    pub id: Id,
+    pub scope: Scope
 }
-impl DeclarationTree {
-    pub fn new() -> Self {
-        DeclarationTree { name: "".to_string(), object_type: ObjectTypes::Function, children: vec![] }
+impl Symbol {
+    pub fn new(name: String, object_type: ObjectTypes, id: Id, scope: Scope) -> Self {
+        Symbol { name, object_type, id, scope }
     }
 }
 
@@ -116,10 +120,10 @@ impl Scope {
         self.depth += 1;
     }
 
-    pub fn decrease_vertical(&mut self) {
+    pub fn decrease(&mut self) {
         if self.depth > 0 {
             self.depth -= 1;
-            self.index += 1;
+            // self.index += 1; // not the way to do this
         }
     }
 
@@ -127,7 +131,7 @@ impl Scope {
         if self.depth == other.depth && self.index == other.index {
             return true;
         }
-        if other.depth > self.depth && other.index == self.index {
+        if other.depth >= self.depth && other.index == self.index {
             return true;
         }
 
@@ -238,15 +242,6 @@ pub struct TypeHolder {
     pub type_id: TypeId,
     pub compatible_types: Vec<TypeId>,
     pub scope: Scope,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub enum TempObjectEnum {
-    Struct,
-    Function,
-    Trait,
-    Enum,
-    Variable
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -365,7 +360,7 @@ impl CodegenTable {
     }
 
     pub fn decrease_scope(&mut self) {
-        self.scope.decrease_vertical();
+        self.scope.decrease();
         self.inside_macro.pop();
     }
 

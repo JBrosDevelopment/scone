@@ -79,17 +79,17 @@ impl<'a> Resolver<'a> {
 
     #[allow(dead_code)]
     fn error(&mut self, line: u32, title: &str, message: &str, location: &Location) {
-        self.output.add_instance_error("resolver", line, file!(), message, title, location);
+        self.output.add_instance_error("resolver", line, file!(), title, message, location);
     }
 
     #[allow(dead_code)]
     fn warning(&mut self, line: u32, title: &str, message: &str, location: &Location) {
-        self.output.add_instance_warning("resolver", line, file!(), message, title, location);
+        self.output.add_instance_warning("resolver", line, file!(), title, message, location);
     }
 
     #[allow(dead_code)]
     fn message(&mut self, line: u32, title: &str, message: &str, location: &Location) {
-        self.output.add_instance_message("resolver", line, file!(), message, title, location);
+        self.output.add_instance_message("resolver", line, file!(), title, message, location);
     }
 
     fn get_type(&mut self, location: &Location, type_id: Option<TypeId>) -> Result<String, ()> {
@@ -299,31 +299,31 @@ impl<'a> Resolver<'a> {
     }
 
     fn variable_declaration(&mut self, variable_declaration: &mut VariableDeclaration, type_id: Option<TypeId>) -> Result<IdentifierEnum, ()> {
-        check_unexpected_type!(self, &variable_declaration.var_name.location, type_id, None::<TypeId>);
+        check_unexpected_type!(self, &variable_declaration.name.location, type_id, None::<TypeId>);
 
         // evaluate and get type id
         let type_id = self.evaluate_type(&variable_declaration.var_type)?;
 
         // check if variable name is unique
-        let name = variable_declaration.var_name.value.clone();
+        let name = variable_declaration.name.value.clone();
         if !self.transpiler.table.name_is_used_in_scope(&name) {
-            self.error(line!(), "Variable name is not unique", format!("Variable name `{}` is not unique", name).as_str(), &variable_declaration.var_name.location);
+            self.error(line!(), "Variable name is not unique", format!("Variable name `{}` is not unique", name).as_str(), &variable_declaration.name.location);
             return err!();
         }
         
         // evaluate value
         let value_id: Option<TypeId>;
-        if let Some(value) = &variable_declaration.var_value {
+        if let Some(value) = &variable_declaration.value {
             value_id = Some(self.evaluate_type(value)?);
         } else {
             value_id = None;
         }
 
         // check value type is compatible with type
-        check_unexpected_type!(self, &variable_declaration.var_value.clone().unwrap().token.location, Some(type_id), value_id);
+        check_unexpected_type!(self, &variable_declaration.value.clone().unwrap().token.location, Some(type_id), value_id);
 
         // create variable
-        let variable = self.transpiler.table.generate_variable(name, type_id, variable_declaration.var_value.is_some(), false, variable_declaration.access_modifier.clone(), variable_declaration.tags.clone(), variable_declaration.var_name.location.clone());
+        let variable = self.transpiler.table.generate_variable(name, type_id, variable_declaration.value.is_some(), false, variable_declaration.access_modifier.clone(), variable_declaration.tags.clone(), variable_declaration.name.location.clone());
 
         // update AST variable id
         variable_declaration.id = self.transpiler.table.get_identifier_enum_id(&variable);

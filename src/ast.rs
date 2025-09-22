@@ -251,8 +251,8 @@ pub struct ConstantNode {
 pub struct VariableDeclaration {
     pub access_modifier: Vec<AccessModifier>,
     pub var_type: Box<ASTNode>,
-    pub var_name: Box<Token>,
-    pub var_value: Option<Box<ASTNode>>,
+    pub name: Box<Token>,
+    pub value: Option<Box<ASTNode>>,
     pub tags: Vec<Tag>,
     pub id: transpiler::Id,
 }
@@ -419,6 +419,7 @@ pub struct TypeIdentifier {
     pub name: Box<Token>,
     pub scope_type: Option<ScopeType>,
     pub type_parameters: Option<NodeParameters>,
+    pub type_id: transpiler::TypeId
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
