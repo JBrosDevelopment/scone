@@ -549,8 +549,7 @@ impl<'a> Parser<'a> {
             parameters,
             body,
             tags,
-            id: 0, // leave blank in parser
-            return_symbol_id: None // leave blank in parser
+            symbol_id: 0, // leave blank in parser
         };
         self.__current_tags.clear(); 
 
@@ -2979,12 +2978,14 @@ impl<'a> Parser<'a> {
                         let constraints = self.get_expression(tokens, i, Self::PARSING_FOR_TYPE_CONSTRAINT);
                         parameters.push(AnonymousType {
                             name: token.clone(),
-                            constraints: Some(constraints)
+                            constraints: Some(constraints),
+                            symbol_id: 0,
                         });
                     } else {
                         parameters.push(AnonymousType {
                             name: token.clone(),
-                            constraints: None
+                            constraints: None,
+                            symbol_id: 0,
                         });
                     }
                 }
@@ -3050,7 +3051,7 @@ impl<'a> Parser<'a> {
                 params = false;
             }
 
-            parameters.push(DefinedNodeParameter { name, ty, default_value, params, is_const });
+            parameters.push(DefinedNodeParameter { name, ty, default_value, params, is_const, symbol_id: 0 });
 
             // check if next token is `,` or `)` 
             if let Some(nt) = tokens.get(*i) {

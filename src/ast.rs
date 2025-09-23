@@ -225,7 +225,8 @@ pub struct DefinedNodeParameter {
     pub name: Box<Token>,
     pub default_value: Option<Box<ASTNode>>,
     pub params: bool,
-    pub is_const: bool
+    pub is_const: bool,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -266,8 +267,7 @@ pub struct FunctionDeclaration {
     pub body: Option<CodeBlock>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
-    pub id: transpiler::Id,
-    pub return_symbol_id: Option<transpiler::Id>,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -321,7 +321,8 @@ pub struct EnumVariant {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct AnonymousType {
     pub name: Box<Token>,
-    pub constraints: Option<Box<ASTNode>>
+    pub constraints: Option<Box<ASTNode>>,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

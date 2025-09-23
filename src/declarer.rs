@@ -1,5 +1,7 @@
 // The purpose of this step is to go over the AST and grab the symbols of each type, and then add them to the symbol table
 
+use std::default;
+
 #[allow(unused_imports)]
 use crate::{ast::*, macros::*, lexer::*, transpiler::*, error_handling::{ErrorHandling, DEBUGGING, Message}, debug};
 
@@ -110,6 +112,9 @@ impl<'a> Declarer<'a> {
             NodeType::VariableDeclaration(v) => self.pass_variable(v),
             NodeType::ScopedType(v) => self.pass_scoped_type(v),
             NodeType::Identifier(v) => self.pass_identifier(v),
+            NodeType::StructDeclaration(v) => self.pass_struct(v),
+            NodeType::FunctionDeclaration(v) => self.pass_function_declaration(v),
+            NodeType::ScopedIdentifier(v) => self.pass_scoped_identifier(v),
             
             _ => {
                 let message = format!("Node Type `{}` is not supported yet", node.node.to_string());
@@ -204,6 +209,109 @@ impl<'a> Declarer<'a> {
         let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
         if self.symbol_is_unique(&symbol) {
             self.push_symbol(symbol);
+        }
+    }
+
+    fn pass_token(&mut self, token: &Box<Token>) {
+        let name = &token.value;
+        let object_type = self.get_symbol_type(name, ObjectTypes::Identifier);
+        let id = self.get_symbol_id(name);
+        
+        let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
+        if self.symbol_is_unique(&symbol) {
+            self.push_symbol(symbol);
+        }
+    }
+
+    fn pass_anonymous_types(&mut self, type_parameters: &mut Vec<AnonymousType>) {
+        for anonymous_type in type_parameters.iter_mut() {
+            self.pass_token(&anonymous_type.name);
+            anonymous_type.symbol_id = self.get_symbol_id(&anonymous_type.name.value);
+
+            if let Some(constraints) = &mut anonymous_type.constraints {
+                self.pass_node(constraints);
+            }
+        }
+    }
+
+    fn pass_struct(&mut self, struct_declaration: &mut StructDeclaration) {
+        let name = &struct_declaration.name.value;
+        let object_type = ObjectTypes::Struct;
+        let id = self.get_symbol_id(name);
+        
+        let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
+        if self.symbol_is_unique(&symbol) {
+            self.push_symbol(symbol);
+        } else {
+            self.error(line!(), "Symbol is not unique", format!("The name `{name}` is already in use").as_str(), &struct_declaration.name.location);
+        }
+
+        struct_declaration.symbol_id = id;
+
+        for extension in struct_declaration.extends.iter() {
+            self.pass_token(extension);
+        }
+
+        if let Some(type_parameters) = &mut struct_declaration.type_parameters {
+            self.pass_anonymous_types(&mut type_parameters.parameters);
+        }
+
+        self.scope.increase();
+
+        for node in struct_declaration.body.body.iter_mut() {
+            self.pass_node(node);
+        }
+
+        self.scope.decrease();
+    }
+
+    fn pass_function_declaration(&mut self, function_declaration: &mut FunctionDeclaration) {
+        let name = &function_declaration.name.value;
+        let object_type = ObjectTypes::Function;
+        let id = self.get_symbol_id(name);
+        
+        let symbol = Symbol::new(name.to_string(), object_type, id, self.scope.clone());
+        if self.symbol_is_unique(&symbol) {
+            self.push_symbol(symbol);
+        } else {
+            self.error(line!(), "Symbol is not unique", format!("The name `{name}` is already in use").as_str(), &function_declaration.name.location);
+        }
+
+        function_declaration.symbol_id = id;
+
+        self.pass_node(&mut function_declaration.return_type);
+
+        if let Some(type_parameters) = &mut function_declaration.type_parameters {
+            self.pass_anonymous_types(&mut type_parameters.parameters);
+        }
+
+        self.scope.increase();
+
+        for parameter in function_declaration.parameters.iter_mut() {
+            self.pass_token(&parameter.name);
+            self.pass_node(&mut parameter.ty);
+            if let Some(default_value) = &mut parameter.default_value {
+                self.pass_node(default_value);
+            }
+            parameter.symbol_id = self.get_symbol_id(&parameter.name.value);
+        }
+
+        if let Some(body) = &mut function_declaration.body {
+            for node in body.body.iter_mut() {
+                self.pass_node(node);
+            }
+        }
+
+        self.scope.decrease();
+    }
+
+    fn pass_scoped_identifier(&mut self, scoped_identifier: &mut ScopedIdentifier) {
+        for node in scoped_identifier.scope.iter_mut() {
+            self.pass_node(&mut node.expression);
+            
+            if let Some(type_parameters) = &mut node.type_parameters {
+                self.pass_vector_nodes(&mut type_parameters.parameters);
+            }
         }
     }
 }

@@ -91,51 +91,113 @@ pub type TypeId = u32;
 // each object has a vertical scope and a horizontal scope
 // foe example:
 /*
-    scope (0, 0)
+    scope = (0, 0)
     {
-        scope (1, 0)
+        scope = (1, 0)
         {
-            scope (2, 0)
+            scope = (2, 0)
         }
         {
-            scope (2, 1)
+            scope = (2, 1)
             {
-                scope (3, 1)
+                scope = (3, 1)
             }
         }
+        scope = (1, 0)
     }
 */
+// I can't lie, I couldn't figure it out, so Chat GPT made this for me lol
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Scope {
-    pub depth: u32,
-    pub index: u32
+    frames: Vec<Frame>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct Frame {
+    branch_id: u32,
+    next_child_counter: u32,
+    pending_sibling: bool,
 }
 
 impl Scope {
     pub fn new() -> Self {
-        Scope { depth: 0, index: 0 }
+        Self {
+            frames: vec![Frame {
+                branch_id: 0,
+                next_child_counter: 0,
+                pending_sibling: false,
+            }],
+        }
     }
 
+    /// Enter a nested scope.
+    /// - If we just returned to this frame (pending_sibling == true), create a new sibling branch
+    ///   using the parent's next_child_counter.
+    /// - Otherwise we are continuing inside the same branch: the child inherits the parent's branch_id.
+    /// In either case, ensure the parent's next_child_counter is updated to reflect that it has produced
+    /// at least one child.
     pub fn increase(&mut self) {
-        self.depth += 1;
+        // `frames` is never empty (root exists).
+        let parent = self.frames.last_mut().unwrap();
+
+        let child_branch_id = if parent.pending_sibling {
+            let id = parent.next_child_counter;
+            parent.next_child_counter = parent.next_child_counter.wrapping_add(1);
+            parent.pending_sibling = false;
+            id
+        } else {
+            // continuing the same branch; child inherits parent's branch id.
+            // but if this is the first child ever produced by the parent, consume slot 0.
+            if parent.next_child_counter == 0 {
+                parent.next_child_counter = 1; // mark that parent now has a first child
+            }
+            parent.branch_id
+        };
+
+        self.frames.push(Frame {
+            branch_id: child_branch_id,
+            next_child_counter: 0,
+            pending_sibling: false,
+        });
     }
 
+    /// Exit the current scope and return to parent.
+    /// Marks the parent so the next `increase()` will create a sibling (a new branch) under it.
     pub fn decrease(&mut self) {
-        if self.depth > 0 {
-            self.depth -= 1;
-            // self.index += 1; // not the way to do this
+        if self.frames.len() > 1 {
+            self.frames.pop();
+            if let Some(parent) = self.frames.last_mut() {
+                parent.pending_sibling = true;
+            }
         }
     }
 
+    /// `self` is a scope; return true if `other` is inside or equal to `self`.
+    /// We compare the branch-id sequence (frame-by-frame) as a prefix check.
     pub fn in_scope(&self, other: &Scope) -> bool {
-        if self.depth == other.depth && self.index == other.index {
-            return true;
+        if self.frames.len() > other.frames.len() {
+            return false;
         }
-        if other.depth >= self.depth && other.index == self.index {
-            return true;
+        for (i, f) in self.frames.iter().enumerate() {
+            if f.branch_id != other.frames[i].branch_id {
+                return false;
+            }
         }
+        true
+    }
 
-        false
+    /// root depth = 0
+    pub fn depth(&self) -> usize {
+        self.frames.len() - 1
+    }
+
+    /// the "index" you print: the branch id of the current frame
+    pub fn index(&self) -> u32 {
+        self.frames.last().unwrap().branch_id
+    }
+
+    pub fn coords(&self) -> (usize, u32) {
+        (self.depth(), self.index())
     }
 }
 

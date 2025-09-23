@@ -181,7 +181,7 @@ impl<'a> Resolver<'a> {
             if let Ok(e) = self.transpiler.table.get_type_name(&root_name) {
                 root_type_id = self.transpiler.table.get_type_enum_type_id(&e);
             } else {
-                debug!(self.transpiler.table);
+                //debug!(self.transpiler.table);
                 self.error(line!(), "Type does not exist", format!("Type `{}` does not exist", root_name).as_str(), &node.token.location);
                 self.transpiler.table.scope = capture_table_scope;
                 return err!();
