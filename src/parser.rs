@@ -1469,7 +1469,7 @@ impl<'a> Parser<'a> {
             if tokens.iter().any(|t| t.token_type == TokenType::Enum) {
                 expr_stack.push(Box::new(self.get_enum(tokens, i)));
             } else if tokens.iter().any(|t| t.token_type == TokenType::Class || t.token_type == TokenType::Struct) {
-                return Box::new(self.get_class_or_struct(tokens));
+                expr_stack.push(Box::new(self.get_class_or_struct(tokens)));
             } else if tokens.iter().any(|t| t.token_type == TokenType::Trait) {
                 self.error(line!(), "Can not define trait here", "Traits can only be defined at the top level", &tokens[0].location);
             } else if token.token_type == TokenType::Colon || token.token_type.is_access_modifier() {

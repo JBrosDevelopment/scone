@@ -26,12 +26,16 @@ fn main() {
     let mut macros = macros::Macros::new();
     
     // lexer
+    crate::error_handling::print_pipeline_operation("lexing");
+
     let tokens = lexer::lex(&mut error_handling, &mut macros);
 
     debut_out_contents!("src/testing/lexer.out.json", &tokens);
     crate::check_if_can_continue!(error_handling, true, ());
 
     // parser
+    crate::error_handling::print_pipeline_operation("parsing");
+
     let ast = parser::parse(tokens, &mut error_handling);
 
     let ast_string = ast::ast_as_string(&ast);
@@ -41,6 +45,8 @@ fn main() {
     crate::check_if_can_continue!(error_handling, true, ());
 
     // transpiler
+    crate::error_handling::print_pipeline_operation("lexing");
+    
     let out_code = transpiler::transpile(ast, &mut error_handling, macros);
 
     std::fs::write("src/testing/transpiler.out.c", out_code.clone()).unwrap();

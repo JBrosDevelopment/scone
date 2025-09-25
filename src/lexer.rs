@@ -242,8 +242,10 @@ pub fn message(error_handling: &mut ErrorHandling, line: u32, title: &str, messa
 }
 fn tokenize(error_handling: &mut ErrorHandling, macros: &mut Macros) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
-    let chars: Vec<char> = error_handling.full_code.chars().collect::<Vec<char>>();
+    let mut chars: Vec<char> = error_handling.full_code.chars().collect::<Vec<char>>();
     let mut current_location: Location = Location::new(1, 1, 0);
+
+    tokens.reserve(chars.len() / 2); // reserve half the size of chars as tokens, to reduce allocations
 
     let mut is_in_shebang_line = false;
     let mut macro_if_value: Option<bool> = None; // reflects value of `if` in shebangs
@@ -537,14 +539,18 @@ fn tokenize(error_handling: &mut ErrorHandling, macros: &mut Macros) -> Vec<Toke
 
             current_location.advance(name.len() as i32);
 
-            if let Some(_) = macros.get_variable(&name){
-                let  lexer_tokens = tokenize(error_handling, macros);
-                for t in lexer_tokens {
-                    tokens.push(t);
+            // changed this to stop stack overflow on recursively calling tokenize
+            if let Some(var) = macros.get_variable(&name) {
+                let expansion_chars: Vec<char> = var.value.chars().collect();
+            
+                chars.splice(i..i, expansion_chars);
+
+                if i > 0 {
+                    i -= 1;
                 }
-                last_was_negatable_ability -= 1;
+            
                 continue;
-            }
+            }            
 
             let new_token = match name.as_str() {
                 "true" | "false" => Token::new(TokenType::BoolConstant, name.clone(), current_location.clone()),

@@ -174,6 +174,14 @@ pub enum MessageType {
     Message
 }
 
+pub fn print_pipeline_operation(operation: &str) {
+    if DEBUGGING {
+        println!("{}{}", 
+        ErrorHandling::colored_text(255, 255, 255, operation, true),
+        ErrorHandling::colored_text(255, 255, 255, "...", true));
+    }
+}
+
 // if true, the pipeline will stop on the first error, meaning if an error occurs in the lexer, it will not continue to the parser
 pub const STOP_PIPELINE_ON_ERROR: bool = true;
 

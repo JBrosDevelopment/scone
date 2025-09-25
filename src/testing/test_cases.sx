@@ -1402,3 +1402,16 @@ pub safe struct Pair<A, B> {
         }
     }
 }
+
+struct Holder {
+    struct Inner {
+        static Inner: Value;
+    }
+    enum Types {
+        A, B, C
+    }
+    Types: Run();
+}
+
+Holder::Inner: A = Holder::Inner::Value;
+

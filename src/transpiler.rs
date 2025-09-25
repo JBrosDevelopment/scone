@@ -7,6 +7,7 @@ pub fn transpile(ast: Vec<ASTNode>, error_handling: &mut ErrorHandling, macros: 
     transpiler.table.add_default_types();
     
     // declarer pass
+    crate::error_handling::print_pipeline_operation("declaring pass");
     declarer::declarer_pass_on_ast(&mut transpiler, error_handling);
     
     // print out symbols
@@ -14,6 +15,7 @@ pub fn transpile(ast: Vec<ASTNode>, error_handling: &mut ErrorHandling, macros: 
     crate::check_if_can_continue!(error_handling, false, "".to_string());
     
     // resolver pass
+    crate::error_handling::print_pipeline_operation("resolver pass");
     resolver::resolver_pass_on_ast(&mut transpiler, error_handling);
     
     // print out table
