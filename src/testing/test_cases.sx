@@ -870,7 +870,7 @@ after;
 
 
 #! undef VERSION
-#! def VERSION "HELLO"
+#! def VERSION 0.2
 
 print(VERSION);
 

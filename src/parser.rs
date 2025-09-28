@@ -1466,16 +1466,17 @@ impl<'a> Parser<'a> {
                 }
             }
 
-            if tokens.iter().any(|t| t.token_type == TokenType::Enum) {
-                expr_stack.push(Box::new(self.get_enum(tokens, i)));
-            } else if tokens.iter().any(|t| t.token_type == TokenType::Class || t.token_type == TokenType::Struct) {
-                expr_stack.push(Box::new(self.get_class_or_struct(tokens)));
-            } else if tokens.iter().any(|t| t.token_type == TokenType::Trait) {
-                self.error(line!(), "Can not define trait here", "Traits can only be defined at the top level", &tokens[0].location);
-            } else if token.token_type == TokenType::Colon || token.token_type.is_access_modifier() {
+            if token.token_type == TokenType::Colon || token.token_type.is_access_modifier() {
                 if token.token_type.is_access_modifier() {
+                    if tokens.iter().any(|t| t.token_type == TokenType::Enum) {
+                        expr_stack.push(Box::new(self.get_enum(tokens, i)));
+                    } else if tokens.iter().any(|t| t.token_type == TokenType::Class || t.token_type == TokenType::Struct) {
+                        expr_stack.push(Box::new(self.get_class_or_struct(tokens)));
+                    } else if tokens.iter().any(|t| t.token_type == TokenType::Trait) {
+                        self.error(line!(), "Can not define trait here", "Traits can only be defined at the top level", &tokens[0].location);
+                    }
                     // set `i` equal to the `:` to match the `token.token_type == TokenType::Colon` match
-                    if let Some(index) = tokens.iter().skip(*i).position(|x| x.token_type == TokenType::Colon) {
+                    else if let Some(index) = tokens.iter().skip(*i).position(|x| x.token_type == TokenType::Colon) {
                         *i = index + *i;
                     } else {
                         self.error(line!(), "Unexpected token", "Didn't expect an access modifier here. Expects a declaration", &token.location);
@@ -2071,6 +2072,12 @@ impl<'a> Parser<'a> {
             } else if token.token_type == TokenType::Else {
                 self.error(line!(), "Else statement is by itself", "Else statement must be after if statement: `if EXPR {} else {}`", &tokens[0].location);
                 return Box::new(ASTNode::err());
+            } else if token.token_type == TokenType::Enum {
+                expr_stack.push(Box::new(self.get_enum(tokens, i)));
+            } else if token.token_type == TokenType::Class || token.token_type == TokenType::Struct {
+                expr_stack.push(Box::new(self.get_class_or_struct(tokens)));
+            } else if token.token_type == TokenType::Trait {
+                self.error(line!(), "Can not define trait here", "Traits can only be defined at the top level", &tokens[0].location);
             } else if token.token_type == TokenType::Shebang {
                 if *i != 0 {
                     self.error(line!(), "Unexpected Shebang token", "Shebang must be at the start of a line: `#! ...`", &token.location);
@@ -2975,6 +2982,7 @@ impl<'a> Parser<'a> {
                     if tokens[*i + 1].token_type == TokenType::Is {
                         Self::inc(i);
                         Self::inc(i);
+                        
                         let constraints = self.get_expression(tokens, i, Self::PARSING_FOR_TYPE_CONSTRAINT);
                         parameters.push(AnonymousType {
                             name: token.clone(),

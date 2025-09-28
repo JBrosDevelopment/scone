@@ -542,15 +542,11 @@ fn tokenize(error_handling: &mut ErrorHandling, macros: &mut Macros) -> Vec<Toke
             // changed this to stop stack overflow on recursively calling tokenize
             if let Some(var) = macros.get_variable(&name) {
                 let expansion_chars: Vec<char> = var.value.chars().collect();
-            
+                
                 chars.splice(i..i, expansion_chars);
 
-                if i > 0 {
-                    i -= 1;
-                }
-            
                 continue;
-            }            
+            }
 
             let new_token = match name.as_str() {
                 "true" | "false" => Token::new(TokenType::BoolConstant, name.clone(), current_location.clone()),

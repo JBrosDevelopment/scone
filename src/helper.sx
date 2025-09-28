@@ -3,8 +3,15 @@ every structure needs to have constructor, destructor, and clone
 */
 
 
+////////////////////////////////////
+// use keyword
+const File = use "src/file.sx";
+File::import();
 
-
+const TextureModule = use "src/texture.sx";
+const Texture = use TextureModule::Texture;
+Texture: thing = TextureModule::load("res/texture.png");
+////////////////////////////////////
 
 
 #! ifndef HELPER
