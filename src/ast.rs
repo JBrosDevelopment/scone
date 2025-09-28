@@ -60,7 +60,7 @@ pub enum NodeType {
     Shebang(ShebangType),
     
     // declare
-    TupleDeclaration(TupleDeclaration),
+    TupleDeclaration(NodeParameters),
     VariableDeclaration(VariableDeclaration),
     FunctionDeclaration(FunctionDeclaration),
     ClassDeclaration(ClassDeclaration),
@@ -240,6 +240,7 @@ pub struct FunctionCall {
     pub parameters: NodeParameters,
     pub type_parameters: Option<NodeParameters>,
     pub name: Box<Token>,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -255,7 +256,7 @@ pub struct VariableDeclaration {
     pub name: Box<Token>,
     pub value: Option<Box<ASTNode>>,
     pub tags: Vec<Tag>,
-    pub id: transpiler::Id,
+    pub symbol: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -315,7 +316,7 @@ pub struct EnumDeclaration {
 pub struct EnumVariant {
     pub name: Box<Token>,
     pub value: Option<Box<ASTNode>>,
-    pub id: transpiler::Id,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -364,7 +365,7 @@ pub struct IdentifierExpression {
 pub struct ConditionalRegion {
     pub condition: Box<ASTNode>,
     pub body: CodeBlock,
-    pub else_if_regions: Option<Vec<Box<ConditionalRegion>>>,
+    pub else_if_regions: Vec<Box<ConditionalRegion>>,
     pub else_region: Option<CodeBlock>,
     pub is_while: bool
 }
@@ -411,11 +412,6 @@ pub struct Expression {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
-pub struct TupleDeclaration {
-    pub parameters: NodeParameters,
-}
-
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct TypeIdentifier {
     pub name: Box<Token>,
     pub scope_type: Option<ScopeType>,
@@ -428,7 +424,6 @@ pub struct ScopedType {
     pub token: Box<Token>,
     pub scope: Vec<TypeIdentifier>,
     pub type_modifiers: Vec<TypeModifier>,
-    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -457,6 +452,7 @@ pub struct ObjectInstantiation {
     pub object_type: Box<Token>,
     pub type_parameters: Option<NodeParameters>,
     pub properties: Vec<NodeProperty>,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -551,7 +547,7 @@ pub struct ReturnConditional {
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct Identifier {
     pub token: Box<Token>,
-    pub id: transpiler::Id
+    pub symbol_id: transpiler::Id
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

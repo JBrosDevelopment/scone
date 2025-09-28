@@ -368,7 +368,7 @@ impl<'a> Parser<'a> {
         let name = tokens[i].clone();
         let identifier_name = Identifier {
             token: name,
-            id: 0, // leave blank in parser
+            symbol_id: 0, // leave blank in parser
         };
 
         if tokens.len() != i + 1 {
@@ -466,7 +466,7 @@ impl<'a> Parser<'a> {
                     value: var_value,
                     var_type,
                     tags,
-                    id: 0, // leave blank in parser
+                    symbol: 0, // leave blank in parser
                 };
                 self.__current_tags.clear(); 
 
@@ -619,12 +619,12 @@ impl<'a> Parser<'a> {
         for expession in expessions.parameters {
             if let NodeType::Identifier(ref name) = *expession.node {
                 let nametok = name.token.clone();
-                body.push(EnumVariant { name: nametok, value: None, id: 0 });
+                body.push(EnumVariant { name: nametok, value: None, symbol_id: 0 });
             } else if let NodeType::Operator(ref value) = *expession.node {
                 if value.operator.token_type == TokenType::Assign {
                     if let NodeType::Identifier(ref name) = *value.left.node {
                         let nametok = name.token.clone();
-                        body.push(EnumVariant { name: nametok, value: Some(value.right.clone()), id: 0 });
+                        body.push(EnumVariant { name: nametok, value: Some(value.right.clone()), symbol_id: 0 });
                     } else {
                         self.error(line!(), "Error parsing enum, Expected identifier", format!("Expected identifier in enum declaration but found `{}`: `enum NAME {{ ... }}`", value.left.token.value).as_str(), &value.left.token.location);
                     }
@@ -886,7 +886,7 @@ impl<'a> Parser<'a> {
         let (condition, body) = self.get_condition_and_body_for_if(tokens, i);
 
         let mut else_region: Option<CodeBlock> = None;
-        let mut else_if_regions: Option<Vec<Box<ConditionalRegion>>> = None;
+        let mut else_if_regions: Vec<Box<ConditionalRegion>> = vec![];
 
 
         while tokens.get(*i).map_or(false, |t| t.token_type == TokenType::Else) {
@@ -895,16 +895,12 @@ impl<'a> Parser<'a> {
                 // else if 
                 let is_while = tokens[*i].token_type == TokenType::While;
                 let (else_if_condition, else_if_body) = self.get_condition_and_body_for_if(tokens, i);
-                
-                if else_if_regions.is_none() {
-                    else_if_regions = Some(vec![]);
-                }
 
-                else_if_regions.as_mut().unwrap().push(Box::new(ConditionalRegion {
+                else_if_regions.push(Box::new(ConditionalRegion {
                     body: else_if_body,
                     condition: else_if_condition,
                     else_region: None,
-                    else_if_regions: None,
+                    else_if_regions: vec![],
                     is_while
                 }));
             } else if else_region.is_none() {
@@ -959,6 +955,7 @@ impl<'a> Parser<'a> {
             parameters: node_parameters,
             name: name.clone(),
             type_parameters: type_parameters.is_empty().then(|| None).unwrap_or(Some(NodeParameters { parameters: type_parameters, token: name.clone() })),
+            symbol_id: 0, // leave blank in parser
         };
 
         let identifier = IdentifierExpression {
@@ -1043,7 +1040,7 @@ impl<'a> Parser<'a> {
                 scope_type: last_punc,
                 expression: Box::new(ASTNode {
                     token: tokens[*i - 1].clone(),
-                    node: Box::new(NodeType::Identifier(Identifier { token: tokens[*i - 1].clone(), id: 0 })),
+                    node: Box::new(NodeType::Identifier(Identifier { token: tokens[*i - 1].clone(), symbol_id: 0 })),
                 }),
                 type_parameters: None
             });
@@ -1090,7 +1087,7 @@ impl<'a> Parser<'a> {
                 scope_type: last_punc,
                 expression: Box::new(ASTNode {
                     token: tokens[*i - 1].clone(),
-                    node: Box::new(NodeType::Identifier(Identifier { token: tokens[*i - 1].clone(), id: 0 })),
+                    node: Box::new(NodeType::Identifier(Identifier { token: tokens[*i - 1].clone(), symbol_id: 0 })),
                 }),
                 type_parameters: None
             });
@@ -1195,7 +1192,11 @@ impl<'a> Parser<'a> {
 
     fn get_array_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ScopedIdentifier {
         let first_token = tokens[*i].clone();
-        let array_nodes = self.get_node_parameters(tokens, i, Self::PARSING_FOR_ARRAY);
+        let mut array_nodes = self.get_node_parameters(tokens, i, Self::PARSING_FOR_ARRAY);
+
+        if array_nodes.parameters.len() == 1 && *array_nodes.parameters[0] == ASTNode::err() {
+            array_nodes.parameters.clear();
+        }
 
         // Update the last identifier's expression if possible
         let mut scope = ScopedIdentifier {
@@ -1269,7 +1270,8 @@ impl<'a> Parser<'a> {
         let object_instantiation = ObjectInstantiation {
             properties,
             object_type: name_token.clone(),
-            type_parameters
+            type_parameters,
+            symbol_id: 0
         };
 
         let mut scope = scope.unwrap_or(ScopedIdentifier {
@@ -1639,7 +1641,7 @@ impl<'a> Parser<'a> {
                         if !last_was_ident {
                             let node = Box::new(ASTNode {
                                 token: token.clone(),
-                                node: Box::new(NodeType::Identifier(Identifier { token: token.clone(), id: 0 })),
+                                node: Box::new(NodeType::Identifier(Identifier { token: token.clone(), symbol_id: 0 })),
                             });
                             expr_stack.push(node);
                         }
@@ -1656,7 +1658,7 @@ impl<'a> Parser<'a> {
                     }
                     let node = Box::new(ASTNode {
                         token: token.clone(),
-                        node: Box::new(NodeType::Identifier(Identifier { token: token.clone(), id: 0 })),
+                        node: Box::new(NodeType::Identifier(Identifier { token: token.clone(), symbol_id: 0 })),
                     });
                     expr_stack.push(node);
                 }
@@ -1929,7 +1931,7 @@ impl<'a> Parser<'a> {
                             expression: expr_stack.pop().unwrap_or(
                                 Box::new(ASTNode {
                                     token: tokens[*i - 1].clone(),
-                                    node: Box::new(NodeType::Identifier(Identifier { token: tokens[*i - 1].clone(), id: 0} )),
+                                    node: Box::new(NodeType::Identifier(Identifier { token: tokens[*i - 1].clone(), symbol_id: 0} )),
                                 })),
                             scope_type: None,
                             type_parameters: None
@@ -2507,7 +2509,6 @@ impl<'a> Parser<'a> {
                                 symbol_id: 0
                             }],
                             type_modifiers: is_ptr_or_ref,
-                            symbol_id: 0, // will be set later in the compiler
                         }))
                     });
                 }
@@ -2534,9 +2535,7 @@ impl<'a> Parser<'a> {
                 let tuple = self.get_tuple_node_parameters(&mut copy_tokens, i);
                 return Box::new(ASTNode {
                     token: first_token.clone(),
-                    node: Box::new(NodeType::TupleDeclaration(TupleDeclaration {
-                        parameters: tuple
-                    }))
+                    node: Box::new(NodeType::TupleDeclaration(tuple))
                 });
             }
             else if first_token.token_type == TokenType::LBrace {
@@ -2675,7 +2674,6 @@ impl<'a> Parser<'a> {
             token,
             scope,
             type_modifiers: is_ptr_or_ref,
-            symbol_id: 0, // will be set later in the compiler
         }
     }
 
@@ -2844,7 +2842,7 @@ impl<'a> Parser<'a> {
                     scope.scope.push(IdentifierExpression {
                         expression: Box::new(ASTNode {
                             token: token.clone(),
-                            node: Box::new(NodeType::Identifier(Identifier { token: token.clone(), id: 0 })),
+                            node: Box::new(NodeType::Identifier(Identifier { token: token.clone(), symbol_id: 0 })),
                         }),
                         scope_type: last_punc.clone(),
                         type_parameters
@@ -3150,8 +3148,8 @@ impl<'a> Parser<'a> {
             }
             NodeType::TupleDeclaration(ref value) => {
                 let mut tuple = "".to_string();
-                for (index, param) in value.parameters.parameters.iter().enumerate() {
-                    tuple += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
+                for (index, param) in value.parameters.iter().enumerate() {
+                    tuple += format!("{}{}", Self::node_expr_to_string(param, tab_level).as_str(), value.parameters.get(index + 1).is_some().then(|| ", ").unwrap_or("")).as_str();
                 }
                 format!("({})", tuple)
             }
@@ -3330,19 +3328,17 @@ impl<'a> Parser<'a> {
                 body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
                 
                 let mut else_if_string = "".to_string();
-                if let Some(else_if) = value.else_if_regions.clone() {
-                    for region in else_if.iter() {
-                        let condition = Self::node_expr_to_string(&region.condition, tab_level);
-                        let mut body = "".to_string();
-                        tab_level += 1;
-                        for param in region.body.body.iter() {
-                            body += format!("{}{}{}", "    ".repeat(tab_level), Self::node_expr_to_string(&param, tab_level).as_str(), ";\n").as_str();
-                        }
-                        tab_level -= 1;
-                        body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
-                        let regional_if_name = region.is_while.then(|| "while").unwrap_or("if");
-                        else_if_string += format!("\n{}else {} {} {}", "    ".repeat(tab_level), regional_if_name, condition, body).as_str();
+                for region in value.else_if_regions.iter() {
+                    let condition = Self::node_expr_to_string(&region.condition, tab_level);
+                    let mut body = "".to_string();
+                    tab_level += 1;
+                    for param in region.body.body.iter() {
+                        body += format!("{}{}{}", "    ".repeat(tab_level), Self::node_expr_to_string(&param, tab_level).as_str(), ";\n").as_str();
                     }
+                    tab_level -= 1;
+                    body = format!("{{\n{}{}}}", body, "    ".repeat(tab_level));
+                    let regional_if_name = region.is_while.then(|| "while").unwrap_or("if");
+                    else_if_string += format!("\n{}else {} {} {}", "    ".repeat(tab_level), regional_if_name, condition, body).as_str();
                 }
 
                 let mut else_string = "".to_string();

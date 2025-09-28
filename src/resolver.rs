@@ -326,7 +326,7 @@ impl<'a> Resolver<'a> {
         let variable = self.transpiler.table.generate_variable(name, type_id, variable_declaration.value.is_some(), false, variable_declaration.access_modifier.clone(), variable_declaration.tags.clone(), variable_declaration.name.location.clone());
 
         // update AST variable id
-        variable_declaration.id = self.transpiler.table.get_identifier_enum_id(&variable);
+        variable_declaration.symbol = self.transpiler.table.get_identifier_enum_id(&variable);
 
         // add variable to table
         self.transpiler.table.add_identifier_scope(variable.clone());

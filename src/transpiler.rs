@@ -12,6 +12,7 @@ pub fn transpile(ast: Vec<ASTNode>, error_handling: &mut ErrorHandling, macros: 
     
     // print out symbols
     crate::debut_out_contents!("src/testing/symbols.out.json", &transpiler.symbols);
+    crate::debut_out_contents!("src/testing/declarer_pass.ast.out.json", &transpiler.ast);
     crate::check_if_can_continue!(error_handling, false, "".to_string());
     
     // resolver pass
@@ -66,7 +67,8 @@ pub enum ObjectTypes {
     Struct,
     Enum,
     EnumVariant,
-    Identifier
+    Identifier,
+    GenericType
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

@@ -1,11 +1,25 @@
-struct Holder {
-    struct Inner {
-        static Inner: Value;
-    }
-    enum Types {
-        A, B, C
-    }
-    Types: Run();
-}
+struct Iterator<T> {
+    vector<T>: items = [];
+    usize: index = 0;
 
-Holder::Inner: A = Holder::Inner::Value;
+    pub T: next() {
+        T: items[index];
+        index += 1;
+        return T;
+    }
+    pub bool: has_next() {
+        return index < items.len();
+    }
+    pub void: reset() {
+        index = 0;
+    }
+    pub usize: len() {
+        return items.len();
+    }
+    pub T: get(usize: i) {
+        return items[i];
+    }
+    pub T: peek() {
+        return items[index];
+    }
+}
