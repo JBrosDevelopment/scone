@@ -52,7 +52,7 @@ pub enum NodeType {
     ReturnConditionalExpression(ReturnConditional),
 
     // other
-    Use(Box<Token>),
+    Use(UseExpression),
     AsCast(Expression),
     IsCheck(Expression),
     CodeBlock(CodeBlock),
@@ -552,4 +552,10 @@ pub struct ReturnConditional {
 pub struct Identifier {
     pub token: Box<Token>,
     pub id: transpiler::Id
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct UseExpression {
+    pub name: Box<Token>,
+    pub path: Box<Token>
 }

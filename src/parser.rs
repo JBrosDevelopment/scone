@@ -92,16 +92,27 @@ impl<'a> Parser<'a> {
             TokenType::For => { // this is so that `for i = 0, i < 10, i += 1` doesn't parse as a variable assignment with the `=`
                 return *self.get_expression(tokens, &mut set_i_to_zero, Self::NORMAL_PARSING);
             }
-            TokenType::Use => {
-                if tokens.len() != 2 {
-                    self.error(line!(), "Error parsing `use` statement", "`use` statement must have exactly one argument", &tokens[0].location);
-                    return ASTNode::err();
+            TokenType::Const => {
+                if tokens.get(2).is_some_and(|t| t.token_type == TokenType::Assign) && tokens.get(3).is_some_and(|t| t.token_type == TokenType::Use) {   
+                    let name = tokens[1].clone();
+                    if tokens.len() < 5 {
+                        self.error(line!(), "Error parsing `use` statement", "Expected `use` statement to have name and path: `const NAME = use \"PATH\"`", &tokens[0].location);
+                        return ASTNode::err();
+                    }
+                    if tokens[4].token_type == TokenType::StringConstant {
+                        // is a path
+                        let path = tokens[4].clone();
+                        return ASTNode {
+                            token: tokens[0].clone(),
+                            node: Box::new(NodeType::Use(UseExpression {
+                                name,
+                                path
+                            }))
+                        };
+                    } else {
+                        self.error(line!(), "Error parsing `use` statement", "Expected `use` statement to have a string constant as path: `const NAME = use \"PATH\"`", &tokens[4].location);
+                    }
                 }
-                let name = tokens[1].clone();
-                return ASTNode {
-                    node: Box::new(NodeType::Use(name)),
-                    token: tokens[0].clone(),
-                };
             }
             TokenType::TypeDef => {
                 return self.get_typedef(tokens);
@@ -3403,7 +3414,7 @@ impl<'a> Parser<'a> {
                 "_".to_string()
             }
             NodeType::Use(ref value) => {
-                format!("use \"{}\"", value.value)
+                format!("const {} = use \"{}\"", value.name.value, value.path.value)
             }
             NodeType::Shebang(ref value) => {
                 match value {
