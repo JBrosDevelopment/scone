@@ -4,6 +4,7 @@ use crate::{ast::*, macros::*, lexer::*, transpiler::*, error_handling::{ErrorHa
 
 pub fn declarer_pass_on_ast(transpiler: &mut Transpiler, error_handling: &mut ErrorHandling) {
     let mut declarer = Declarer::new(transpiler, error_handling);
+    declarer.add_default_symbols();
     declarer.declare_pass();
 
     error_handling.print_messages();
@@ -356,6 +357,9 @@ impl<'a> Declarer<'a> {
 
         self.scope.increase();
 
+        let self_symbol = Symbol::new("Self".to_string(), ObjectTypes::Struct, self.get_symbol_id(&"Self".to_string()), self.scope.clone());
+        self.push_symbol(self_symbol);
+
         if let Some(type_parameters) = &mut struct_declaration.type_parameters {
             self.pass_anonymous_types(&mut type_parameters.parameters);
         }
@@ -528,8 +532,11 @@ impl<'a> Declarer<'a> {
         for extension in trait_declaration.extends.iter() {
             self.pass_token(extension);
         }
-
+        
         self.scope.increase();
+
+        let self_symbol = Symbol::new("Self".to_string(), ObjectTypes::Struct, self.get_symbol_id(&"Self".to_string()), self.scope.clone());
+        self.push_symbol(self_symbol);
 
         for node in trait_declaration.body.body.iter_mut() {
             self.pass_node(node);
@@ -551,5 +558,32 @@ impl<'a> Declarer<'a> {
         }
 
         self.pass_node(&mut typedef.type_definition);
+    }
+
+    fn add_default_symbols(&mut self) {
+        let default_symbols = vec![
+            Symbol::new("i8".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("i16".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("i32".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("i64".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("u8".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("u16".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("u32".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("u64".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("f32".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("f64".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("string".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("bool".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("void".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
+            Symbol::new("true".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
+            Symbol::new("false".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
+            Symbol::new("null".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
+        ];
+
+        for symbol in default_symbols {
+            if self.symbol_is_unique(&symbol) {
+                self.push_symbol(symbol);
+            }
+        }
     }
 }
