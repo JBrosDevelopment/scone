@@ -1,6 +1,7 @@
 // The purpose of this step is to go over the AST and grab the symbols of each type, and then add them to the symbol table
 #[allow(unused_imports)]
 use crate::{ast::*, macros::*, lexer::*, transpiler::*, error_handling::{ErrorHandling, DEBUGGING, Message}, debug};
+use std::rc::Rc;
 
 pub fn declarer_pass_on_ast(transpiler: &mut Transpiler, error_handling: &mut ErrorHandling) {
     let mut declarer = Declarer::new(transpiler, error_handling);
@@ -19,8 +20,13 @@ pub struct Declarer<'a> {
 }
 
 impl<'a> Declarer<'a> {
-    pub fn new(transpiler: &'a mut Transpiler, error_handling: &'a mut ErrorHandling) -> Declarer<'a> {
-        Declarer { transpiler, output: error_handling, scope: Scope::new(), last_id: 0 }
+    pub fn new(transpiler: &'a mut Transpiler, error_handling: &'a mut ErrorHandling) -> Self {
+        Self {
+            transpiler,
+            output: error_handling,
+            scope: Scope::new(),
+            last_id: 0,
+        }
     }
 
     #[allow(dead_code)]
@@ -43,7 +49,7 @@ impl<'a> Declarer<'a> {
         self.last_id
     }
 
-    fn get_symbol_by_name(&self, name: &String) -> Option<Symbol> {
+    fn get_symbol_by_name(&self, name: &String) -> Option<Rc<Symbol>> {
         self.transpiler.symbols.iter().find(|symbol| &symbol.name == name).cloned()
     }
 
@@ -52,7 +58,7 @@ impl<'a> Declarer<'a> {
     }
 
     fn get_symbol_type(&mut self, name: &String, default: ObjectTypes) -> ObjectTypes {
-        self.get_symbol_by_name(name).filter(|c| c.scope.in_scope(&self.scope)).map(|c| c.object_type).unwrap_or_else(|| default)
+        self.get_symbol_by_name(name).filter(|c| c.scope.in_scope(&self.scope)).map(|c| c.object_type.clone()).unwrap_or_else(|| default)
     }
 
     fn symbol_is_unique(&mut self, symbol: &Symbol) -> bool {
@@ -60,7 +66,7 @@ impl<'a> Declarer<'a> {
     }
 
     fn push_symbol(&mut self, symbol: Symbol) {
-        self.transpiler.symbols.push(symbol);
+        self.transpiler.symbols.push(Rc::new(symbol));
     }
 
     pub fn declare_pass(&mut self) {
@@ -247,7 +253,7 @@ impl<'a> Declarer<'a> {
             self.error(line!(), "Symbol is not unique", format!("The name `{name}` is already in use").as_str(), &variable_declaration.name.location);
         }
 
-        variable_declaration.symbol = id;
+        variable_declaration.symbol_id = id;
 
         self.pass_node(&mut variable_declaration.var_type);
 
@@ -575,9 +581,11 @@ impl<'a> Declarer<'a> {
             Symbol::new("string".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
             Symbol::new("bool".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
             Symbol::new("void".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
-            Symbol::new("true".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
-            Symbol::new("false".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
-            Symbol::new("null".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
+            
+            // these will be defined in std.sx using #! def
+            // Symbol::new("null".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
+            // Symbol::new("true".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
+            // Symbol::new("false".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
         ];
 
         for symbol in default_symbols {

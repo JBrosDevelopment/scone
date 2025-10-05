@@ -256,7 +256,7 @@ pub struct VariableDeclaration {
     pub name: Box<Token>,
     pub value: Option<Box<ASTNode>>,
     pub tags: Vec<Tag>,
-    pub symbol: transpiler::Id,
+    pub symbol_id: transpiler::Id,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]

@@ -1,25 +1,5 @@
-struct Iterator<T> {
-    vector<T>: items = [];
-    usize: index = 0;
+//#! def true 1
+//#! def false 0
+//#! def NULL 0
 
-    pub T: next() {
-        T: items[index];
-        index += 1;
-        return T;
-    }
-    pub bool: has_next() {
-        return index < items.len();
-    }
-    pub void: reset() {
-        index = 0;
-    }
-    pub usize: len() {
-        return items.len();
-    }
-    pub T: get(usize: i) {
-        return items[i];
-    }
-    pub T: peek() {
-        return items[index];
-    }
-}
+i32: A = 0;

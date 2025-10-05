@@ -45,7 +45,7 @@ fn main() {
     crate::check_if_can_continue!(error_handling, true, ());
 
     // transpiler
-    crate::error_handling::print_pipeline_operation("lexing");
+    crate::error_handling::print_pipeline_operation("transpiling");
     
     let out_code = transpiler::transpile(ast, &mut error_handling, macros);
 

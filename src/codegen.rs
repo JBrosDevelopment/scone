@@ -1001,3 +1001,381 @@ impl GenerateC {
         }
     }
 }*/
+
+/*
+
+
+    fn get_type(&mut self, location: &Location, type_id: Option<TypeId>) -> Result<String, ()> {
+        if let Some(type_id) = type_id {
+            if let Ok(ty) = self.transpiler.table.get_type_id(type_id) {
+                Ok(self.transpiler.table.get_type_enum_name(&ty))
+            } else {
+                self.error(line!(), "Type does not exist", format!("Type with the id `{}` does not exist", type_id).as_str(), location);
+                return Err(());
+            }
+        } else {
+            self.error(line!(), "No current type", "Expected to return a specific type here", location);
+            return Err(());
+        }
+    }
+    pub fn resolve_pass(&mut self) {
+        for index in 0..self.transpiler.ast.len() {
+            let mut node = self.transpiler.ast[index].clone();
+            _ = self.check_node(&mut node, None, false);
+        }
+    }
+
+    fn check_if_node_is_constant(&mut self, node: &ASTNode, type_id: Option<TypeId>) -> Result<(), ()> {
+        todo!()
+    }
+
+    fn check_node(&mut self, node: &mut ASTNode, type_id: Option<TypeId>, constant: bool) -> Result<(), ()> {
+        if constant {
+            return self.check_if_node_is_constant(node, type_id);
+        }
+        match node.node.as_mut() {
+            NodeType::Constant(v) => self.constant(v, type_id),
+            NodeType::VariableDeclaration(v) => {
+                if let Ok(_) = self.variable_declaration(v, type_id) {
+                    return ok!();
+                } else {
+                    return Err(());
+                }
+            }
+            NodeType::StructDeclaration(v) => {
+                if let Ok(_) = self.struct_declaration(v, type_id) {
+                    return ok!();
+                } else {
+                    return Err(());
+                }
+            }
+            _ => {
+                let message = format!("Node Type `{}` is not supported yet", node.node.to_string());
+                self.error(line!(), message.as_str(), message.as_str(), &node.token.location);
+                self.output.print_messages();
+                todo!();
+            }
+        }
+    }
+
+    fn evaluate_type(&mut self, node: &ASTNode) -> Result<TypeId, ()> {
+        match node.node.as_ref() {
+            NodeType::Constant(ref v) => self.constant_type(v),
+            NodeType::ScopedType(ref v) => self.scoped_type(v),
+            _ => {
+                let message = format!("Node Type `{}` is not supported yet", node.node.to_string());
+                self.error(line!(), message.as_str(), message.as_str(), &node.token.location);
+                self.output.print_messages();
+                todo!();
+            }
+        }
+    }
+
+    fn scoped_type(&mut self, node: &ScopedType) -> Result<TypeId, ()> {
+        if node.scope.is_empty() {
+            self.error(line!(), "No scope in type", "Expected type to have a scope", &node.token.location);
+            return Err(());
+        }
+        
+        // check for scoping errors
+        if node.scope.iter().skip(1).enumerate().any(|(_, x)| x.scope_type != Some(ScopeType::DoubleColon)) {
+            // all scoping needs to be done with double colons
+            self.error(line!(), "Invalid scoping", "Expected all type scoping to use `::`, for example `A::B::C", &node.token.location);
+            return Err(());
+        }
+        let capture_table_scope = self.transpiler.table.scope.clone();
+
+        // go through the scope, each time, removing the first element of the scope
+        let mut scope = node.scope.clone();
+        let mut root_type_id: TypeId = 0;
+        while scope.len() > 0 {
+            // get the root type
+            let root_name = scope[0].name.value.clone();
+            if let Ok(e) = self.transpiler.table.get_type_name(&root_name) {
+                root_type_id = self.transpiler.table.get_type_enum_type_id(&e);
+            } else {
+                //debug!(self.transpiler.table);
+                self.error(line!(), "Type does not exist", format!("Type `{}` does not exist", root_name).as_str(), &node.token.location);
+                self.transpiler.table.scope = capture_table_scope;
+                return Err(());
+            }
+            
+            // get the id of the root type if it is a module, ie. struct or enum 
+            let root_type_module_id = self.transpiler.table.get_module_identifier_enum_id_from_type_id(root_type_id).ok();
+            
+            if root_type_module_id.is_none() {
+                if scope.len() > 1 {
+                    // an error occurs because the root type is not a module, meaning it can't scope into anything because it doesn't know where to scope into
+                    self.error(line!(), "Invalid scoping", "Expected the root type to be a module, eg. `struct`, `enum`", &node.token.location);
+                    self.transpiler.table.scope = capture_table_scope;
+                    return Err(());
+                } else {
+                    // if there is no more scoping to do, then the root type is the type
+                    break;
+                }
+            } 
+    
+            // get the module
+            let module_identifier_enum: IdentifierEnum;
+            if let Some(module_id) = root_type_module_id {
+                if let Ok(m) = self.transpiler.table.get_identifer_enum_by_id(module_id) {
+                    module_identifier_enum = m;
+                } else {
+                    // could not find the module
+                    self.error(line!(), "Could not find module", "Could not find type with this name", &scope[0].name.location);
+                    self.transpiler.table.scope = capture_table_scope;
+                    return Err(());
+                }
+            } else {
+                // could not find the module
+                self.error(line!(), "Could not find module", "Could not find type with this name", &scope[0].name.location);
+                self.transpiler.table.scope = capture_table_scope;
+                return Err(());
+            }
+    
+            // get module id
+            let module_type_id: TypeId;
+            match &module_identifier_enum {
+                IdentifierEnum::Function(_) | IdentifierEnum::Variable(_) => {
+                    self.error(line!(), "Invalid scoping", "Expected the root type to be a module, eg. `struct`, `enum`", &scope[0].name.location);
+                    self.transpiler.table.scope = capture_table_scope;
+                    return Err(());
+                }
+                IdentifierEnum::Struct(x) => module_type_id = x.type_id,
+                IdentifierEnum::Enum(x) => module_type_id = x.type_id,
+                IdentifierEnum::Trait(x) => module_type_id = x.type_id,
+            }
+    
+            // make sure the type_id's match
+            if module_type_id != root_type_id {
+                self.error(line!(), "Invalid scoping", "The root type and module have a mismatching type id.", &scope[0].name.location);
+                self.transpiler.table.scope = capture_table_scope;
+                return Err(());
+            }
+    
+            // scope has a length of 1, so we are at the end of the scope
+            if scope.len() == 1 {
+                break;
+            }
+    
+            // if module type is an enum, then we can not scope any farther
+            if let IdentifierEnum::Enum(_) = module_identifier_enum {
+                self.error(line!(), "Invalid scoping", "Can not scope into an enum as if were a type", &scope[0].name.location);
+                self.transpiler.table.scope = capture_table_scope;
+                return Err(());
+            }
+    
+            // if the module is a trait, then we can not scope any farther
+            if let IdentifierEnum::Trait(_) = module_identifier_enum {
+                self.error(line!(), "Invalid scoping", "Can not scope into a trait as if were a type", &scope[0].name.location);
+                self.transpiler.table.scope = capture_table_scope;
+                return Err(());
+            }
+    
+            // now go through the scope and find the ending type
+            // first check if the next part in the scope exists under the current module
+            let next_element_name = &scope[1].name.value;
+
+            match module_identifier_enum {
+                IdentifierEnum::Struct(strct) => {
+                    if let Some(e) = strct.enums.iter().find(|x| &x.name == next_element_name) {
+                        // set the transpiler scope to the current module
+                        self.transpiler.table.scope = e.scope.clone();
+                        // remove the root type
+                        scope.remove(0);
+                        // restart the loop
+                        continue; 
+                    } 
+                    else if let Some(s) = strct.structs.iter().find(|x| &x.name == next_element_name) {
+                        // set the transpiler scope to the current module
+                        self.transpiler.table.scope = s.scope.clone();
+                        // remove the root type
+                        scope.remove(0);
+                        // restart the loop
+                        continue; 
+                    } else if strct.members.iter().any(|x| &x.name == next_element_name) || strct.methods.iter().any(|x| &x.name == next_element_name) {
+                        self.error(line!(), "Invalid scoping", "Expected element to be a module, eg. `struct`, `enum`", &scope[1].name.location);
+                        self.transpiler.table.scope = capture_table_scope;
+                        return Err(());
+                    } else {
+                        self.error(line!(), "Could not find type", "Could not find type with this name", &scope[1].name.location);
+                        self.transpiler.table.scope = capture_table_scope;
+                        return Err(());
+                    }
+                }
+                _ => unreachable!()
+            }
+        }
+
+        self.transpiler.table.scope = capture_table_scope;
+        Ok(root_type_id)
+    }
+
+    fn variable_declaration(&mut self, variable_declaration: &mut VariableDeclaration, type_id: Option<TypeId>) -> Result<IdentifierEnum, ()> {
+        check_unexpected_type!(self, &variable_declaration.name.location, type_id, None::<TypeId>);
+
+        // evaluate and get type id
+        let type_id = self.evaluate_type(&variable_declaration.var_type)?;
+
+        // check if variable name is unique
+        let name = variable_declaration.name.value.clone();
+        if !self.transpiler.table.name_is_used_in_scope(&name) {
+            self.error(line!(), "Variable name is not unique", format!("Variable name `{}` is not unique", name).as_str(), &variable_declaration.name.location);
+            return Err(());
+        }
+        
+        // evaluate value
+        let value_id: Option<TypeId>;
+        if let Some(value) = &variable_declaration.value {
+            value_id = Some(self.evaluate_type(value)?);
+        } else {
+            value_id = None;
+        }
+
+        // check value type is compatible with type
+        check_unexpected_type!(self, &variable_declaration.value.clone().unwrap().token.location, Some(type_id), value_id);
+
+        // create variable
+        let variable = self.transpiler.table.generate_variable(name, type_id, variable_declaration.value.is_some(), false, variable_declaration.access_modifier.clone(), variable_declaration.tags.clone(), variable_declaration.name.location.clone());
+
+        // update AST variable id
+        variable_declaration.symbol = self.transpiler.table.get_identifier_enum_id(&variable);
+
+        // add variable to table
+        self.transpiler.table.add_identifier_scope(variable.clone());
+
+        Ok(variable)
+    }
+
+    fn constant(&mut self, constant: &ConstantNode, type_id: Option<TypeId>) -> Result<(), ()> {
+        let expected = self.get_type(&constant.value.location, type_id)?;
+
+        let found = constant.constant_type.to_string();
+        if found != expected {
+            if !((expected == "i64" && matches!(found.as_str(), "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) ||
+               (expected == "i32" && matches!(found.as_str(), "i32" | "i16" | "i8" | "u8" | "u32" | "u16")) ||
+               (expected == "i16" && matches!(found.as_str(), "i16" | "i8" | "u8" | "u16")) ||
+               (expected == "i8" && matches!(found.as_str(), "i8" | "u8")) ||
+               (expected == "u64" && matches!(found.as_str(), "u64" | "u32" | "u16" | "u8")) ||
+               (expected == "u32" && matches!(found.as_str(), "u32" | "u16" | "u8")) ||
+               (expected == "u16" && matches!(found.as_str(), "u16" | "u8")) ||
+               (expected == "f64" && matches!(found.as_str(), "f32" | "f64" | "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) ||
+               (expected == "f32" && matches!(found.as_str(), "f32" | "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")))
+            {
+                self.error(line!(), "Type mismatch", format!("Expected type `{}` does not match constant type `{}`", expected, found).as_str(), &constant.value.location);
+            } 
+        }
+
+        ok!()
+    }
+
+    fn constant_type(&mut self, constant: &ConstantNode) -> Result<TypeId, ()> {
+        match self.transpiler.table.get_type_name(&constant.constant_type.to_string()) {
+            Ok(TypeEnum::TypeParameter(_)) => unreachable!(),
+            Ok(TypeEnum::Type(id)) => Ok(id.type_id),
+            Err(_) => {
+                self.error(line!(), "Could not find type", format!("Could not find constant type `{}`", constant.value.value).as_str(), &constant.value.location);
+                Err(())
+            }
+        }
+    }
+
+    fn check_type_parameters(&mut self, type_parameters: &AnonymousTypeParameters) -> Result<Vec<TypeParameterHolder>, ()> {
+        todo!()
+    }
+
+    fn evaluate_extensions(&mut self, extensions: &Vec<Box<Token>>) -> Result<Vec<TraitHolder>, ()> {
+        let mut result: Vec<TraitHolder> = vec![];
+
+        for extension in extensions {
+            if let Ok(identifier_enum) = self.transpiler.table.get_identifer_enum_by_name(&extension.value) {
+                match identifier_enum {
+                    IdentifierEnum::Trait(trait_id) => {
+                        result.push(trait_id.clone());
+                    }
+                    _ => {
+                        self.error(line!(), "Could not find trait", format!("Could not find trait `{}`", extension.value).as_str(), &extension.location);
+                        return Err(());
+                    }
+                }
+            } else {
+                self.error(line!(), "Could not find trait", format!("Could not find trait `{}`", extension.value).as_str(), &extension.location);
+                return Err(());
+            }
+        }
+
+        Ok(result)
+    }
+
+    fn evaluate_struct_body(&mut self, struct_body: &mut CodeBlock) -> Result<(Vec<FunctionHolder>, Vec<VariableHolder>, Vec<EnumHolder>, Vec<StructHolder>), ()> { 
+        let mut functions: Vec<FunctionHolder> = vec![];
+        let mut variables: Vec<VariableHolder> = vec![];
+        let mut enums: Vec<EnumHolder> = vec![];
+        let mut structs: Vec<StructHolder> = vec![];
+
+        self.transpiler.table.increase_scope(false);
+
+        for index in 0..struct_body.body.len() {
+            let stmt = &mut struct_body.body[index];
+            match stmt.node.as_mut() {
+                NodeType::VariableDeclaration(v) => {
+                    let variable = self.variable_declaration(v, None)?;
+                    variables.push(self.transpiler.table.get_variable_from_identifier_enum(&variable).unwrap()); // can unwrap because variable is created in variable_declaration 100%
+                }
+                NodeType::StructDeclaration(v) => {
+                    let struct_ = self.struct_declaration(v, None)?;
+                    structs.push(self.transpiler.table.get_struct_from_identifier_enum(&struct_).unwrap()); // can unwrap because struct is created in struct_declaration 100%
+                }
+                NodeType::EnumDeclaration(v) => {
+                    todo!()
+                }
+                NodeType::FunctionCall(v) => {
+                    todo!()
+                }
+                _ => {
+                    self.error(line!(), "Invalid statement in struct body", format!("Statement `{}` is not valid in struct body, expected `VariableDeclaration`, `StructDeclaration`, `EnumDeclaration` or `FunctionCall", stmt.node.to_string()).as_str(), &stmt.token.location);
+                }
+            }
+        }
+
+        self.transpiler.table.decrease_scope();
+
+        Ok((functions, variables, enums, structs))
+    }
+    
+    fn struct_declaration(&mut self, struct_declaration: &mut StructDeclaration, type_id: Option<TypeId>) -> Result<IdentifierEnum, ()> { 
+        check_unexpected_type!(self, &struct_declaration.name.location, type_id, None::<TypeId>);
+        
+        // check if name is unique
+        let name = struct_declaration.name.value.clone();
+        if !self.transpiler.table.name_is_used_in_scope(&name) {
+            self.error(line!(), "Struct name is not unique", format!("Struct name `{}` is not unique", name).as_str(), &struct_declaration.name.location);
+            return Err(());
+        }
+
+        // evaluate type parameters
+        let type_parameters: Vec<TypeParameterHolder>;
+        if let Some(tp) = &struct_declaration.type_parameters {
+            type_parameters = self.check_type_parameters(&tp)?;
+        } else {
+            type_parameters = vec![];
+        }
+
+        // evaluate extensions
+        let extensions: Vec<TraitHolder>;
+        if struct_declaration.extends.len() > 0 {
+            extensions = self.evaluate_extensions(&struct_declaration.extends)?;
+        } else {
+            extensions = vec![];
+        }
+
+        // evaluate and check body
+        let (functions, variables, enums, structs) = self.evaluate_struct_body(&mut struct_declaration.body)?;
+
+        // add struct to table
+        let struct_ = self.transpiler.table.generate_struct(name, functions, variables, structs, enums, struct_declaration.access_modifier.clone(), type_parameters, extensions, struct_declaration.tags.clone(), struct_declaration.name.location.clone());
+        self.transpiler.table.add_module_identifier_to_type_scope(&struct_);
+        self.transpiler.table.add_identifier_scope(struct_.clone());
+
+        Ok(struct_)
+    } */

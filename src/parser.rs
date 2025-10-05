@@ -466,7 +466,7 @@ impl<'a> Parser<'a> {
                     value: var_value,
                     var_type,
                     tags,
-                    symbol: 0, // leave blank in parser
+                    symbol_id: 0, // leave blank in parser
                 };
                 self.__current_tags.clear(); 
 
