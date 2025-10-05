@@ -4,7 +4,6 @@ pub mod lexer;
 pub mod ast;
 pub mod parser;
 pub mod transpiler;
-pub mod codegen;
 pub mod declarer;
 pub mod resolver;
 

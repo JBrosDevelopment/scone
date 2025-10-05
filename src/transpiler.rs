@@ -2,7 +2,7 @@ use std::rc::Rc;
 use serde::Serialize;
 
 #[allow(unused_imports)]
-use crate::{ast::{ASTNode, AccessModifier, Tag}, codegen, declarer, debug, error_handling::{self, ErrorHandling, DEBUGGING}, lexer::Location, macros::Macros, resolver };
+use crate::{ast::{ASTNode, AccessModifier, Tag}, declarer, debug, error_handling::{self, ErrorHandling, DEBUGGING}, lexer::Location, macros::Macros, resolver };
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Entry point
