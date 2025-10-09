@@ -1,8 +1,8 @@
-use std::rc::Rc;
-use serde::Serialize;
+use std::{collections::HashMap, rc::Rc};
+use serde::{Serialize, ser::SerializeStruct};
 
 #[allow(unused_imports)]
-use crate::{ast::{ASTNode, AccessModifier, Tag}, declarer, debug, error_handling::{self, ErrorHandling, DEBUGGING}, lexer::Location, macros::Macros, resolver };
+use crate::{ast::{ASTNode, AccessModifier, TypeModifier, Tag}, declarer, debug, error_handling::{self, ErrorHandling, DEBUGGING}, lexer::Location, macros::Macros, resolver };
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Entry point
@@ -40,7 +40,7 @@ pub fn transpile(ast: Vec<ASTNode>, error_handling: &mut ErrorHandling, macros: 
 pub struct Transpiler {
     pub ast: Vec<ASTNode>,
     pub macros: Macros,
-    pub symbols: Vec<Rc<Symbol>>,
+    pub symbols: HashMap<Id, Rc<Symbol>>,
     pub table: CodegenTable,
 }
 
@@ -50,12 +50,12 @@ impl Transpiler {
             ast,
             macros,
             table: CodegenTable::new(),
-            symbols: vec![],
+            symbols: HashMap::new(),
         }
     }
 
-    pub fn get_symbol(&self, name: &String, scope: &Scope) -> Option<Rc<Symbol>> {
-        for symbol in self.symbols.iter().rev() {
+    pub fn get_symbol_by_name(&self, name: &String, scope: &Scope) -> Option<Rc<Symbol>> {
+        for (_key, symbol) in self.symbols.iter() {
             if symbol.name == *name && scope.in_scope(&symbol.scope) {
                 return Some(symbol.clone());
             }
@@ -65,18 +65,17 @@ impl Transpiler {
 }
 
 pub type Id = u32;
-pub type TypeId = u32;
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Scopes
 ////////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
 pub struct Scope {
     frames: Vec<Frame>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
 struct Frame {
     branch_id: u32,
     next_child_counter: u32,
@@ -148,6 +147,18 @@ impl Scope {
     }
 }
 
+impl Serialize for Scope {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        // serialize the struct normally
+        let mut state = serializer.serialize_struct("Scope", 1)?;
+        state.serialize_field("coordinates", &format!("{}, {}", self.depth(), self.index()))?;
+        state.end()
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////
 // Symbols
 ////////////////////////////////////////////////////////////////////////////////////
@@ -190,14 +201,37 @@ impl Symbol {
 #[derive(Debug, Serialize)]
 pub struct TypeHolder {
     pub symbol: Rc<Symbol>,
-    pub compatible_types: Vec<Rc<TypeHolder>>,
     pub is_generic: bool,
+}
+
+impl TypeHolder {
+    pub fn compatible_types(t1: &TypeHolder, t2: &TypeHolder) -> bool {
+        (t1.symbol.id == t2.symbol.id) ||
+        (t1.symbol.name == "i64" && matches!(t2.symbol.name.as_str(), "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) ||
+        (t1.symbol.name == "i32" && matches!(t2.symbol.name.as_str(), "i32" | "i16" | "i8" | "u8" | "u32" | "u16")) ||
+        (t1.symbol.name == "i16" && matches!(t2.symbol.name.as_str(), "i16" | "i8" | "u8" | "u16")) ||
+        (t1.symbol.name == "i8" && matches!(t2.symbol.name.as_str(), "i8" | "u8")) ||
+        (t1.symbol.name == "u64" && matches!(t2.symbol.name.as_str(), "u64" | "u32" | "u16" | "u8")) ||
+        (t1.symbol.name == "u32" && matches!(t2.symbol.name.as_str(), "u32" | "u16" | "u8")) ||
+        (t1.symbol.name == "u16" && matches!(t2.symbol.name.as_str(), "u16" | "u8")) ||
+        (t1.symbol.name == "f64" && matches!(t2.symbol.name.as_str(), "f32" | "f64" | "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) ||
+        (t1.symbol.name == "f32" && matches!(t2.symbol.name.as_str(), "f32" | "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16"))
+    }
+    pub fn is_compatible(&self, t2: &TypeHolder) -> bool {
+        Self::compatible_types(self, t2)
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct TypeValueHolder {
+    pub type_holder: Rc<TypeHolder>,
+    pub type_modifiers: Vec<TypeModifier>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct VariableHolder {
     pub symbol: Rc<Symbol>,
-    pub ttype: Rc<TypeHolder>,
+    pub ttype: TypeValueHolder,
     pub has_value: bool,
     pub requires_free: bool,
     pub access_modifier: Vec<AccessModifier>,
@@ -208,7 +242,7 @@ pub struct VariableHolder {
 #[derive(Debug, Serialize)]
 pub struct ParameterHolder {
     pub symbol: Rc<Symbol>,
-    pub ttype: Rc<TypeHolder>,
+    pub ttype: TypeValueHolder,
     pub default_value: Option<String>,
     pub is_params: bool,
     pub is_const: bool,
@@ -218,10 +252,10 @@ pub struct ParameterHolder {
 #[derive(Debug, Serialize)]
 pub struct FunctionHolder {
     pub symbol: Rc<Symbol>,
-    pub type_id: Option<TypeId>,
+    pub ttype: TypeValueHolder,
     pub has_body: bool,
     pub type_parameters: Vec<Rc<TypeHolder>>,
-    pub parameters: Vec<Rc<ParameterHolder>>,
+    pub parameters: Vec<ParameterHolder>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
     pub location: Location,
@@ -231,11 +265,11 @@ pub struct FunctionHolder {
 pub struct TraitHolder {
     pub symbol: Rc<Symbol>,
     pub ttype: Rc<TypeHolder>,
-    pub methods: Vec<Rc<FunctionHolder>>,
-    pub members: Vec<Rc<VariableHolder>>,
+    pub methods: Vec<FunctionHolder>,
+    pub members: Vec<VariableHolder>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
-    pub inherits: Vec<Rc<TraitHolder>>,
+    pub inherits: Vec<Rc<TypeHolder>>,
     pub location: Location,
 }
 
@@ -249,7 +283,7 @@ pub struct EnumMemberHolder {
 pub struct EnumHolder {
     pub symbol: Rc<Symbol>,
     pub ttype: Rc<TypeHolder>,
-    pub members: Vec<Rc<EnumMemberHolder>>,
+    pub members: Vec<EnumMemberHolder>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
     pub location: Location,
@@ -259,14 +293,14 @@ pub struct EnumHolder {
 pub struct StructHolder {
     pub symbol: Rc<Symbol>,
     pub ttype: Rc<TypeHolder>,
-    pub methods: Vec<Rc<FunctionHolder>>,
-    pub members: Vec<Rc<VariableHolder>>,
-    pub structs: Vec<Rc<StructHolder>>,
-    pub enums: Vec<Rc<EnumHolder>>,
+    pub methods: Vec<FunctionHolder>,
+    pub members: Vec<VariableHolder>,
+    pub structs: Vec<StructHolder>,
+    pub enums: Vec<EnumHolder>,
     pub type_parameters: Vec<Rc<TypeHolder>>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
-    pub inherits: Vec<Rc<TraitHolder>>,
+    pub inherits: Vec<Rc<TypeHolder>>,
     pub location: Location,
 }
 
@@ -277,11 +311,11 @@ pub struct StructHolder {
 #[derive(Debug, Serialize)]
 pub struct CodegenTable {
     pub types: Vec<Rc<TypeHolder>>,
-    pub enums: Vec<Rc<EnumHolder>>,
-    pub structs: Vec<Rc<StructHolder>>,
-    pub traits: Vec<Rc<TraitHolder>>,
-    pub functions: Vec<Rc<FunctionHolder>>,
-    pub variables: Vec<Rc<VariableHolder>>,
+    pub enums: Vec<EnumHolder>,
+    pub structs: Vec<StructHolder>,
+    pub traits: Vec<TraitHolder>,
+    pub functions: Vec<FunctionHolder>,
+    pub variables: Vec<VariableHolder>,
     pub scope: Scope,
 }
 
@@ -296,9 +330,5 @@ impl CodegenTable {
             variables: vec![],
             scope: Scope::new(),
         }
-    }
-
-    pub fn push_type(&mut self, ttype: Rc<TypeHolder>) {
-        self.types.push(ttype);
     }
 }

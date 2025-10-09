@@ -20,6 +20,35 @@ macro_rules! return_if {
     };
 }
 
+macro_rules! return_error {
+    ($self:expr, $title:expr, $message:expr, $location:expr) => {
+        $self.error(line!(), $title, $message, $location);
+        return Err(());
+    };
+}
+
+macro_rules! compare_types {
+    ($self:expr, $expected_type:expr, $found_type:expr, $location:expr) => {
+        {
+            let ft: String;
+            let et: String;
+            if let Some(_et) = $expected_type {
+                et = _et.symbol.name.to_string();
+            } else {
+                et = "()".to_string();
+            }
+            if let Some(_ft) = $found_type {
+                ft = _ft.symbol.name.to_string();
+            } else {
+                ft = "()".to_string();
+            }
+            if et != ft {
+                $self.error(line!(), "Unexpected type", format!("Expected `{}` but found `{}`", et, ft).as_str(), $location);
+            }
+        }
+    };
+}
+
 #[derive(Debug)]
 struct Resolver<'a> {
     pub transpiler: &'a mut Transpiler,
@@ -46,6 +75,16 @@ impl<'a> Resolver<'a> {
         self.output.add_instance_message("resolver", line, file!(), title, message, location);
     }
 
+    fn get_symbol(&mut self, symbol_id: &Id, location: &Location) -> Result<Rc<Symbol>, ()> {
+        let symbol = self.transpiler.symbols.get(symbol_id);
+        if symbol.is_none() {
+            self.error(line!(), "Symbol not found", format!("Internal Resolver Error: Symbol with id `{}` not found", symbol_id).as_str(), location);
+            return Err(());
+        }
+
+        Ok(symbol.unwrap().clone())
+    }
+
     pub fn resolve_pass(&mut self) {
         let ast = std::mem::take(&mut self.transpiler.ast);
     
@@ -56,9 +95,9 @@ impl<'a> Resolver<'a> {
         self.transpiler.ast = ast;
     }
 
-    fn ast_node(&mut self, node: &ASTNode, type_id: Option<TypeId>) -> Result<(), ()> {
+    fn ast_node(&mut self, node: &ASTNode, expected: Option<&'a TypeHolder>) -> Result<(), ()> {
         match node.node.as_ref() {
-            NodeType::VariableDeclaration(v) => self.variable_declaration(v, type_id),
+            NodeType::VariableDeclaration(v) => self.variable_declaration(v, expected),
             _ => {
                 self.error(line!(), "Unimplemented resolver node", format!("Resolver for node type `{}` is not implemented yet", node.node.to_string()).as_str(), &node.token.location);
                 self.output.print_messages();
@@ -67,54 +106,195 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn variable_declaration(&mut self, var_declaration: &VariableDeclaration, type_id: Option<TypeId>) -> Result<(), ()> {
-        //check_unexpected_type!(self, &var_declaration.name.location, type_id, None);
+    fn get_type_holder(&mut self, ttype: &ScopedType) -> Result<Rc<TypeHolder>, ()> {
+        if ttype.scope.is_empty() {
+            panic!("Empty scoped type");
+        }
 
-        todo!()
+        let mut symbol = self.get_symbol(&ttype.scope[0].symbol_id, &ttype.scope[0].name.location)?;
+
+        if ttype.scope.len() == 1 {
+            if let Some(type_holder) = self.transpiler.table.types.iter().find(|x| x.symbol.id == symbol.id) {
+                return Ok(type_holder.clone());
+            } else {
+                self.error(line!(), "Type not found", format!("Type `{}` not found", symbol.name).as_str(), &ttype.scope[0].name.location);
+                return Err(());
+            }
+        }
+
+        for (index, node) in ttype.scope.iter().enumerate() {
+            if node.scope_type.as_ref().is_some_and(|x| *x != ScopeType::DoubleColon) {
+                self.error(line!(), "Unexpected scope type", "Expected types to be scoped with `::`, for example: `Module::Struct`", &node.name.location);
+                return Err(());
+            }
+            if let Some(next_node) = ttype.scope.get(index + 1) {
+                if let Some(v) = self.transpiler.table.structs.iter().find(|x| x.symbol.id == symbol.id) {
+                    if let Some(e) = v.enums.iter().find(|x| x.symbol.id == next_node.symbol_id) {
+                        symbol = e.symbol.clone();
+                    } else if let Some(f) = v.members.iter().find(|x| x.symbol.id == next_node.symbol_id) {
+                        symbol = f.symbol.clone();
+                    } else if let Some(m) = v.methods.iter().find(|x| x.symbol.id == next_node.symbol_id) {
+                        symbol = m.symbol.clone();
+                    } else if let Some(s) = v.structs.iter().find(|x| x.symbol.id == next_node.symbol_id) {
+                        symbol = s.symbol.clone();
+                    } else {
+                        self.error(line!(), "Type not found", format!("Type `{}` not found in struct `{}`", next_node.name.value, symbol.name).as_str(), &next_node.name.location);
+                        return Err(());
+                    }
+                }
+                if let Some(v) = self.transpiler.table.traits.iter().find(|x| x.symbol.id == symbol.id) {
+                    if let Some(f) = v.members.iter().find(|x| x.symbol.id == next_node.symbol_id) {
+                        symbol = f.symbol.clone();
+                    } else if let Some(m) = v.methods.iter().find(|x| x.symbol.id == next_node.symbol_id) {
+                        symbol = m.symbol.clone();
+                    } else {
+                        self.error(line!(), "Type not found", format!("Type `{}` not found in trait `{}`", next_node.name.value, symbol.name).as_str(), &next_node.name.location);
+                        return Err(());
+                    }
+                }
+                if let Some(v) = self.transpiler.table.enums.iter().find(|x| x.symbol.id == symbol.id) {
+                    if let Some(e) = v.members.iter().find(|x| x.symbol.id == next_node.symbol_id) {
+                        symbol = e.symbol.clone();
+                    } else {
+                        self.error(line!(), "Type not found", format!("Enum variant `{}` not found in enum `{}`", next_node.name.value, symbol.name).as_str(), &next_node.name.location);
+                        return Err(());
+                    }
+                }
+            } else {
+                symbol = self.get_symbol(&node.symbol_id, &node.name.location)?;
+            }
+        }
+        
+        for type_holder in self.transpiler.table.types.iter() {
+            if type_holder.symbol.id == symbol.id {
+                return Ok(type_holder.clone());
+            }
+        }
+
+        self.error(line!(), "Type not found", format!("Type `{}` not found", symbol.name).as_str(), &ttype.scope[ttype.scope.len() - 1].name.location);
+        Err(())
+    }
+
+    fn get_type_value_holder(&mut self, ttype: &ASTNode) -> Result<TypeValueHolder, ()> {
+        match ttype.node.as_ref() {
+            NodeType::ScopedType(v) => {
+                let type_holder = self.get_type_holder(&v)?;
+                let type_modifiers = v.type_modifiers.clone();
+                Ok(TypeValueHolder {
+                    type_holder,
+                    type_modifiers
+                })
+            }
+            _ => {
+                self.error(line!(), "INTERNAL ERROR: Unimplemented resolver node", format!("Resolver for node type `{}` is not implemented yet", ttype.node.to_string()).as_str(), &ttype.token.location);
+                self.output.print_messages();
+                todo!();
+            }
+        }
+    }
+
+    fn variable_declaration(&mut self, var_declaration: &VariableDeclaration, expected_type: Option<&'a TypeHolder>) -> Result<(), ()> {
+        compare_types!(self, expected_type, None::<TypeHolder>, &var_declaration.name.location);
+
+        let symbol = self.get_symbol(&var_declaration.symbol_id, &var_declaration.name.location)?;
+        
+        let type_holder = self.get_type_value_holder(&var_declaration.var_type)?;
+
+        let variable_holder = VariableHolder {
+            access_modifier: var_declaration.access_modifier.clone(),
+            has_value: var_declaration.value.is_some(),
+            location: var_declaration.name.location.clone(),
+            requires_free: false,
+            tags: var_declaration.tags.clone(),
+            symbol: symbol,
+            ttype: type_holder,
+        };
+
+        self.transpiler.table.variables.push(variable_holder);
+        Ok(())
     }
 
     fn add_default_types(&mut self) {
         let top_scope = Scope::new();
-        let i8_symbol = self.transpiler.get_symbol(&"i8".to_string(), &top_scope).expect("Could not find symbol with the name `i8` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let i16_symbol = self.transpiler.get_symbol(&"i16".to_string(), &top_scope).expect("Could not find symbol with the name `i16` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let i32_symbol = self.transpiler.get_symbol(&"i32".to_string(), &top_scope).expect("Could not find symbol with the name `i32` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let i64_symbol = self.transpiler.get_symbol(&"i64".to_string(), &top_scope).expect("Could not find symbol with the name `i164` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let u8_symbol = self.transpiler.get_symbol(&"u8".to_string(), &top_scope).expect("Could not find symbol with the name `u8` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let u16_symbol = self.transpiler.get_symbol(&"u16".to_string(), &top_scope).expect("Could not find symbol with the name `u16` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let u32_symbol = self.transpiler.get_symbol(&"u32".to_string(), &top_scope).expect("Could not find symbol with the name `u32` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let u64_symbol = self.transpiler.get_symbol(&"u64".to_string(), &top_scope).expect("Could not find symbol with the name `u64` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let f32_symbol = self.transpiler.get_symbol(&"f32".to_string(), &top_scope).expect("Could not find symbol with the name `f32` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let f64_symbol = self.transpiler.get_symbol(&"f64".to_string(), &top_scope).expect("Could not find symbol with the name `f64` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let bool_symbol = self.transpiler.get_symbol(&"bool".to_string(), &top_scope).expect("Could not find symbol with the name `bool` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let string_symbol = self.transpiler.get_symbol(&"string".to_string(), &top_scope).expect("Could not find symbol with the name `string` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
-        let void_symbol = self.transpiler.get_symbol(&"void".to_string(), &top_scope).expect("Could not find symbol with the name `void` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let i8_symbol = self.transpiler.get_symbol_by_name(&"i8".to_string(), &top_scope).expect("Could not find symbol with the name `i8` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let i16_symbol = self.transpiler.get_symbol_by_name(&"i16".to_string(), &top_scope).expect("Could not find symbol with the name `i16` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let i32_symbol = self.transpiler.get_symbol_by_name(&"i32".to_string(), &top_scope).expect("Could not find symbol with the name `i32` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let i64_symbol = self.transpiler.get_symbol_by_name(&"i64".to_string(), &top_scope).expect("Could not find symbol with the name `i164` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let u8_symbol = self.transpiler.get_symbol_by_name(&"u8".to_string(), &top_scope).expect("Could not find symbol with the name `u8` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let u16_symbol = self.transpiler.get_symbol_by_name(&"u16".to_string(), &top_scope).expect("Could not find symbol with the name `u16` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let u32_symbol = self.transpiler.get_symbol_by_name(&"u32".to_string(), &top_scope).expect("Could not find symbol with the name `u32` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let u64_symbol = self.transpiler.get_symbol_by_name(&"u64".to_string(), &top_scope).expect("Could not find symbol with the name `u64` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let f32_symbol = self.transpiler.get_symbol_by_name(&"f32".to_string(), &top_scope).expect("Could not find symbol with the name `f32` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let f64_symbol = self.transpiler.get_symbol_by_name(&"f64".to_string(), &top_scope).expect("Could not find symbol with the name `f64` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let bool_symbol = self.transpiler.get_symbol_by_name(&"bool".to_string(), &top_scope).expect("Could not find symbol with the name `bool` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let string_symbol = self.transpiler.get_symbol_by_name(&"string".to_string(), &top_scope).expect("Could not find symbol with the name `string` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let void_symbol = self.transpiler.get_symbol_by_name(&"void".to_string(), &top_scope).expect("Could not find symbol with the name `void` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
 
-        let i8_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: i8_symbol };
-        let i16_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: i16_symbol };
-        let i32_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: i32_symbol };
-        let i64_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: i64_symbol };
-        let u8_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: u8_symbol };
-        let u16_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: u16_symbol };
-        let u32_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: u32_symbol };
-        let u64_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: u64_symbol };
-        let f32_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: f32_symbol };
-        let f64_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: f64_symbol };
-        let bool_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: bool_symbol };
-        let string_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: string_symbol };
-        let void_type_holder = TypeHolder { compatible_types: vec![], is_generic: false, symbol: void_symbol };
-        
-        self.transpiler.table.push_type(Rc::new(i8_type_holder));
-        self.transpiler.table.push_type(Rc::new(i16_type_holder));
-        self.transpiler.table.push_type(Rc::new(i32_type_holder));
-        self.transpiler.table.push_type(Rc::new(i64_type_holder));
-        self.transpiler.table.push_type(Rc::new(u8_type_holder));
-        self.transpiler.table.push_type(Rc::new(u16_type_holder));
-        self.transpiler.table.push_type(Rc::new(u32_type_holder));
-        self.transpiler.table.push_type(Rc::new(u64_type_holder));
-        self.transpiler.table.push_type(Rc::new(f32_type_holder));
-        self.transpiler.table.push_type(Rc::new(f64_type_holder));
-        self.transpiler.table.push_type(Rc::new(bool_type_holder));
-        self.transpiler.table.push_type(Rc::new(string_type_holder));
-        self.transpiler.table.push_type(Rc::new(void_type_holder));
+        let i8_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i8_symbol });
+        let i16_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i16_symbol });
+        let i32_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i32_symbol });
+        let i64_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i64_symbol });
+        let u8_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u8_symbol });
+        let u16_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u16_symbol });
+        let u32_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u32_symbol });
+        let u64_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u64_symbol });
+        let f32_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: f32_symbol });
+        let f64_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: f64_symbol });
+        let bool_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: bool_symbol });
+        let string_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: string_symbol });
+        let void_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: void_symbol });
+
+        self.transpiler.table.types.push(i8_type_holder);
+        self.transpiler.table.types.push(i16_type_holder);
+        self.transpiler.table.types.push(i32_type_holder);
+        self.transpiler.table.types.push(i64_type_holder);
+        self.transpiler.table.types.push(u8_type_holder);
+        self.transpiler.table.types.push(u16_type_holder);
+        self.transpiler.table.types.push(u32_type_holder);
+        self.transpiler.table.types.push(u64_type_holder);
+        self.transpiler.table.types.push(f32_type_holder);
+        self.transpiler.table.types.push(f64_type_holder);
+        self.transpiler.table.types.push(bool_type_holder);
+        self.transpiler.table.types.push(string_type_holder);
+        self.transpiler.table.types.push(void_type_holder);
+
+        let test_symbol = self.transpiler.get_symbol_by_name(&"Test".to_string(), &top_scope).expect("Could not find symbol with the name `Test` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let inside_symbol = self.transpiler.get_symbol_by_name(&"Inside".to_string(), &top_scope).expect("Could not find symbol with the name `Inside` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+
+        let test_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: test_symbol.clone() });
+        let inside_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: inside_symbol.clone() });
+
+        self.transpiler.table.types.push(test_type_holder.clone());
+        self.transpiler.table.types.push(inside_type_holder.clone());
+
+        let inside_struct = StructHolder {
+            access_modifier: vec![],
+            enums: vec![],
+            members: vec![],
+            location: Location::new_empty(),
+            symbol: inside_symbol,
+            ttype: inside_type_holder,
+            inherits: vec![],
+            methods: vec![],
+            structs: vec![],
+            tags: vec![],
+            type_parameters: vec![],
+        };
+
+        let test_struct = StructHolder {
+            access_modifier: vec![],
+            enums: vec![],
+            members: vec![],
+            location: Location::new_empty(),
+            symbol: test_symbol,
+            ttype: test_type_holder,
+            inherits: vec![],
+            methods: vec![],
+            structs: vec![inside_struct],
+            tags: vec![],
+            type_parameters: vec![],
+        };
+
+        self.transpiler.table.structs.push(test_struct);
     }
 }

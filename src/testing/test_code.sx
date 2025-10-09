@@ -2,4 +2,4 @@
 //#! def false 0
 //#! def NULL 0
 
-i32: A = 0;
+Test::Inside: A = 0;

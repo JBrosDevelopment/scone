@@ -50,7 +50,7 @@ impl<'a> Declarer<'a> {
     }
 
     fn get_symbol_by_name(&self, name: &String) -> Option<Rc<Symbol>> {
-        self.transpiler.symbols.iter().find(|symbol| &symbol.name == name).cloned()
+        self.transpiler.symbols.iter().find(|(_k, v)| &v.name == name).map(|(_k, v)| v.clone())
     }
 
     fn get_symbol_id(&mut self, name: &String) -> u32 {
@@ -62,11 +62,11 @@ impl<'a> Declarer<'a> {
     }
 
     fn symbol_is_unique(&mut self, symbol: &Symbol) -> bool {
-        self.transpiler.symbols.iter().find(|x| x.id == symbol.id).is_none()
+        self.transpiler.symbols.iter().find(|(_k, v)| v.id == symbol.id).is_none()
     }
 
     fn push_symbol(&mut self, symbol: Symbol) {
-        self.transpiler.symbols.push(Rc::new(symbol));
+        self.transpiler.symbols.insert(symbol.id, Rc::new(symbol));
     }
 
     pub fn declare_pass(&mut self) {
@@ -264,7 +264,7 @@ impl<'a> Declarer<'a> {
 
     fn get_id_in_child_of_scope(&mut self, name: &String, parent_scope: &Scope) -> u32 {
         let mut id = u32::MAX;
-        for symbol in self.transpiler.symbols.iter() {
+        for (_key, symbol) in self.transpiler.symbols.iter() {
             if parent_scope.coords().0 + 1 != symbol.scope.coords().0 || parent_scope.coords().1 != symbol.scope.coords().1 {
                 continue;
             }
@@ -578,8 +578,8 @@ impl<'a> Declarer<'a> {
             Symbol::new("u64".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
             Symbol::new("f32".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
             Symbol::new("f64".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
-            Symbol::new("string".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
             Symbol::new("bool".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
+            Symbol::new("string".to_string(), ObjectTypes::Struct, self.next_id(), Scope::new()),
             Symbol::new("void".to_string(), ObjectTypes::Identifier, self.next_id(), Scope::new()),
             
             // these will be defined in std.sx using #! def
@@ -593,5 +593,14 @@ impl<'a> Declarer<'a> {
                 self.push_symbol(symbol);
             }
         }
+
+        let mut test_scope = Scope::new();
+            
+        let test_symbol = Symbol::new("Test".to_string(), ObjectTypes::Struct, self.next_id(), test_scope.clone());
+        test_scope.increase();
+        let inside_symbol = Symbol::new("Inside".to_string(), ObjectTypes::Identifier, self.next_id(), test_scope.clone());
+
+        self.push_symbol(test_symbol);
+        self.push_symbol(inside_symbol);
     }
 }
