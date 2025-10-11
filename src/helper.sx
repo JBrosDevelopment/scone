@@ -2,6 +2,9 @@
 every structure needs to have constructor, destructor, and clone
 */
 
+////////////////////
+/// TODO add #! insert "file.sx" to insert code inside of file.
+////////////////////
 
 ////////////////////////////////////
 // use keyword

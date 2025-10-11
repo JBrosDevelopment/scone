@@ -95,15 +95,50 @@ impl<'a> Resolver<'a> {
         self.transpiler.ast = ast;
     }
 
-    fn ast_node(&mut self, node: &ASTNode, expected: Option<&'a TypeHolder>) -> Result<(), ()> {
+    fn ast_node(&mut self, node: &ASTNode, expected: Option<Rc<TypeHolder>>) -> Result<(), ()> {
         match node.node.as_ref() {
             NodeType::VariableDeclaration(v) => self.variable_declaration(v, expected),
+            NodeType::Constant(v) => self.constant(v, expected),
             _ => {
                 self.error(line!(), "Unimplemented resolver node", format!("Resolver for node type `{}` is not implemented yet", node.node.to_string()).as_str(), &node.token.location);
                 self.output.print_messages();
                 todo!();
             }
         }
+    }
+
+    fn constant(&mut self, constant: &ConstantNode, expected: Option<Rc<TypeHolder>>) -> Result<(), ()> {
+        if expected.is_none() {
+            self.error(line!(), "Unexpected constant", format!("Expected `()` but found constant `{}`", constant.value.value).as_str(), &constant.value.location);
+            return Err(());
+        }
+        let expected = expected.unwrap();
+        
+        if constant.constant_type == ConstantType::Bool && expected.symbol.name == "bool" {
+            return Ok(())
+        }
+        if constant.constant_type == ConstantType::Char && expected.symbol.name == "char" {
+            return Ok(())
+        }
+        if constant.constant_type == ConstantType::String && expected.symbol.name == "string" {
+            return Ok(())
+        }
+        if constant.constant_type.is_number() && matches!(expected.symbol.name.as_str(), "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f32" | "f64") {
+            if  (expected.symbol.name == "i64" && matches!(constant.constant_type.to_string().as_str(), "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) ||
+                (expected.symbol.name == "i32" && matches!(constant.constant_type.to_string().as_str(), "i32" | "i16" | "i8" | "u8" | "u32" | "u16")) ||
+                (expected.symbol.name == "i16" && matches!(constant.constant_type.to_string().as_str(), "i16" | "i8" | "u8" | "u16")) ||
+                (expected.symbol.name == "i8" && matches!(constant.constant_type.to_string().as_str(), "i8" | "u8")) ||
+                (expected.symbol.name == "u64" && matches!(constant.constant_type.to_string().as_str(), "u64" | "u32" | "u16" | "u8")) ||
+                (expected.symbol.name == "u32" && matches!(constant.constant_type.to_string().as_str(), "u32" | "u16" | "u8")) ||
+                (expected.symbol.name == "u16" && matches!(constant.constant_type.to_string().as_str(), "u16" | "u8")) ||
+                (expected.symbol.name == "f64" && matches!(constant.constant_type.to_string().as_str(), "f32" | "f64" | "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) ||
+                (expected.symbol.name == "f32" && matches!(constant.constant_type.to_string().as_str(), "f32" | "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16")) {
+                    return Ok(());
+                }
+        }
+
+        self.error(line!(), "Unexpected constant", format!("Expected `{}` but found constant `{}`", expected.symbol.name, constant.value.value).as_str(), &constant.value.location);
+        return Err(());
     }
 
     fn get_type_holder(&mut self, ttype: &ScopedType) -> Result<Rc<TypeHolder>, ()> {
@@ -193,12 +228,16 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn variable_declaration(&mut self, var_declaration: &VariableDeclaration, expected_type: Option<&'a TypeHolder>) -> Result<(), ()> {
+    fn variable_declaration(&mut self, var_declaration: &VariableDeclaration, expected_type: Option<Rc<TypeHolder>>) -> Result<(), ()> {
         compare_types!(self, expected_type, None::<TypeHolder>, &var_declaration.name.location);
 
         let symbol = self.get_symbol(&var_declaration.symbol_id, &var_declaration.name.location)?;
         
         let type_holder = self.get_type_value_holder(&var_declaration.var_type)?;
+        
+        if let Some(value) = &var_declaration.value {
+            self.ast_node(value, Some(type_holder.type_holder.clone()))?;
+        }
 
         let variable_holder = VariableHolder {
             access_modifier: var_declaration.access_modifier.clone(),
@@ -230,19 +269,19 @@ impl<'a> Resolver<'a> {
         let string_symbol = self.transpiler.get_symbol_by_name(&"string".to_string(), &top_scope).expect("Could not find symbol with the name `string` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
         let void_symbol = self.transpiler.get_symbol_by_name(&"void".to_string(), &top_scope).expect("Could not find symbol with the name `void` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
 
-        let i8_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i8_symbol });
-        let i16_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i16_symbol });
-        let i32_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i32_symbol });
-        let i64_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i64_symbol });
-        let u8_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u8_symbol });
-        let u16_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u16_symbol });
-        let u32_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u32_symbol });
-        let u64_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u64_symbol });
-        let f32_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: f32_symbol });
-        let f64_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: f64_symbol });
-        let bool_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: bool_symbol });
-        let string_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: string_symbol });
-        let void_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: void_symbol });
+        let i8_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i8_symbol, parent_id: None });
+        let i16_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i16_symbol, parent_id: None });
+        let i32_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i32_symbol, parent_id: None });
+        let i64_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: i64_symbol, parent_id: None });
+        let u8_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u8_symbol, parent_id: None });
+        let u16_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u16_symbol, parent_id: None });
+        let u32_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u32_symbol, parent_id: None });
+        let u64_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: u64_symbol, parent_id: None });
+        let f32_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: f32_symbol, parent_id: None });
+        let f64_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: f64_symbol, parent_id: None });
+        let bool_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: bool_symbol, parent_id: None });
+        let string_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: string_symbol, parent_id: None });
+        let void_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: void_symbol, parent_id: None });
 
         self.transpiler.table.types.push(i8_type_holder);
         self.transpiler.table.types.push(i16_type_holder);
@@ -261,8 +300,8 @@ impl<'a> Resolver<'a> {
         let test_symbol = self.transpiler.get_symbol_by_name(&"Test".to_string(), &top_scope).expect("Could not find symbol with the name `Test` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
         let inside_symbol = self.transpiler.get_symbol_by_name(&"Inside".to_string(), &top_scope).expect("Could not find symbol with the name `Inside` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
 
-        let test_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: test_symbol.clone() });
-        let inside_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: inside_symbol.clone() });
+        let test_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: test_symbol.clone(), parent_id: None });
+        let inside_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: inside_symbol.clone(), parent_id: Some(test_type_holder.clone()) });
 
         self.transpiler.table.types.push(test_type_holder.clone());
         self.transpiler.table.types.push(inside_type_holder.clone());

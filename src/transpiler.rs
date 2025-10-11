@@ -202,6 +202,7 @@ impl Symbol {
 pub struct TypeHolder {
     pub symbol: Rc<Symbol>,
     pub is_generic: bool,
+    pub parent_id: Option<Rc<TypeHolder>>
 }
 
 impl TypeHolder {
@@ -304,6 +305,17 @@ pub struct StructHolder {
     pub location: Location,
 }
 
+#[derive(Debug, Serialize)]
+pub struct ModuleHolder { 
+    pub symbol: Rc<Symbol>,
+    pub methods: Vec<FunctionHolder>,
+    pub members: Vec<VariableHolder>,
+    pub structs: Vec<StructHolder>,
+    pub traits: Vec<TraitHolder>,
+    pub enums: Vec<EnumHolder>,
+    pub location: Location,
+}
+
 ////////////////////////////////////////////////////////////////////////////////////
 // Codegen Table
 ////////////////////////////////////////////////////////////////////////////////////
@@ -316,6 +328,7 @@ pub struct CodegenTable {
     pub traits: Vec<TraitHolder>,
     pub functions: Vec<FunctionHolder>,
     pub variables: Vec<VariableHolder>,
+    pub modules: Vec<ModuleHolder>,
     pub scope: Scope,
 }
 
@@ -328,6 +341,7 @@ impl CodegenTable {
             traits: vec![],
             functions: vec![],
             variables: vec![],
+            modules: vec![],
             scope: Scope::new(),
         }
     }

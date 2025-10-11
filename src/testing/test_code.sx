@@ -2,4 +2,8 @@
 //#! def false 0
 //#! def NULL 0
 
-Test::Inside: A = 0;
+Test::Inside: function(i8: a, bool: b) {
+    return b ? a + 1 : a - 1;
+}
+
+Test::Inside: A = function(0, true);
