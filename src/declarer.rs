@@ -599,8 +599,11 @@ impl<'a> Declarer<'a> {
         let test_symbol = Symbol::new("Test".to_string(), ObjectTypes::Struct, self.next_id(), test_scope.clone());
         test_scope.increase();
         let inside_symbol = Symbol::new("Inside".to_string(), ObjectTypes::Identifier, self.next_id(), test_scope.clone());
+        test_scope.increase();
+        let function_symbol = Symbol::new("function".to_string(), ObjectTypes::Function, self.next_id(), test_scope.clone());
 
         self.push_symbol(test_symbol);
         self.push_symbol(inside_symbol);
+        self.push_symbol(function_symbol);
     }
 }

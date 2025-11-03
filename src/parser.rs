@@ -973,6 +973,7 @@ impl<'a> Parser<'a> {
 
         let mut scope = scope.unwrap_or(ScopedIdentifier {
             scope: vec![identifier],
+            token: name.clone(),
         });
 
         if tokens.get(*i).is_some() && tokens[*i].token_type.is_arrow_or_dot() { // is chaining
@@ -1009,7 +1010,7 @@ impl<'a> Parser<'a> {
         Self::dec(i);
 
         let mut last_punc = None;
-        let mut scope = ScopedIdentifier { scope: vec![] };
+        let mut scope = ScopedIdentifier { scope: vec![], token: tokens.get(*i).unwrap_or(&self.try_get_last_token(tokens)).clone() };
         let valid_lt_as_type_parameter = self.get_ident_scope(tokens, i, &mut scope, &mut last_punc); 
         Self::inc(i);
 
@@ -1185,9 +1186,7 @@ impl<'a> Parser<'a> {
             Self::dec(i);
         }
 
-        ScopedIdentifier {
-            scope: scope.scope
-        }
+        scope
     }
 
     fn get_array_expression(&mut self, tokens: &mut Vec<Box<Token>>, i: &mut usize) -> ScopedIdentifier {
@@ -1208,6 +1207,7 @@ impl<'a> Parser<'a> {
                 scope_type: None,
                 type_parameters: None
             }],
+            token: first_token.clone(),
         };
 
         // Handle chaining if the next token is a dot
@@ -1275,7 +1275,8 @@ impl<'a> Parser<'a> {
         };
 
         let mut scope = scope.unwrap_or(ScopedIdentifier {
-            scope: vec![]
+            scope: vec![],
+            token: name_token.clone()
         });
 
         scope.scope.push(IdentifierExpression {
@@ -1869,6 +1870,7 @@ impl<'a> Parser<'a> {
                                     scope_type: None,
                                     type_parameters: None
                                 }],
+                                token: tokens[*i].clone(),
                             };
                             Self::inc(i);
 
@@ -1907,6 +1909,7 @@ impl<'a> Parser<'a> {
                                     scope_type: None,
                                     type_parameters: None
                                 }],
+                                token: tokens[*i].clone(),
                             };
 
                             let scope = self.scope_call_with_scope(tokens, i, parenthesis_scope, last_punc, until == Self::PARSING_FOR_STATEMENT);
@@ -1935,7 +1938,8 @@ impl<'a> Parser<'a> {
                                 })),
                             scope_type: None,
                             type_parameters: None
-                        }]
+                        }],
+                        token: token.clone(),
                     };
                     let indexing_expresion = self.get_indexer_expression(tokens, Some(temp_scope), i, until == Self::PARSING_FOR_STATEMENT);
                     expr_stack.push(Box::new(ASTNode {
@@ -3094,6 +3098,14 @@ impl<'a> Parser<'a> {
                 break;
             }
         } 
+
+        let mut has_had_default_value = false;
+        for p in &parameters {
+            if has_had_default_value && p.default_value.is_none() {
+                self.error(line!(), "Error parsing defined node parameters", "Parameters with default values must come after parameters with no default values", &p.name.location);
+            }
+            has_had_default_value = !has_had_default_value && p.default_value.is_some();
+        }
 
         parameters
     }

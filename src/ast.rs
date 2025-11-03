@@ -351,6 +351,7 @@ impl ScopeType {
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)] 
 pub struct ScopedIdentifier { 
+    pub token: Box<Token>,
     pub scope: Vec<IdentifierExpression>, // index 0 is root, index n is in chain or scoped
 }
 

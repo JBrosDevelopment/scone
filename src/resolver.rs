@@ -42,7 +42,7 @@ macro_rules! compare_types {
             } else {
                 ft = "()".to_string();
             }
-            if et != ft {
+            if !$self.equivalent_type(&et, &ft) {
                 $self.error(line!(), "Unexpected type", format!("Expected `{}` but found `{}`", et, ft).as_str(), $location);
             }
         }
@@ -52,12 +52,13 @@ macro_rules! compare_types {
 #[derive(Debug)]
 struct Resolver<'a> {
     pub transpiler: &'a mut Transpiler,
-    pub output: &'a mut ErrorHandling
+    pub output: &'a mut ErrorHandling,
+    scope: Scope
 }
 
 impl<'a> Resolver<'a> {
     pub fn new(transpiler: &'a mut Transpiler, error_handling: &'a mut ErrorHandling) -> Resolver<'a> {
-        Resolver { transpiler, output: error_handling }
+        Resolver { transpiler, output: error_handling, scope: Scope::new() }
     }
 
     #[allow(dead_code)]
@@ -85,6 +86,25 @@ impl<'a> Resolver<'a> {
         Ok(symbol.unwrap().clone())
     }
 
+    fn get_base_type(&mut self, name: &'static str, location: &Location) -> Result<Rc<TypeHolder>, ()> {
+        if !matches!(name, "bool" | "char" | "string" | "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f32" | "f64") {
+            panic!("Expected `get_base_type` to be called with `name` as a base type: `bool` | `char` | `string` | `i8` | `i16` | `i32` | `i64` | `u8` | `u16` | `u32` | `u64` | `f32` | `f64`");
+        }
+
+        let symbol = self.transpiler.symbols.values().filter(|x| x.name == name).next();
+        if symbol.is_none() {
+            self.error(line!(), "Type not found", format!("Internal Resolver Error: Symbol with name `{}` not found", name).as_str(), location);
+            return Err(());
+        }
+        let symbol = symbol.unwrap();
+        if let Some(type_holder) = self.transpiler.table.types.iter().filter(|x| x.symbol.id == symbol.id).next() {
+            return Ok(type_holder.clone());
+        }
+
+        self.error(line!(), "Type not found", format!("Internal Resolver Error: Type with name `{}` not found", name).as_str(), location);
+        return Err(());
+    }
+
     pub fn resolve_pass(&mut self) {
         let ast = std::mem::take(&mut self.transpiler.ast);
     
@@ -99,12 +119,166 @@ impl<'a> Resolver<'a> {
         match node.node.as_ref() {
             NodeType::VariableDeclaration(v) => self.variable_declaration(v, expected),
             NodeType::Constant(v) => self.constant(v, expected),
+            NodeType::FunctionDeclaration(v) => self.function_declaration(v, expected),
+            NodeType::ReturnExpression(v) => {
+                if let Some(r) = v {
+                    return self.ast_node(r, expected);
+                }
+                Ok(())
+            }
+            NodeType::TernaryOperator(v) => {
+                let bool_type = self.get_base_type("bool", &node.token.location)?;
+                self.ast_node(&v.condition, Some(bool_type))?;
+                self.ast_node(&v.then, expected.clone())?;
+                self.ast_node(&v.else_then, expected.clone())?;
+                Ok(())
+            }
+            NodeType::Identifier(v) => {
+                let symbol = self.get_symbol(&v.symbol_id, &node.token.location)?;
+                
+                if let Some(variable) = self.transpiler.table.variables.iter().find(|x| x.symbol.id == symbol.id) {
+                    compare_types!(self, expected, Some(variable.ttype.type_holder.clone()), &node.token.location);
+                } else if let Some(function) = self.transpiler.table.functions.iter().find(|x| x.symbol.id == symbol.id) {
+                    todo!()
+
+                } else if let Some(sstruct) = self.transpiler.table.structs.iter().find(|x| x.symbol.id == symbol.id) {
+                    todo!()
+                    
+                } else if let Some(eenum) = self.transpiler.table.enums.iter().find(|x| x.symbol.id == symbol.id) {
+                    todo!()
+                    
+                } else if let Some(ttrait) = self.transpiler.table.traits.iter().find(|x| x.symbol.id == symbol.id) {
+                    todo!()
+                    
+                } else {
+                    self.error(line!(), "Symbol not found", format!("Symbol `{}` not found", symbol.name).as_str(), &node.token.location);
+                    return Err(());
+                }
+
+                Ok(())
+            }
+            NodeType::ScopedIdentifier(v) => self.scoped_identifier(v, expected),
             _ => {
                 self.error(line!(), "Unimplemented resolver node", format!("Resolver for node type `{}` is not implemented yet", node.node.to_string()).as_str(), &node.token.location);
                 self.output.print_messages();
                 todo!();
             }
         }
+    }
+
+    fn scoped_identifier(&mut self, scoped_identifier: &ScopedIdentifier, expected: Option<Rc<TypeHolder>>) -> Result<(), ()> {
+        if scoped_identifier.scope.is_empty() {
+            self.error(line!(), "Empty scoped identifier", "Empty Scope, probobly internal parser error", &scoped_identifier.token.location);
+            return Err(());
+        }
+        
+        let mut scope_index = 0;
+        let mut identifier = &scoped_identifier.scope[scope_index];
+        
+        if scoped_identifier.scope.len() == 1 {
+            return self.ast_node(&identifier.expression, expected.clone());
+        }
+        let mut has_to_be_last = false;
+        let mut hasnt_been_colon = false;
+        
+        while scope_index < scoped_identifier.scope.len() {
+            identifier = &scoped_identifier.scope[scope_index];
+            if has_to_be_last {
+                self.error(line!(), "Invalid scoped identifier", "Only the last identifier in a scoped identifier can be a non-identifier node", &identifier.expression.token.location);
+                return Err(());
+            }
+            if identifier.scope_type.clone().is_some_and(|x| x != ScopeType::DoubleColon) {
+                hasnt_been_colon = true;
+            } else if hasnt_been_colon {
+                self.error(line!(), "Invalid scoped identifier", "After using `.` or `->` to access a member, all following scopes must also use `.` or `->`", &identifier.expression.token.location);
+                return Err(());
+            }
+
+            if let NodeType::Identifier(v) = identifier.expression.node.as_ref() {
+                if self.transpiler.table.structs.iter().find(|x| x.symbol.id == v.symbol_id).is_some() {
+                    
+                }
+            } else {
+                has_to_be_last = true;
+
+            }
+            scope_index += 1;
+        }
+        
+        Ok(())
+    }
+
+
+    fn get_parameter_holder(&mut self, parameter: &DefinedNodeParameter) -> Result<ParameterHolder, ()> {
+        let symbol = self.get_symbol(&parameter.symbol_id, &parameter.name.location)?;
+
+        let type_holder = self.get_type_value_holder(&parameter.ty)?;
+
+        if let Some(default) = &parameter.default_value {
+            self.ast_node(&default, Some(type_holder.type_holder.clone()))?;
+        }
+
+        let parameter_holder = ParameterHolder {
+            is_const: parameter.is_const,
+            location: parameter.name.location.clone(),
+            is_params: parameter.params,
+            symbol: symbol.clone(),
+            ttype: type_holder,
+            default_value: parameter.default_value.clone(),
+        };
+
+        Ok(parameter_holder)
+    }
+
+    fn function_declaration(&mut self, function_declaration: &FunctionDeclaration, expected: Option<Rc<TypeHolder>>) -> Result<(), ()> {
+        compare_types!(self, &expected, None::<TypeHolder>, &function_declaration.name.location);
+
+        let symbol = self.get_symbol(&function_declaration.symbol_id, &function_declaration.name.location)?;
+        let type_holder = self.get_type_value_holder(&function_declaration.return_type)?;
+
+        let mut parameter_holders = vec![];
+        for parameter in function_declaration.parameters.iter() {
+            parameter_holders.push(self.get_parameter_holder(parameter)?);
+        }
+
+        if let Some(body) = &function_declaration.body {
+            self.scope.increase();
+            
+            for p in parameter_holders.iter() {
+                self.transpiler.table.variables.push(VariableHolder {
+                    access_modifier: vec![],
+                    has_value: true,
+                    location: p.location.clone(),
+                    requires_free: false,
+                    tags: vec![],
+                    symbol: p.symbol.clone(),
+                    ttype: p.ttype.clone(),
+                });
+            }
+
+            for node in body.body.iter() {
+                if let NodeType::ReturnExpression(_) = node.node.as_ref() {
+                    self.ast_node(node, Some(type_holder.type_holder.clone()))?;
+                } else {
+                    self.ast_node(node, None)?;
+                }
+            }
+            self.scope.decrease();
+        }
+
+        let function_holder = FunctionHolder {
+            access_modifier: function_declaration.access_modifier.clone(),
+            has_body: function_declaration.body.is_some(),
+            location: function_declaration.name.location.clone(),
+            tags: function_declaration.tags.clone(),
+            symbol: symbol.clone(),
+            type_parameters: vec![], // TODO
+            ttype: type_holder,
+            parameters: parameter_holders,
+        };
+
+        self.transpiler.table.functions.push(function_holder);
+        Ok(())
     }
 
     fn constant(&mut self, constant: &ConstantNode, expected: Option<Rc<TypeHolder>>) -> Result<(), ()> {
@@ -253,6 +427,34 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
+    fn equivalent_type(&mut self, a: &String, b: &String) -> bool {
+        if a == b {
+            return true;
+        }
+
+        if a == "i64" && matches!(b.as_str(), "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16") {
+            return true; 
+        } else if a == "i32" && matches!(b.as_str(), "i16" | "i8" | "u8" | "u32" | "u16") {
+            return true; 
+        } else if a == "i16" && matches!(b.as_str(), "i8" | "u8" | "u16") {
+            return true; 
+        } else if a == "i8" && matches!(b.as_str(), "u8") {
+            return true; 
+        } else if a == "u64" && matches!(b.as_str(), "u32" | "u16" | "u8") {
+            return true; 
+        } else if a == "u32" && matches!(b.as_str(), "u16" | "u8") {
+            return true; 
+        } else if a == "u16" && matches!(b.as_str(), "u8") {
+            return true; 
+        } else if a == "f64" && matches!(b.as_str(), "f32" | "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16") {
+            return true; 
+        } else if a == "f32" && matches!(b.as_str(), "i64" | "i32" | "i16" | "i8" | "u8" | "u64" | "u32" | "u16") {
+            return true; 
+        }
+
+        false
+    }
+
     fn add_default_types(&mut self) {
         let top_scope = Scope::new();
         let i8_symbol = self.transpiler.get_symbol_by_name(&"i8".to_string(), &top_scope).expect("Could not find symbol with the name `i8` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
@@ -295,16 +497,31 @@ impl<'a> Resolver<'a> {
         self.transpiler.table.types.push(f64_type_holder);
         self.transpiler.table.types.push(bool_type_holder);
         self.transpiler.table.types.push(string_type_holder);
-        self.transpiler.table.types.push(void_type_holder);
+        self.transpiler.table.types.push(void_type_holder.clone());
 
         let test_symbol = self.transpiler.get_symbol_by_name(&"Test".to_string(), &top_scope).expect("Could not find symbol with the name `Test` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
         let inside_symbol = self.transpiler.get_symbol_by_name(&"Inside".to_string(), &top_scope).expect("Could not find symbol with the name `Inside` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let function_symbol = self.transpiler.get_symbol_by_name(&"function".to_string(), &top_scope).expect("Could not find symbol with the name `function` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
 
         let test_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: test_symbol.clone(), parent_id: None });
         let inside_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: inside_symbol.clone(), parent_id: Some(test_type_holder.clone()) });
 
         self.transpiler.table.types.push(test_type_holder.clone());
         self.transpiler.table.types.push(inside_type_holder.clone());
+
+        let function_holder = FunctionHolder {
+            access_modifier: vec![],
+            has_body: true,
+            location: Location::new_empty(),
+            tags: vec![],
+            symbol: function_symbol,
+            type_parameters: vec![],
+            ttype: TypeValueHolder {
+                type_holder: void_type_holder.clone(),
+                type_modifiers: vec![],
+            },
+            parameters: vec![],
+        };
 
         let inside_struct = StructHolder {
             access_modifier: vec![],
@@ -314,7 +531,7 @@ impl<'a> Resolver<'a> {
             symbol: inside_symbol,
             ttype: inside_type_holder,
             inherits: vec![],
-            methods: vec![],
+            methods: vec![function_holder],
             structs: vec![],
             tags: vec![],
             type_parameters: vec![],

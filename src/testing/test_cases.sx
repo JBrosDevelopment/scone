@@ -593,12 +593,12 @@ if a {
     }
 }
 
-use "iostream";
+const stdio = use "iostream";
 
 i32*: number = 0;
-std::cout("Enter a number: ");
-std::cin(&number);
-std::cout("You entered: " + number + std::endl);
+stdio::cout("Enter a number: ");
+stdio::cin(&number);
+stdio::cout("You entered: " + number + stdio::endl);
 
 false.a;
 "hi".b;
@@ -607,10 +607,9 @@ false.a;
 1.e;
 1.0.f;
 
-use "error_handling";
-use "lexer";
-use "ast";
-use "parser";
+const Lexer = use "lexer";
+const AST = use "ast";
+const Parser = use "parser";
 
 
 void: main() {
@@ -618,13 +617,13 @@ void: main() {
     string: code = std::fs::read_to_string(&path).unwrap();
     
     // lexer
-    Token: tokens = lexer::lex(&code, &path);
+    Token: tokens = Lexer::lex(&code, &path);
     
     string: json = serde_json::to_string_pretty(&tokens).unwrap();
     std::fs::write("src/testing/lexer.out.json", json).unwrap();
 
     // parser    
-    ASTNode: ast = parser::parse(tokens, &path, &code);
+    AST::ASTNode: ast = Parser::parse(tokens, &path, &code);
 
     string: fmt_json = serde_json::to_string_pretty(&ast).unwrap();
     std::fs::write("src/testing/parser.out.json", fmt_json).unwrap();
@@ -875,8 +874,7 @@ after;
 print(VERSION);
 
 
-use "serde::Serialize";
-use "crate::{ast::*, lexer::{self, TokenType}, parser}";
+const _ = use "crate::{ast::*, lexer::{self, TokenType}, parser}";
 
 pub struct MacroVariable {
     pub String: name;

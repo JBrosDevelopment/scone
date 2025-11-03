@@ -223,7 +223,7 @@ impl TypeHolder {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TypeValueHolder {
     pub type_holder: Rc<TypeHolder>,
     pub type_modifiers: Vec<TypeModifier>,
@@ -244,7 +244,7 @@ pub struct VariableHolder {
 pub struct ParameterHolder {
     pub symbol: Rc<Symbol>,
     pub ttype: TypeValueHolder,
-    pub default_value: Option<String>,
+    pub default_value: Option<Box<ASTNode>>,
     pub is_params: bool,
     pub is_const: bool,
     pub location: Location,
@@ -329,7 +329,6 @@ pub struct CodegenTable {
     pub functions: Vec<FunctionHolder>,
     pub variables: Vec<VariableHolder>,
     pub modules: Vec<ModuleHolder>,
-    pub scope: Scope,
 }
 
 impl CodegenTable {
@@ -342,7 +341,6 @@ impl CodegenTable {
             functions: vec![],
             variables: vec![],
             modules: vec![],
-            scope: Scope::new(),
         }
     }
 }

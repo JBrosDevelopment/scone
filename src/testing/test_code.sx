@@ -2,8 +2,13 @@
 //#! def false 0
 //#! def NULL 0
 
-Test::Inside: function(i8: a, bool: b) {
-    return b ? a + 1 : a - 1;
+i32: function(i8: a, bool: b = false) {
+    return b ? a : 0;
 }
 
-Test::Inside: A = function(0, true);
+Test::Inside: A = Test::Inside::function();
+//Test::Inside: B = A.that;
+//Test::Inside: B = Test::inside;
+
+
+function(25);
