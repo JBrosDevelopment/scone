@@ -6,7 +6,8 @@ i32: function(i8: a, bool: b = false) {
     return b ? a : 0;
 }
 
-Test::Inside: A = Test::Inside::function();
+//Test::Inside: A = Test::Inside::function();
+i8: B = Test::Inside::variable;
 //Test::Inside: B = A.that;
 //Test::Inside: B = Test::inside;
 

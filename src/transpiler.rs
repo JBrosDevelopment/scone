@@ -173,6 +173,20 @@ pub enum ObjectTypes {
     EnumVariant,
     Identifier,
     GenericType,
+    Module,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub enum ObjectHolder {
+    Function(Rc<FunctionHolder>),
+    Variable(Rc<VariableHolder>),
+    Trait(Rc<TraitHolder>),
+    Struct(Rc<StructHolder>),
+    Enum(Rc<EnumHolder>),
+    EnumVariant(Rc<EnumMemberHolder>),
+    Type(Rc<TypeHolder>),
+    Module(Rc<ModuleHolder>),
+    None
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -266,8 +280,8 @@ pub struct FunctionHolder {
 pub struct TraitHolder {
     pub symbol: Rc<Symbol>,
     pub ttype: Rc<TypeHolder>,
-    pub methods: Vec<FunctionHolder>,
-    pub members: Vec<VariableHolder>,
+    pub methods: Vec<Rc<FunctionHolder>>,
+    pub members: Vec<Rc<VariableHolder>>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
     pub inherits: Vec<Rc<TypeHolder>>,
@@ -278,13 +292,14 @@ pub struct TraitHolder {
 pub struct EnumMemberHolder {
     pub symbol: Rc<Symbol>,
     pub index: Option<u32>,
+    pub parent: Rc<EnumHolder>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct EnumHolder {
     pub symbol: Rc<Symbol>,
     pub ttype: Rc<TypeHolder>,
-    pub members: Vec<EnumMemberHolder>,
+    pub members: Vec<Rc<EnumMemberHolder>>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
     pub location: Location,
@@ -294,10 +309,10 @@ pub struct EnumHolder {
 pub struct StructHolder {
     pub symbol: Rc<Symbol>,
     pub ttype: Rc<TypeHolder>,
-    pub methods: Vec<FunctionHolder>,
-    pub members: Vec<VariableHolder>,
-    pub structs: Vec<StructHolder>,
-    pub enums: Vec<EnumHolder>,
+    pub methods: Vec<Rc<FunctionHolder>>,
+    pub members: Vec<Rc<VariableHolder>>,
+    pub structs: Vec<Rc<StructHolder>>,
+    pub enums: Vec<Rc<EnumHolder>>,
     pub type_parameters: Vec<Rc<TypeHolder>>,
     pub access_modifier: Vec<AccessModifier>,
     pub tags: Vec<Tag>,
@@ -308,11 +323,12 @@ pub struct StructHolder {
 #[derive(Debug, Serialize)]
 pub struct ModuleHolder { 
     pub symbol: Rc<Symbol>,
-    pub methods: Vec<FunctionHolder>,
-    pub members: Vec<VariableHolder>,
-    pub structs: Vec<StructHolder>,
-    pub traits: Vec<TraitHolder>,
-    pub enums: Vec<EnumHolder>,
+    pub methods: Vec<Rc<FunctionHolder>>,
+    pub members: Vec<Rc<VariableHolder>>,
+    pub structs: Vec<Rc<StructHolder>>,
+    pub traits: Vec<Rc<TraitHolder>>,
+    pub enums: Vec<Rc<EnumHolder>>,
+    pub modules: Vec<Rc<ModuleHolder>>,
     pub location: Location,
 }
 
@@ -323,12 +339,12 @@ pub struct ModuleHolder {
 #[derive(Debug, Serialize)]
 pub struct CodegenTable {
     pub types: Vec<Rc<TypeHolder>>,
-    pub enums: Vec<EnumHolder>,
-    pub structs: Vec<StructHolder>,
-    pub traits: Vec<TraitHolder>,
-    pub functions: Vec<FunctionHolder>,
-    pub variables: Vec<VariableHolder>,
-    pub modules: Vec<ModuleHolder>,
+    pub enums: Vec<Rc<EnumHolder>>,
+    pub structs: Vec<Rc<StructHolder>>,
+    pub traits: Vec<Rc<TraitHolder>>,
+    pub functions: Vec<Rc<FunctionHolder>>,
+    pub variables: Vec<Rc<VariableHolder>>,
+    pub modules: Vec<Rc<ModuleHolder>>,
 }
 
 impl CodegenTable {

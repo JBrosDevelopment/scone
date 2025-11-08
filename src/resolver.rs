@@ -2,7 +2,7 @@
 
 #[allow(unused_imports)]
 use crate::{ast::*, macros::*, lexer::*, transpiler::*, error_handling::{ErrorHandling, DEBUGGING, Message}, debug};
-use std::rc::Rc;
+use std::{f32::consts::E, rc::Rc};
 
 pub fn resolver_pass_on_ast(transpiler: &mut Transpiler, error_handling: &mut ErrorHandling) {
     let mut resolver = Resolver::new(transpiler, error_handling);
@@ -166,46 +166,176 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn scoped_identifier(&mut self, scoped_identifier: &ScopedIdentifier, expected: Option<Rc<TypeHolder>>) -> Result<(), ()> {
-        if scoped_identifier.scope.is_empty() {
-            self.error(line!(), "Empty scoped identifier", "Empty Scope, probobly internal parser error", &scoped_identifier.token.location);
+    fn scoped_identifier(&mut self, scoped_identifier_object: &ScopedIdentifier, expected: Option<Rc<TypeHolder>>) -> Result<(), ()> {
+        if scoped_identifier_object.scope.is_empty() {
+            self.error(line!(), "Empty scoped identifier", "Empty Scope, probobly internal parser error", &scoped_identifier_object.token.location);
             return Err(());
         }
         
         let mut scope_index = 0;
-        let mut identifier = &scoped_identifier.scope[scope_index];
+        let mut identifier_expression = &scoped_identifier_object.scope[scope_index];
         
-        if scoped_identifier.scope.len() == 1 {
-            return self.ast_node(&identifier.expression, expected.clone());
+        if scoped_identifier_object.scope.len() == 1 {
+            return self.ast_node(&identifier_expression.expression, expected.clone());
         }
-        let mut has_to_be_last = false;
+
         let mut hasnt_been_colon = false;
+        let mut cant_be_colon = false;
+        let mut current_object = ObjectHolder::None;
+        let mut current_location = scoped_identifier_object.token.location.clone();
         
-        while scope_index < scoped_identifier.scope.len() {
-            identifier = &scoped_identifier.scope[scope_index];
-            if has_to_be_last {
-                self.error(line!(), "Invalid scoped identifier", "Only the last identifier in a scoped identifier can be a non-identifier node", &identifier.expression.token.location);
-                return Err(());
-            }
-            if identifier.scope_type.clone().is_some_and(|x| x != ScopeType::DoubleColon) {
+        while scope_index < scoped_identifier_object.scope.len() {
+            identifier_expression = &scoped_identifier_object.scope[scope_index];
+            if identifier_expression.scope_type.clone().is_some_and(|x| x != ScopeType::DoubleColon) {
                 hasnt_been_colon = true;
             } else if hasnt_been_colon {
-                self.error(line!(), "Invalid scoped identifier", "After using `.` or `->` to access a member, all following scopes must also use `.` or `->`", &identifier.expression.token.location);
+                self.error(line!(), "Invalid scoped identifier", "After using `.` or `->` to access a member, all following scopes must also use `.` or `->`", &identifier_expression.expression.token.location);
                 return Err(());
             }
 
-            if let NodeType::Identifier(v) = identifier.expression.node.as_ref() {
-                if self.transpiler.table.structs.iter().find(|x| x.symbol.id == v.symbol_id).is_some() {
-                    
+            if cant_be_colon && identifier_expression.scope_type.clone().is_some_and(|x| x == ScopeType::DoubleColon) {
+                self.error(line!(), "Invalid scoped identifier", "After scoping to instance, all following scopes must use `.` or `->`", &identifier_expression.expression.token.location);
+                return Err(());
+            }
+
+            if let NodeType::Identifier(identifier) = identifier_expression.expression.node.as_ref() {
+                current_location = identifier.token.location.clone();
+                if identifier_expression.scope_type.as_ref().is_some_and(|x| *x == ScopeType::DoubleColon) || scope_index == 0 {
+                    if let Some(holder) = self.transpiler.table.structs.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                        current_object = ObjectHolder::Struct(holder.clone());
+                    } else if let Some(holder) = self.transpiler.table.enums.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                        current_object = ObjectHolder::Enum(holder.clone());
+                    } else if let Some(holder) = self.transpiler.table.modules.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                        current_object = ObjectHolder::Module(holder.clone());
+                    } else if let Some(holder) = self.transpiler.table.modules.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                        current_object = ObjectHolder::Module(holder.clone());
+                    } else if let Some(holder) = self.transpiler.table.variables.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                        current_object = ObjectHolder::Variable(holder.clone());
+                        cant_be_colon = true;
+                    } else if !matches!(current_object, ObjectHolder::None) {
+                        match &current_object {
+                            ObjectHolder::Struct(s) => {
+                                //debug!(s);
+                                //debug!(identifier);
+                                if let Some(holder) = s.structs.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::Struct(holder.clone());
+                                } else if let Some(holder) = s.enums.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::Enum(holder.clone());
+                                } else if let Some(holder) = s.members.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::Variable(holder.clone());
+                                    cant_be_colon = true;
+                                } else {
+                                    self.error(line!(), "Type not found", format!("Type `{}` not found in struct `{}`", identifier.token.value, s.symbol.name).as_str(), &identifier.token.location);
+                                    return Err(());
+                                }
+                            }
+                            ObjectHolder::Enum(e) => {
+                                if let Some(holder) = e.members.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::EnumVariant(holder.clone());
+                                } else {
+                                    self.error(line!(), "Type not found", format!("Type `{}` not found in enum `{}`", identifier.token.value, e.symbol.name).as_str(), &identifier.token.location);
+                                    return Err(());
+                                }
+                            }
+                            ObjectHolder::Module(m) => {
+                                if let Some(holder) = m.structs.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::Struct(holder.clone());
+                                } else if let Some(holder) = m.enums.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::Enum(holder.clone());
+                                } else if let Some(holder) = m.traits.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::Trait(holder.clone());
+                                } else if let Some(holder) = m.members.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::Variable(holder.clone());
+                                    cant_be_colon = true;
+                                } else if let Some(holder) = m.modules.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::Module(holder.clone());
+                                } else {
+                                    self.error(line!(), "Type not found", format!("Type `{}` not found in module `{}`", identifier.token.value, m.symbol.name).as_str(), &identifier.token.location);
+                                    return Err(());
+                                }
+                            }
+                            ObjectHolder::Trait(t) => {
+                                if let Some(holder) = t.members.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                                    current_object = ObjectHolder::Variable(holder.clone());
+                                    cant_be_colon = true;
+                                } else {
+                                    self.error(line!(), "Scope should end at trait", format!("Type `{}` not found in trait `{}`", identifier.token.value, t.symbol.name).as_str(), &identifier.token.location);
+                                    return Err(());
+                                }
+                            }
+                            _ => {
+                                self.error(line!(), "Can't scope out of non type", format!("Type `{}` not found as type, maybe you meant to scope with `.` as instance", identifier.token.value).as_str(), &identifier.token.location);
+                                return Err(());
+                            }
+                        }
+                    } else {
+                        self.error(line!(), "Type not found", format!("Type `{}` not found", identifier.token.value).as_str(), &identifier.token.location);
+                        return Err(());
+                    }
+                } else { // isn't double colon
+                    if let Some(variable) = self.transpiler.table.variables.iter().find(|x| x.symbol.id == identifier.symbol_id) {
+                        current_object = ObjectHolder::Variable(variable.clone());
+                    } else if !matches!(current_object, ObjectHolder::None) {
+                        match &current_object {
+                            ObjectHolder::Variable(v) => {
+                                current_object = ObjectHolder::Variable(v.clone());
+                            }
+                            _ => {
+                                self.error(line!(), "Can't access member of non instance", format!("Type `{}` is not an instance to access member from", identifier.token.value).as_str(), &identifier.token.location);
+                                return Err(());
+                            }
+                        }
+                    } else {
+                        self.error(line!(), "Variable not found", format!("Variable `{}` not found", identifier.token.value).as_str(), &identifier.token.location);
+                        return Err(());
+                    }
                 }
-            } else {
-                has_to_be_last = true;
+            } else if let NodeType::Indexer(indexer) = identifier_expression.expression.node.as_ref() {
+                cant_be_colon = true;
+                current_location = indexer.object.token.location.clone();
+                todo!()
+            } else if let NodeType::ObjectInstantiation(instantiation) = identifier_expression.expression.node.as_ref() {
+                cant_be_colon = true;
+                current_location = instantiation.object_type.location.clone();
+                todo!()
+                
+            } else if let NodeType::TupleExpression(tuple) = identifier_expression.expression.node.as_ref() {
+                cant_be_colon = true;
+                current_location = tuple.token.location.clone();
+                todo!()
+                
+            } else if let NodeType::FunctionCall(function_call) = identifier_expression.expression.node.as_ref() {
+                cant_be_colon = true;
+                current_location = function_call.name.location.clone();
+                todo!()
 
             }
             scope_index += 1;
         }
-        
-        Ok(())
+
+
+        match current_object { 
+            ObjectHolder::Variable(v) => {
+                compare_types!(self, expected, Some(v.ttype.type_holder.clone()), &current_location);
+                return Ok(());
+            }
+            ObjectHolder::Function(f) => {
+                compare_types!(self, expected, Some(f.ttype.type_holder.clone()), &current_location);
+                return Ok(());
+            }
+            ObjectHolder::EnumVariant(e) => {
+                compare_types!(self, expected, Some(e.parent.ttype.clone()), &current_location);
+                return Ok(());
+            }
+            ObjectHolder::Enum(_) | ObjectHolder::Struct(_) | ObjectHolder::Trait(_) | ObjectHolder::Type(_) => {
+                self.error(line!(), "Expected instance but found type", "Expected instance but found type", &current_location);
+                return Err(());
+            }
+            ObjectHolder::Module(_) | ObjectHolder::None => {
+                self.error(line!(), "Expected instance but found module or nothing", "Expected instance but found module or nothing", &current_location);
+                return Err(());
+            }
+        }
     }
 
 
@@ -245,7 +375,7 @@ impl<'a> Resolver<'a> {
             self.scope.increase();
             
             for p in parameter_holders.iter() {
-                self.transpiler.table.variables.push(VariableHolder {
+                let var_holder = VariableHolder {
                     access_modifier: vec![],
                     has_value: true,
                     location: p.location.clone(),
@@ -253,7 +383,8 @@ impl<'a> Resolver<'a> {
                     tags: vec![],
                     symbol: p.symbol.clone(),
                     ttype: p.ttype.clone(),
-                });
+                };
+                self.transpiler.table.variables.push(Rc::new(var_holder));
             }
 
             for node in body.body.iter() {
@@ -277,7 +408,7 @@ impl<'a> Resolver<'a> {
             parameters: parameter_holders,
         };
 
-        self.transpiler.table.functions.push(function_holder);
+        self.transpiler.table.functions.push(Rc::new(function_holder));
         Ok(())
     }
 
@@ -423,7 +554,7 @@ impl<'a> Resolver<'a> {
             ttype: type_holder,
         };
 
-        self.transpiler.table.variables.push(variable_holder);
+        self.transpiler.table.variables.push(Rc::new(variable_holder));
         Ok(())
     }
 
@@ -485,7 +616,7 @@ impl<'a> Resolver<'a> {
         let string_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: string_symbol, parent_id: None });
         let void_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: void_symbol, parent_id: None });
 
-        self.transpiler.table.types.push(i8_type_holder);
+        self.transpiler.table.types.push(i8_type_holder.clone());
         self.transpiler.table.types.push(i16_type_holder);
         self.transpiler.table.types.push(i32_type_holder);
         self.transpiler.table.types.push(i64_type_holder);
@@ -502,6 +633,7 @@ impl<'a> Resolver<'a> {
         let test_symbol = self.transpiler.get_symbol_by_name(&"Test".to_string(), &top_scope).expect("Could not find symbol with the name `Test` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
         let inside_symbol = self.transpiler.get_symbol_by_name(&"Inside".to_string(), &top_scope).expect("Could not find symbol with the name `Inside` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
         let function_symbol = self.transpiler.get_symbol_by_name(&"function".to_string(), &top_scope).expect("Could not find symbol with the name `function` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
+        let variable_symbol = self.transpiler.get_symbol_by_name(&"variable".to_string(), &top_scope).expect("Could not find symbol with the name `variable` in transpiler's symbols member. Make sure to use `add_default_symbols` in declarer pass to add symbols to tranpiler.");
 
         let test_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: test_symbol.clone(), parent_id: None });
         let inside_type_holder = Rc::new(TypeHolder { is_generic: false, symbol: inside_symbol.clone(), parent_id: Some(test_type_holder.clone()) });
@@ -509,7 +641,7 @@ impl<'a> Resolver<'a> {
         self.transpiler.table.types.push(test_type_holder.clone());
         self.transpiler.table.types.push(inside_type_holder.clone());
 
-        let function_holder = FunctionHolder {
+        let function_holder = Rc::new(FunctionHolder {
             access_modifier: vec![],
             has_body: true,
             location: Location::new_empty(),
@@ -521,12 +653,25 @@ impl<'a> Resolver<'a> {
                 type_modifiers: vec![],
             },
             parameters: vec![],
-        };
+        });
 
-        let inside_struct = StructHolder {
+        let variable_holder = Rc::new(VariableHolder {
+            access_modifier: vec![],
+            has_value: false,
+            location: Location::new_empty(),
+            requires_free: false,
+            tags: vec![],
+            symbol: variable_symbol.clone(),
+            ttype: TypeValueHolder {
+                type_holder: i8_type_holder.clone(),
+                type_modifiers: vec![],
+            },
+        });
+
+        let inside_struct = Rc::new(StructHolder {
             access_modifier: vec![],
             enums: vec![],
-            members: vec![],
+            members: vec![variable_holder],
             location: Location::new_empty(),
             symbol: inside_symbol,
             ttype: inside_type_holder,
@@ -535,9 +680,9 @@ impl<'a> Resolver<'a> {
             structs: vec![],
             tags: vec![],
             type_parameters: vec![],
-        };
+        });
 
-        let test_struct = StructHolder {
+        let test_struct = Rc::new(StructHolder {
             access_modifier: vec![],
             enums: vec![],
             members: vec![],
@@ -549,7 +694,7 @@ impl<'a> Resolver<'a> {
             structs: vec![inside_struct],
             tags: vec![],
             type_parameters: vec![],
-        };
+        });
 
         self.transpiler.table.structs.push(test_struct);
     }

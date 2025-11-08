@@ -265,9 +265,10 @@ impl<'a> Declarer<'a> {
     fn get_id_in_child_of_scope(&mut self, name: &String, parent_scope: &Scope) -> u32 {
         let mut id = u32::MAX;
         for (_key, symbol) in self.transpiler.symbols.iter() {
-            if parent_scope.coords().0 + 1 != symbol.scope.coords().0 || parent_scope.coords().1 != symbol.scope.coords().1 {
+            if !(parent_scope.coords().0 + 1 == symbol.scope.coords().0 && parent_scope.coords().1 == symbol.scope.coords().1) {
                 continue;
             }
+
             if symbol.name == *name {
                 id = symbol.id;
                 self.scope = symbol.scope.clone();
@@ -601,9 +602,11 @@ impl<'a> Declarer<'a> {
         let inside_symbol = Symbol::new("Inside".to_string(), ObjectTypes::Identifier, self.next_id(), test_scope.clone());
         test_scope.increase();
         let function_symbol = Symbol::new("function".to_string(), ObjectTypes::Function, self.next_id(), test_scope.clone());
+        let variable_symbol = Symbol::new("variable".to_string(), ObjectTypes::Variable, self.next_id(), test_scope.clone());
 
         self.push_symbol(test_symbol);
         self.push_symbol(inside_symbol);
         self.push_symbol(function_symbol);
+        self.push_symbol(variable_symbol);
     }
 }
